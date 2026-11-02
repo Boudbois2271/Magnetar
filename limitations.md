@@ -57,7 +57,6 @@ reflected in `akko-protocol.md`.
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked
   from the public repo alone.
 - The DKS decoding relied on a screenshot of the web UI that is not in the repo.
-- No README yet (it should say the project is unofficial and not affiliated with Akko).
 
 ## Legal
 - The vendor web app's terms of use were not found, so it's unknown whether they forbid reverse

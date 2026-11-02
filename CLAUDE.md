@@ -22,6 +22,7 @@ there: capture logs stay local and are gitignored.
 
 | Path | What it is |
 |---|---|
+| `README.md` | Public overview: unofficial disclaimer, install, usage. Keep it in sync when tools change. |
 | `akkoctl/akkoctl` | Python 3 CLI, stdlib only, talks to `/dev/hidraw*` directly. Prints the keyboard state as JSON after every command. Installed as `~/.local/bin/akkoctl`. |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
 | `udev/70-akko-tac75-he.rules` | Grants the logged-in user access to the keyboard's hidraw nodes. Goes in `/etc/udev/rules.d/`. |
