@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+# SPDX-License-Identifier: GPL-3.0-or-later
+"""akkoctl - control profile / colour / brightness on an Akko TAC75 HE (BY Tech 38ee:0016).
+
+Protocol (reverse engineered from demo.hubx.pro WebHID traffic):
+  hidraw interface with vendor usage page 0xFF60, report ID 9, 63-byte frames:
+    [cmd, sub, 0x00, 0x01, 0x00, len, payload..., checksum]
+  checksum: (0x09 + sum(frame[0:62]) + checksum) & 0xFF == 0xFF
+  cmd bit 7 set = read; writes are echoed back by the keyboard.
+    0x10/0x90 sub 0x00  active profile (payload[0] = 0-based index)
+    0x04/0x84 sub 0x01  lighting: effect, colour mode (>=7 = rainbow), R, G, B, brightness (0-20), speed
+    0x82      sub 0x0F  device features (payload[18] = profile count)
+"""
+import argparse
+import fcntl
+import json
+import os
+import select
+import sys
+import time
+
+VID, PID = 0x38EE, 0x0016
+REPORT_ID = 9
+FRAME_LEN = 63
+MAX_BRIGHTNESS = 20
+STATE_FILE = os.path.join(os.environ.get("XDG_STATE_HOME", os.path.expanduser("~/.local/state")), "akkoctl", "state.json")
+
+
+class AkkoError(Exception):
+    pass
+
+
+def find_hidraw():
+    for name in sorted(os.listdir("/sys/class/hidraw")):
+        dev = f"/sys/class/hidraw/{name}/device"
+        try:
+            with open(f"{dev}/uevent") as f:
+                uevent = f.read()
+            with open(f"{dev}/report_descriptor", "rb") as f:
+                rdesc = f.read()
+        except OSError:
+            continue
+        if f"{VID:08X}:{PID:08X}" in uevent and b"\x06\x60\xff" in rdesc:
+            return f"/dev/{name}"
+    raise AkkoError("keyboard not found (is it plugged in?)")
+
+
+def acquire_lock(timeout=5.0):
+    # Overlapping sessions (e.g. one bar widget per monitor polling at startup)
+    # wedge the firmware: it stops sending key reports until the next clean command.
+    path = os.path.join(os.environ.get("XDG_RUNTIME_DIR", "/tmp"), "akkoctl.lock")
+    fd = os.open(path, os.O_RDWR | os.O_CREAT, 0o600)
+    deadline = time.monotonic() + timeout
+    while True:
+        try:
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            return fd
+        except BlockingIOError:
+            if time.monotonic() > deadline:
+                os.close(fd)
+                raise AkkoError("keyboard busy (another akkoctl is running)")
+            time.sleep(0.02)
+
+
+class Keyboard:
+    def __init__(self):
+        self.lock = acquire_lock()
+        try:
+            path = find_hidraw()
+            try:
+                self.fd = os.open(path, os.O_RDWR | os.O_NONBLOCK)
+            except PermissionError:
+                raise AkkoError(f"no permission for {path} (udev rule missing?)")
+        except AkkoError:
+            os.close(self.lock)
+            raise
+
+    def close(self):
+        os.close(self.fd)
+        os.close(self.lock)
+
+    def _drain(self):
+        while select.select([self.fd], [], [], 0)[0]:
+            try:
+                os.read(self.fd, 64)
+            except BlockingIOError:
+                break
+
+    @staticmethod
+    def _frame(cmd, sub, payload=b""):
+        f = bytearray(FRAME_LEN)
+        f[0], f[1], f[3], f[5] = cmd, sub, 0x01, len(payload)
+        f[6:6 + len(payload)] = payload
+        f[62] = (0xFF - (REPORT_ID + sum(f[:62]))) & 0xFF
+        return bytes(f)
+
+    def transact(self, cmd, sub, payload=b"", timeout=1.0, retries=2):
+        frame = self._frame(cmd, sub, payload)
+        for _ in range(retries + 1):
+            self._drain()
+            os.write(self.fd, bytes([REPORT_ID]) + frame)
+            deadline = time.monotonic() + timeout
+            while (left := deadline - time.monotonic()) > 0:
+                if not select.select([self.fd], [], [], left)[0]:
+                    break
+                data = os.read(self.fd, 64)
+                if len(data) == 64 and data[0] == REPORT_ID and data[1] == cmd and data[2] == sub:
+                    return data[1:]
+        raise AkkoError(f"no response to command {cmd:02x} {sub:02x}")
+
+    # --- profile -------------------------------------------------------
+    def profile(self):
+        return self.transact(0x90, 0x00)[6]
+
+    def profile_count(self):
+        try:
+            n = self.transact(0x82, 0x0F)[6 + 18]
+        except AkkoError:
+            n = 0
+        return n or 3
+
+    def set_profile(self, index):
+        self.transact(0x10, 0x00, bytes([index]))
+
+    # --- lighting ------------------------------------------------------
+    def lighting(self):
+        r = self.transact(0x84, 0x01)
+        return bytearray(r[6:13])
+
+    def set_lighting(self, p):
+        self.transact(0x04, 0x01, bytes(p))
+
+
+def load_state():
+    try:
+        with open(STATE_FILE) as f:
+            return json.load(f)
+    except (OSError, ValueError):
+        return {}
+
+
+def save_state(state):
+    os.makedirs(os.path.dirname(STATE_FILE), exist_ok=True)
+    with open(STATE_FILE, "w") as f:
+        json.dump(state, f)
+
+
+def remember_brightness(value):
+    if value > 0:
+        state = load_state()
+        state["lastBrightness"] = value
+        save_state(state)
+
+
+def status(kb):
+    light = kb.lighting()
+    return {
+        "connected": True,
+        "profile": kb.profile() + 1,
+        "profileCount": kb.profile_count(),
+        "effect": light[0],
+        "rainbow": light[1] >= 7,
+        "color": "#{:02x}{:02x}{:02x}".format(*light[2:5]),
+        "brightness": light[5],
+        "maxBrightness": MAX_BRIGHTNESS,
+        "on": light[5] > 0,
+        "lastBrightness": load_state().get("lastBrightness", MAX_BRIGHTNESS),
+    }
+
+
+def parse_color(text):
+    h = text.strip().lstrip("#")
+    if len(h) == 3:
+        h = "".join(c * 2 for c in h)
+    if len(h) != 6:
+        raise AkkoError(f"bad colour '{text}', expected #rrggbb")
+    return bytes.fromhex(h)
+
+
+def run(args):
+    kb = Keyboard()
+    try:
+        if args.cmd == "profile":
+            count = kb.profile_count()
+            if not 1 <= args.n <= count:
+                raise AkkoError(f"profile must be 1..{count}")
+            kb.set_profile(args.n - 1)
+        elif args.cmd == "brightness":
+            p = kb.lighting()
+            p[5] = max(0, min(MAX_BRIGHTNESS, args.n))
+            kb.set_lighting(p)
+            remember_brightness(p[5])
+        elif args.cmd == "color":
+            p = kb.lighting()
+            if args.value.lower() == "rainbow":
+                p[1] = 7
+            else:
+                p[1] = 0
+                p[2:5] = parse_color(args.value)
+            kb.set_lighting(p)
+        elif args.cmd in ("on", "off", "toggle"):
+            p = kb.lighting()
+            turn_on = args.cmd == "on" or (args.cmd == "toggle" and p[5] == 0)
+            if turn_on:
+                if p[5] == 0:
+                    p[5] = max(1, min(MAX_BRIGHTNESS, load_state().get("lastBrightness", MAX_BRIGHTNESS)))
+                    kb.set_lighting(p)
+            elif p[5] > 0:
+                remember_brightness(p[5])
+                p[5] = 0
+                kb.set_lighting(p)
+        print(json.dumps(status(kb)))
+    finally:
+        kb.close()
+
+
+def main():
+    ap = argparse.ArgumentParser(description="Akko TAC75 HE profile/lighting control")
+    sub = ap.add_subparsers(dest="cmd")
+    sub.add_parser("status", help="print state as JSON (default)")
+    sp = sub.add_parser("profile", help="switch onboard profile (1-based)")
+    sp.add_argument("n", type=int)
+    sb = sub.add_parser("brightness", help=f"set brightness 0-{MAX_BRIGHTNESS}")
+    sb.add_argument("n", type=int)
+    sc = sub.add_parser("color", help="set colour #rrggbb, or 'rainbow'")
+    sc.add_argument("value")
+    for name in ("on", "off", "toggle"):
+        sub.add_parser(name, help=f"lighting {name}")
+    args = ap.parse_args()
+    if args.cmd is None:
+        args.cmd = "status"
+    start = time.monotonic()
+    result = "ok"
+    try:
+        run(args)
+    except AkkoError as e:
+        result = f"error: {e}"
+        print(json.dumps({"connected": False, "error": str(e)}))
+        sys.exit(1)
+    finally:
+        log_call(sys.argv[1:] or ["status"], result, time.monotonic() - start)
+
+
+def log_call(argv, result, elapsed):
+    path = os.path.join(os.path.dirname(STATE_FILE), "akkoctl.log")
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        if os.path.exists(path) and os.path.getsize(path) > 256 * 1024:
+            os.replace(path, path + ".1")
+        with open(path, "a") as f:
+            f.write(f"{time.strftime('%H:%M:%S')}.{int(time.time() * 1000) % 1000:03d} pid={os.getpid()} ppid={os.getppid()} "
+                    f"{' '.join(argv)} -> {result} ({elapsed * 1000:.0f} ms)\n")
+    except OSError:
+        pass
+
+
+if __name__ == "__main__":
+    main()

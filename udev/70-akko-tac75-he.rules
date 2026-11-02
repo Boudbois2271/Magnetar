@@ -1,0 +1,2 @@
+# Akko TAC75 HE (BY Tech 38ee:0016) - grant the logged-in seat user access to hidraw for WebHID/config tools
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="38ee", ATTRS{idProduct}=="0016", TAG+="uaccess"

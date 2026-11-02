@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "id": "boudbois.akko",
+  "name": "Akko Keyboard",
+  "version": "1.0.0",
+  "author": "boudbois",
+  "license": "GPL-3.0-or-later",
+  "description": "Switch onboard profiles and set lighting colour and brightness on an Akko TAC75 HE.",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "Panel.qml"
+  },
+  "barWidget": {
+    "displayName": "Akko Keyboard",
+    "description": "Profile picker, lighting colour and brightness for the Akko TAC75 HE (via akkoctl).",
+    "category": "System",
+    "allowMultiple": false,
+    "defaultSection": "right"
+  }
+}
