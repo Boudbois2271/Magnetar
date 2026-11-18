@@ -22,7 +22,8 @@ reflected in `akko-protocol.md`.
 - **Layer 02** of the keymap (`83 02`): probably the UI's "Fn1 Layer" (reads as a copy of base). Unconfirmed by a write.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
-- **Key calibration**: no save command seen; Save and leaving both look like `94 04` alone. The
+- **Key calibration**: Save (confirmed by Ilan) and leaving both send only `94 04`; unknown how
+  the firmware tells them apart. The
   bit-15 flag in `94 02` is a guess ("reached bottom"). Calibration mode stops the keys typing.
 - **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
 - Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).

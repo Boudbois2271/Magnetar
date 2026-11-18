@@ -106,12 +106,12 @@ Source: `akko-capture4.txt` (2026-11-18).
 | `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743). Sent on Start Calibration |
 | `94 00` | SEEN | calibration keep-alive, every 1 s while calibrating. Keys don't type in this mode |
 | `94 02` | DECODED | unsolicited IN while calibrating: 1–2 × `key u16, cur u16, min u16`; cur bit 15 = flag (GUESS: reached bottom / "green"), bits 0–14 = raw sensor; min = lowest value seen |
-| `94 04` | SEEN | leave calibration. Same frame whether or not the full calibration was saved: no separate save command seen (to confirm) |
+| `94 04` | SEEN | leave calibration. A full calibration ended with Save sent only this, same as leaving without Save (Ilan, after `akko-capture4.txt`); the keys typed normally afterwards |
 
 ## Still to capture
 - Actuation Settings: the "continuous RT" toggle (exists, off). Toggle it on/off for F12.
-- Key Calibration: Save vs Cancel (both seem to send only `94 04`); read `94 05` after a saved
-  calibration to see if the table changed.
+- Key Calibration: how Save differs from leaving (both send only `94 04`); compare a `94 05`
+  read before and after a saved calibration.
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
