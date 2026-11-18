@@ -91,8 +91,24 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 | `9a 00/01/02` | GUESS | 56 × `ff` | macros (3 slots?) |
 
 ## Still to capture
-- Parameter Settings, other sub-tabs: Switch Settings, Key Calibration, Parameter Preset, Visual
-  Feedback (continuous RT may be in one of them; `95 00` too).
+- Parameter Settings, other sub-tabs (UI as of 2026-11-18, plan below):
+  - Switch Settings: assign a switch model per key (Ultra Mag Pro+, Star Magnetic, Xingyao, Star
+    Gravity, Luminous); eye icon toggles a view. Likely `95 00` (`key, u8`; 69 = current model?).
+  - Key Calibration: Start Calibration → hold each key at the bottom until green → Save.
+  - Parameter Preset: 5 presets (trigger / RT sensitivity). Hover previews, click applies.
+  - Visual Feedback: Start Monitoring → live Position (hex), Action, AD, Depth (0–4 mm).
+  - Continuous RT is on none of them: look again on Actuation Settings.
+
+### Capture plan: `akko-capture4` (Parameter Settings sub-tabs)
+Hold the akkoctl lock first. Test key F12. Safest first; one mark per action.
+
+| # | Tab | Actions (one mark each) | Restore |
+|---|---|---|---|
+| 1 | Actuation Settings | Open it, Select All, note in a mark what actuation / RT / dead zone show. Look for a continuous RT option | nothing changed |
+| 2 | Visual Feedback | Start Monitoring · press F12 slowly to half · to bottom · release · Stop | read-only |
+| 3 | Switch Settings | Click the eye icon (note what it shows) · assign F12 to another model (note which, and the old one) · assign F12 back | step 3 itself |
+| 4 | Parameter Preset | Hover Preset 1 (expect no traffic) · click Preset 1, note the Actuation tab values | Select All → actuation 0.6 mm, RT / dead zone back to what step 1 noted |
+| 5 | Key Calibration | Start Calibration · hold F12 at the bottom until green · leave the tab **without Save** (note if a Cancel exists) | not saved; if the board misbehaves, run a full calibration and Save |
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).

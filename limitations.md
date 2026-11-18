@@ -7,7 +7,8 @@ reflected in `akko-protocol.md`.
 
 ### Not captured at all
 - **Parameter Settings, other sub-tabs**: Switch Settings, Key Calibration, Parameter Preset,
-  Visual Feedback. Continuous RT not found yet. `95 00` (`key, u8 69`) still unknown.
+  Visual Feedback. Seen in the UI only; capture planned (`akko-capture4` in `akko-protocol.md`).
+  Continuous RT not found on any sub-tab. `95 00` (`key, u8 69`) still unknown (switch model?).
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
 - **Base Functions**: Win Key Lock, Adaptive Calibration, Combo Optimization, polling rate. The
