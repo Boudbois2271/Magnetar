@@ -7,7 +7,7 @@ reflected in `akko-protocol.md`.
 
 ### Partly decoded
 - **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
-  Unknown: the values of the two other loop types, the directory's byte order above 256 B, what a key
+  Unknown: the directory's byte order above 256 B, what a key
   does if its macro index points past the last macro (the app prevents it), and what `9a 00/01/02` is.
 
 ### Not captured at all
@@ -22,7 +22,6 @@ reflected in `akko-protocol.md`.
   capture of one trivial frame (whole board one colour).
 - **DKS stage value for "hold across stages"**: only `0a` (fire once) was captured.
 - **SOCD mode `02`**: probably "first input", never captured.
-- **Layer 02** of the keymap (`83 02`): probably the UI's "Fn1 Layer" (reads as a copy of base). Unconfirmed by a write.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full

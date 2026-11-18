@@ -34,7 +34,8 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
     off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
   - `03 tt nn ii` macro `ii` (0-based index in the macro blob), loop type `tt`, count `nn` (SEEN:
     "Specified Times" = `01`; count 1 → `03 01 01 01`, count 4 → `03 01 04 00`, `akko-capture7b.txt`).
-    Other loop types ("Repeat While Held, Stop on Release", "Repeat until any key is pressed") not captured
+    "Repeat until any key is pressed" = `02`, "Repeat While Held, Stop on Release" = `04`, both with
+    count `00` (SEEN, `akko-capture9.txt` marks 5, 9; both repeated on the board, marks 6, 10)
   - `ff ff ff ff` unbound (Basic Key right-click: the key does nothing, it is **not** a reset to default)
 
 ## Commands
@@ -81,8 +82,8 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 ### Keymap
 | cmd/sub | Status | Meaning |
 |---|---|---|
-| `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Layers 00 and 01 captured (capture8 marks 2–16) |
-| `83 LL` | DECODED | read layer LL (00 Default, 01 Fn, 02 probably Fn1: the UI lists exactly these three layers; 02 reads as a copy of base, as the UI shows). 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
+| `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured |
+| `83 LL` | DECODED | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
 
 ### Advanced keys (arg byte = type)
 | type | Status | Payload |
@@ -163,9 +164,8 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- Keymap: one write on layer 02 (Fn1), to confirm it.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
-- Macros: bind with the two other loop types; a macro > 256 B (to confirm the directory's byte order).
+- Macros: a macro > 256 B (to confirm the directory's byte order).
 - Polling rate 125/250/2000/4000 Hz, to confirm the guessed values (one restart each).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.
