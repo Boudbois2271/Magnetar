@@ -9,7 +9,7 @@ Protocol (reverse engineered from demo.hubx.pro WebHID traffic):
   cmd bit 7 set = read; writes are echoed back by the keyboard.
     0x10/0x90 sub 0x00  active profile (payload[0] = 0-based index)
     0x04/0x84 sub 0x01  lighting: effect, colour mode (>=7 = rainbow), R, G, B, brightness (0-20), speed
-    0x82      sub 0x0F  device features (payload[18] = profile count)
+    0x82      sub 0x0F  device features (payload[3] = profile count)
 """
 import argparse
 import fcntl
@@ -114,10 +114,10 @@ class Keyboard:
 
     def profile_count(self):
         try:
-            n = self.transact(0x82, 0x0F)[6 + 18]
+            n = self.transact(0x82, 0x0F)[6 + 3]
         except AkkoError:
             n = 0
-        return n or 3
+        return n if 1 <= n <= 8 else 3
 
     def set_profile(self, index):
         self.transact(0x10, 0x00, bytes([index]))

@@ -40,8 +40,8 @@ reflected in `akko-protocol.md`.
 - The widget hardcodes `~/.local/bin/akkoctl` and depends on Omarchy's own QML modules
   (`qs.Commons`, `qs.Ui`), so it only runs inside Omarchy's shell.
 - The widget shows the colour picker on profile 1 only.
-- `profile_count()` reads `82 0F` payload[18], which is always 0, so it always falls back to 3. The
-  count is very likely payload[3].
+- `profile_count()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
+  outside 1–8 falls back to 3.
 - Only builds single-packet frames (`pkt_count = 1`, `pkt_index = 0`, `arg = 0`): no multi-packet
   reads/writes, no advanced-key `arg`.
 - `transact()` matches responses on `cmd`/`sub` only, not `arg` or packet index.

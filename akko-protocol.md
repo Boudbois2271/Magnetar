@@ -35,7 +35,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `10 00` / `90 00` | KNOWN | set / read active profile (0-based, payload[0]) |
-| `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = 3 = profile count probably. akkoctl reads payload[18] (=0) and falls back to 3: harmless but wrong offset |
+| `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = profile count (3 in `akko-capture2.txt`, mark "unplugging and replugging"); akkoctl reads it (falls back to 3 outside 1–8). Other bytes unknown |
 | `82 01` | GUESS | `11 00 00 00 00 59` — firmware/hardware version? |
 | `82 02` | GUESS | `08 01` — version 1.08? |
 | `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0e` | GUESS | settings blocks (polling rate, sleep, debounce, Win lock…). Settings tab capture will tell |
