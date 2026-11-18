@@ -70,6 +70,10 @@ New knowledge comes from capturing what the vendor web app sends:
    new file (it stays untracked). Never append to or edit an old capture. Cite captures by
    filename and mark in `akko-protocol.md`, since readers of the public repo won't have them.
 
+When asking for a capture, always hand over ready-to-paste commands: the
+`flock "$XDG_RUNTIME_DIR/akkoctl.lock" sleep infinity` line first, then the full numbered list of
+`akko.mark('…')` calls (one per action, with `___` for what to note), then `akko.save('akko-captureN')`.
+
 Log line format: `t_ms<TAB>DIR<TAB>vid:pid<TAB>id=N<TAB>hex bytes`, where DIR is `OUT`, `IN`,
 `FEAT_SET`, `FEAT_GET`, and `### label` lines are the marks.
 

@@ -99,21 +99,45 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
   - Visual Feedback: Start Monitoring → live Position (hex), Action, AD, Depth (0–4 mm).
   - Continuous RT is on none of them: look again on Actuation Settings.
 
-### Capture plan: `akko-capture4` (Parameter Settings sub-tabs)
-Hold the akkoctl lock first. Test key F12. Safest first; one mark per action.
-
-| # | Tab | Actions (one mark each) | Restore |
-|---|---|---|---|
-| 1 | Actuation Settings | Open it, Select All, note in a mark what actuation / RT / dead zone show. Look for a continuous RT option | nothing changed |
-| 2 | Visual Feedback | Start Monitoring · press F12 slowly to half · to bottom · release · Stop | read-only |
-| 3 | Switch Settings | Click the eye icon (note what it shows) · assign F12 to another model (note which, and the old one) · assign F12 back | step 3 itself |
-| 4 | Parameter Preset | Hover Preset 1 (expect no traffic) · click Preset 1, note the Actuation tab values | Select All → actuation 0.6 mm, RT / dead zone back to what step 1 noted |
-| 5 | Key Calibration | Start Calibration · hold F12 at the bottom until green · leave the tab **without Save** (note if a Cancel exists) | not saved; if the board misbehaves, run a full calibration and Save |
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
 - Macros: record "ab", assign, delete. The UI shows 4096 B of macro storage.
 - Base Functions page (UI as of 2026-11-18): Win Key Lock, Adaptive Calibration, Combo Optimization,
   polling rate 125/250/500/1000/2000/4000/8000 Hz (the device restarts on change). One toggle per mark.
-- Key test / travel view (live data).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.
+
+### Capture plan: `akko-capture4` (Parameter Settings sub-tabs)
+Test key F12, safest first. Lock akkoctl and the widget out first (Ctrl+C after closing the tab):
+
+```sh
+flock "$XDG_RUNTIME_DIR/akkoctl.lock" sleep infinity
+```
+
+Then paste `akko-capture.js` in the configurator's console and run each mark before its action
+(fill the `___`):
+
+```js
+akko.mark('Actuation Settings, Select All, no change: shows actuation ___, RT ___, dead zone ___; continuous RT option: ___')
+akko.mark('Visual Feedback: Start Monitoring')
+akko.mark('F12: press slowly to half travel')
+akko.mark('F12: press to bottom')
+akko.mark('F12: release')
+akko.mark('Visual Feedback: Stop Monitoring')
+akko.mark('Switch Settings: click the eye icon (it shows: ___)')
+akko.mark('Switch Settings: F12 -> Xingyao (old model: ___)')
+akko.mark('Switch Settings: F12 -> back to the old model')
+akko.mark('Parameter Preset: hover Preset 1, no click')
+akko.mark('Parameter Preset: click Preset 1 (Actuation tab then shows for F12: ___)')
+akko.mark('restore: Select All, actuation -> 0.6 mm')
+akko.mark('restore: Select All, RT toggle off')
+akko.mark('restore: Select All, dead zone toggle off')
+akko.mark('Key Calibration: Start Calibration')
+akko.mark('Key Calibration: hold F12 at the bottom until green, then release')
+akko.mark('Key Calibration: leave the tab without Save (Cancel button exists: ___)')
+akko.save('akko-capture4')
+```
+
+If F12 already is Xingyao, pick any other model. Skip a restore mark if mark 1 showed that
+setting differently. Calibration is never saved; if keys misbehave afterwards, run a full
+calibration and Save.
