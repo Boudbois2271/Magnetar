@@ -74,8 +74,9 @@ When asking for a capture, always hand over ready-to-paste commands: the
 `flock "$XDG_RUNTIME_DIR/akkoctl.lock" sleep infinity` line first, then the full numbered list of
 `akko.mark('…')` calls, then `akko.save('akko-captureN')`. Each mark is a plain instruction using the
 buttons' exact labels (check `screenshots/` first; if a page isn't in there, ask what it shows).
-Ask for an observation only when the capture can't show it, as a precise question
-(e.g. "did F12 light up? yes/no: ___").
+Ask for an observation only when the capture can't show it, as a precise question in its **own mark
+right after the action** (marks are pasted before the action, so a mark can't report its own result):
+e.g. `akko.mark('result: did F12 light up? yes/no: ___')`.
 
 Log line format: `t_ms<TAB>DIR<TAB>vid:pid<TAB>id=N<TAB>hex bytes`, where DIR is `OUT`, `IN`,
 `FEAT_SET`, `FEAT_GET`, and `### label` lines are the marks.
