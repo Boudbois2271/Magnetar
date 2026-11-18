@@ -6,9 +6,9 @@ reflected in `akko-protocol.md`.
 ## Protocol gaps
 
 ### Partly decoded
-- **Macros** (`akko-capture7.txt`): blob, actions and binding decoded. Unknown: which bind byte is
-  loop type vs count, the directory's byte order above 256 B, what a key bound to a deleted macro
-  does, and what `9a 00/01/02` is.
+- **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
+  Unknown: the values of the two other loop types, the directory's byte order above 256 B, what a key
+  does if its macro index points past the last macro (the app prevents it), and what `9a 00/01/02` is.
 
 ### Not captured at all
 - **Polling rate** values for 125/250/2000/4000 Hz are guessed; only 500, 1000 and 8000 were captured.

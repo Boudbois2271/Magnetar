@@ -31,9 +31,9 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `08 aa bb 00` lighting control (`08 09 xx` = effect xx, `08 03 ±` brightness, `08 01 ±` speed) GUESS
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d 00 00 00` Fn key
-  - `03 xx yy ii` macro `ii` (0-based index in the macro blob). Bind with Loop Type "Specified Times",
-    count 1 → `03 01 01 ii`; which of xx/yy is loop type vs count is GUESS (other loop types:
-    "Repeat While Held, Stop on Release", "Repeat until any key is pressed")
+  - `03 tt nn ii` macro `ii` (0-based index in the macro blob), loop type `tt`, count `nn` (SEEN:
+    "Specified Times" = `01`; count 1 → `03 01 01 01`, count 4 → `03 01 04 00`, `akko-capture7b.txt`).
+    Other loop types ("Repeat While Held, Stop on Release", "Repeat until any key is pressed") not captured
   - `ff ff ff ff` unbound (Basic Key right-click: the key does nothing, it is **not** a reset to default)
 
 ## Commands
@@ -126,8 +126,9 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
   this action; the last action gets `1`. "Use Standard Delay (50ms)" sets every delay to 50.
   e.g. "ab" = `02 61 62 | 00 00 32 04 | 80 00 32 04 | 00 00 32 05 | 80 00 01 05`;
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
-- Deleting a macro removes it and repacks the blob; indices of later macros shift down (GUESS: a
-  bound key then points to a different macro; the app refuses to bind a key that already has one).
+- Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app
+  refuses to delete a macro that is bound, or to bind a key that already has one (both client-side:
+  no traffic). What the firmware does with a key whose index points past the last macro is unknown.
 - Bind = plain `03 00` keymap write with action `03 …` (above), then `83 00` read of that key.
   Marks "drag the macro ab icon onto the Insert key", "10b", "12", "12b".
 
@@ -164,7 +165,6 @@ session shows the result of the previous one):
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
-- Macros: bind with another loop type and a count of 3 (which byte is which); a macro > 256 B (to
-  confirm the directory's byte order); delete a macro that is still bound (what the key does).
+- Macros: bind with the two other loop types; a macro > 256 B (to confirm the directory's byte order).
 - Polling rate 125/250/2000/4000 Hz, to confirm the guessed values (one restart each).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.
