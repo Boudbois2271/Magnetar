@@ -25,12 +25,13 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `00 00 00 uu` plain key, `uu` = HID usage
   - `00 mm 00 00` modifier key alone (mm: 01 LCtrl 02 LShift 04 LAlt 08 LGui 10 RCtrl 20 RShift 40 RAlt)
   - `00 mm uu 00` shortcut, e.g. `00 01 19 00` = Ctrl+V (SEEN; note usage moves to byte 2)
-  - `01 bb 01 00` mouse button, bb = 01 left (SEEN; others GUESS 02 right 04 middle)
-  - `02 00 hi lo` consumer usage (volume, media, mail, calc…)
+  - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle (SEEN, `akko-capture8.txt` marks 2, 4)
+  - `02 00 hi lo` consumer usage (volume, media, mail, calc…); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6)
   - `07 00 00 nn` system function (Fn+Win = 01 Win lock?, Fn+W = 00 WASD swap?) GUESS
   - `08 aa bb 00` lighting control (`08 09 xx` = effect xx, `08 03 ±` brightness, `08 01 ±` speed) GUESS
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
-  - `0d 00 00 00` Fn key
+  - `0d nn 00 00` layer key: nn 00 = Fn, 01 = Fn1 ("Function Key 1", SEEN capture8 mark 8). Moving a key
+    off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
   - `03 tt nn ii` macro `ii` (0-based index in the macro blob), loop type `tt`, count `nn` (SEEN:
     "Specified Times" = `01`; count 1 → `03 01 01 01`, count 4 → `03 01 04 00`, `akko-capture7b.txt`).
     Other loop types ("Repeat While Held, Stop on Release", "Repeat until any key is pressed") not captured
@@ -80,8 +81,8 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 ### Keymap
 | cmd/sub | Status | Meaning |
 |---|---|---|
-| `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Only layer 00 captured |
-| `83 LL` | DECODED | read layer LL (00 Default, 01 Fn, 02 probably Fn1: the UI lists exactly these three layers; 02 reads as a copy of base). 10 packets × 9 keys, `key u16 + action(4)` |
+| `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Layers 00 and 01 captured (capture8 marks 2–16) |
+| `83 LL` | DECODED | read layer LL (00 Default, 01 Fn, 02 probably Fn1: the UI lists exactly these three layers; 02 reads as a copy of base, as the UI shows). 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
 
 ### Advanced keys (arg byte = type)
 | type | Status | Payload |
@@ -162,7 +163,7 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- Keymap: one key on the Fn layer, a media key, right/middle mouse button.
+- Keymap: one write on layer 02 (Fn1), to confirm it.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
 - Macros: bind with the two other loop types; a macro > 256 B (to confirm the directory's byte order).

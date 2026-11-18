@@ -30,7 +30,6 @@ reflected in `akko-protocol.md`.
   guess ("reached bottom"). Bottom drift between sessions is guessed to be Adaptive Calibration.
   Calibration mode stops the keys typing.
 - **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
-- Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).
 - `84 11` (`01`), `84 13` (`00 b4`), `84 1d`/`84 1e` (`00`), `84 20` (`01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
