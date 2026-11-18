@@ -31,6 +31,10 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `08 aa bb 00` lighting control (`08 09 xx` = effect xx, `08 03 ±` brightness, `08 01 ±` speed) GUESS
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d 00 00 00` Fn key
+  - `03 xx yy ii` macro `ii` (0-based index in the macro blob). Bind with Loop Type "Specified Times",
+    count 1 → `03 01 01 ii`; which of xx/yy is loop type vs count is GUESS (other loop types:
+    "Repeat While Held, Stop on Release", "Repeat until any key is pressed")
+  - `ff ff ff ff` unbound (Basic Key right-click: the key does nothing, it is **not** a reset to default)
 
 ## Commands
 
@@ -103,7 +107,29 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 | `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
 | `16 00` / `96 00` | SEEN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
 | `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Luminous `45` (stock), Xingyao `43`. UI order suggests 41 Ultra Mag Pro+, 42 Star Magnetic, 44 Star Gravity (GUESS). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
-| `9a 00/01/02` | GUESS | 56 × `ff` | macros (3 slots?) |
+| `9a 00/01/02` | GUESS | 56 × `ff` | unknown (not touched by macro edits in `akko-capture7.txt`) |
+
+### Macros (`akko-capture7.txt`)
+All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole on every save or delete.
+
+| cmd/sub | Status | Meaning |
+|---|---|---|
+| `05 00` | SEEN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
+| `85 00` | SEEN | read: arg = byte offset (`00`, `38`, `70`…), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
+
+Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
+- Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
+  protocol; all values < 256 so far). Directory size = 4 × macros, so the first u16 is also the
+  first macro's offset.
+- Macro at `offset`: `name_len u8, name[name_len]` (ASCII; the UI requires ≥ 2 chars), then actions.
+- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release; delay = ms to wait after
+  this action; the last action gets `1`. "Use Standard Delay (50ms)" sets every delay to 50.
+  e.g. "ab" = `02 61 62 | 00 00 32 04 | 80 00 32 04 | 00 00 32 05 | 80 00 01 05`;
+  "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
+- Deleting a macro removes it and repacks the blob; indices of later macros shift down (GUESS: a
+  bound key then points to a different macro; the app refuses to bind a key that already has one).
+- Bind = plain `03 00` keymap write with action `03 …` (above), then `83 00` read of that key.
+  Marks "drag the macro ab icon onto the Insert key", "10b", "12", "12b".
 
 ### Parameter Preset, Visual Feedback, Key Calibration
 Source: `akko-capture4.txt` (2026-11-18).
@@ -138,6 +164,7 @@ session shows the result of the previous one):
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
-- Macros: record "ab", assign, delete. The UI shows 4096 B of macro storage.
+- Macros: bind with another loop type and a count of 3 (which byte is which); a macro > 256 B (to
+  confirm the directory's byte order); delete a macro that is still bound (what the key does).
 - Polling rate 125/250/2000/4000 Hz, to confirm the guessed values (one restart each).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.

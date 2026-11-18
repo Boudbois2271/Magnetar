@@ -5,9 +5,12 @@ reflected in `akko-protocol.md`.
 
 ## Protocol gaps
 
+### Partly decoded
+- **Macros** (`akko-capture7.txt`): blob, actions and binding decoded. Unknown: which bind byte is
+  loop type vs count, the directory's byte order above 256 B, what a key bound to a deleted macro
+  does, and what `9a 00/01/02` is.
+
 ### Not captured at all
-- **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
-  not captured.
 - **Polling rate** values for 125/250/2000/4000 Hz are guessed; only 500, 1000 and 8000 were captured.
 - **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
 - **Adaptive Calibration vs bottom drift**: not tested (would need calibration read-backs with it off).
