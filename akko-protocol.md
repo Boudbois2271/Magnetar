@@ -87,18 +87,31 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 | `13 00` / `93 00` | SEEN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
 | `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
 | `16 00` / `96 00` | SEEN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
-| `95 00` | GUESS | `key, u8 69` | not touched by this tab (Switch Settings / calibration?) |
+| `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Luminous `45` (stock), Xingyao `43`. UI order suggests 41 Ultra Mag Pro+, 42 Star Magnetic, 44 Star Gravity (GUESS). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
 | `9a 00/01/02` | GUESS | 56 × `ff` | macros (3 slots?) |
 
-## Still to capture
-- Parameter Settings, other sub-tabs (UI as of 2026-11-18, plan below):
-  - Switch Settings: assign a switch model per key (Ultra Mag Pro+, Star Magnetic, Xingyao, Star
-    Gravity, Luminous); eye icon toggles a view. Likely `95 00` (`key, u8`; 69 = current model?).
-  - Key Calibration: Start Calibration → hold each key at the bottom until green → Save.
-  - Parameter Preset: 5 presets (trigger / RT sensitivity). Hover previews, click applies.
-  - Visual Feedback: Start Monitoring → live Position (hex), Action, AD, Depth (0–4 mm).
-  - Continuous RT is on none of them: look again on Actuation Settings.
+### Parameter Preset, Visual Feedback, Key Calibration
+Source: `akko-capture4.txt` (2026-11-18).
 
+- **Parameter Preset** is client-side: hovering sends nothing; clicking (after an "overwrite, cannot be
+  undone" dialog) sends plain `13 00` + `19 00` for all 83 keys, then reads `93`/`99` back. Preset 1 =
+  actuation 2.0 mm (`0190`) on most keys, 1.4 mm on `1e 2b 2c 2d`, 1.8 on `37`, 1.6 on `46`; RT off,
+  press = release 0.5 mm (`0064`). Dead zones untouched. Mark "click Preset 1".
+
+| cmd/sub | Status | Meaning |
+|---|---|---|
+| `98 00` | SEEN | Visual Feedback on: sent at start, then every 1 s as keep-alive (echoed) |
+| `98 01` | DECODED | unsolicited IN every 50 ms while on: `key u16, depth u16, ad u16` for the last key moved. depth in 0.005 mm (0 → ~700 = 3.5 mm at bottom). ad bit 15 = pressed (UI "Action"), bits 0–14 = raw sensor, **falls** as the key goes down (F12 ~11300 rest → ~2270 bottom) |
+| `98 02` | SEEN | Visual Feedback off |
+| `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743). Sent on Start Calibration |
+| `94 00` | SEEN | calibration keep-alive, every 1 s while calibrating. Keys don't type in this mode |
+| `94 02` | DECODED | unsolicited IN while calibrating: 1–2 × `key u16, cur u16, min u16`; cur bit 15 = flag (GUESS: reached bottom / "green"), bits 0–14 = raw sensor; min = lowest value seen |
+| `94 04` | SEEN | leave calibration. Same frame whether or not the full calibration was saved: no separate save command seen (to confirm) |
+
+## Still to capture
+- Actuation Settings: the "continuous RT" toggle (exists, off). Toggle it on/off for F12.
+- Key Calibration: Save vs Cancel (both seem to send only `94 04`); read `94 05` after a saved
+  calibration to see if the table changed.
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
@@ -106,38 +119,3 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 - Base Functions page (UI as of 2026-11-18): Win Key Lock, Adaptive Calibration, Combo Optimization,
   polling rate 125/250/500/1000/2000/4000/8000 Hz (the device restarts on change). One toggle per mark.
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.
-
-### Capture plan: `akko-capture4` (Parameter Settings sub-tabs)
-Test key F12, safest first. Lock akkoctl and the widget out first (Ctrl+C after closing the tab):
-
-```sh
-flock "$XDG_RUNTIME_DIR/akkoctl.lock" sleep infinity
-```
-
-Then paste `akko-capture.js` in the configurator's console and run each mark before its action
-(fill the `___`):
-
-```js
-akko.mark('Actuation Settings, Select All, no change: shows actuation ___, RT ___, dead zone ___; continuous RT option: ___')
-akko.mark('Visual Feedback: Start Monitoring')
-akko.mark('F12: press slowly to half travel')
-akko.mark('F12: press to bottom')
-akko.mark('F12: release')
-akko.mark('Visual Feedback: Stop Monitoring')
-akko.mark('Switch Settings: click the eye icon (it shows: ___)')
-akko.mark('Switch Settings: F12 -> Xingyao (old model: ___)')
-akko.mark('Switch Settings: F12 -> back to the old model')
-akko.mark('Parameter Preset: hover Preset 1, no click')
-akko.mark('Parameter Preset: click Preset 1 (Actuation tab then shows for F12: ___)')
-akko.mark('restore: Select All, actuation -> 0.6 mm')
-akko.mark('restore: Select All, RT toggle off')
-akko.mark('restore: Select All, dead zone toggle off')
-akko.mark('Key Calibration: Start Calibration')
-akko.mark('Key Calibration: hold F12 at the bottom until green, then release')
-akko.mark('Key Calibration: leave the tab without Save (Cancel button exists: ___)')
-akko.save('akko-capture4')
-```
-
-If F12 already is Xingyao, pick any other model. Skip a restore mark if mark 1 showed that
-setting differently. Calibration is never saved; if keys misbehave afterwards, run a full
-calibration and Save.

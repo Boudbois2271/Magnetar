@@ -6,15 +6,12 @@ reflected in `akko-protocol.md`.
 ## Protocol gaps
 
 ### Not captured at all
-- **Parameter Settings, other sub-tabs**: Switch Settings, Key Calibration, Parameter Preset,
-  Visual Feedback. Seen in the UI only; capture planned (`akko-capture4` in `akko-protocol.md`).
-  Continuous RT not found on any sub-tab. `95 00` (`key, u8 69`) still unknown (switch model?).
+- **Continuous RT**: the toggle exists on Actuation Settings (off) but was never flipped in a capture.
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
 - **Base Functions**: Win Key Lock, Adaptive Calibration, Combo Optimization, polling rate. The
   `82 xx` read blocks are probably these, but nothing is mapped. `82 01` (`11 00 00 00 00 59`)
   is unknown.
-- **Key test / live travel view**: no capture.
 
 ### Captured but not decoded
 - **Mural (`08 04`)**: 2-packet header (`00 00 53` + 83 LED indices), then 5-packet frames (254 B)
@@ -25,6 +22,9 @@ reflected in `akko-protocol.md`.
 - **Layer 02** of the keymap (`83 02`): probably the UI's "Fn1 Layer" (reads as a copy of base). Unconfirmed by a write.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
+- **Key calibration**: no save command seen; Save and leaving both look like `94 04` alone. The
+  bit-15 flag in `94 02` is a guess ("reached bottom"). Calibration mode stops the keys typing.
+- **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
 - Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).
 - `84 11` (returns `01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
