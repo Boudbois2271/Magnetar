@@ -8,9 +8,10 @@ reflected in `akko-protocol.md`.
 ### Not captured at all
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
-- **Base Functions**: Win Key Lock, Adaptive Calibration, Combo Optimization, polling rate. The
-  `82 xx` read blocks are probably these, but nothing is mapped. `82 01` (`11 00 00 00 00 59`)
-  is unknown.
+- **Polling rate** values for 125/250/2000/4000 Hz are guessed; only 500, 1000 and 8000 were captured.
+- **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
+- **Adaptive Calibration vs bottom drift**: not tested (would need calibration read-backs with it off).
+- `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
 - **Mural (`08 04`)**: 2-packet header (`00 00 53` + 83 LED indices), then 5-packet frames (254 B)
@@ -27,7 +28,7 @@ reflected in `akko-protocol.md`.
   Calibration mode stops the keys typing.
 - **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
 - Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).
-- `84 11` (returns `01`), `85 00`, `87 00`, `a6 ff`: unknown.
+- `84 11` (`01`), `84 13` (`00 b4`), `84 1d`/`84 1e` (`00`), `84 20` (`01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
 - Travel is 0.005 mm per unit, confirmed against the UI by actuation, RT and dead-zone writes

@@ -3,7 +3,8 @@
 Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: profile switch, lighting) and `akko-capture2.txt`
 (2026-11-02: connect, all effects, custom per-key RGB, Mural, Basic Key, Advanced Key), `akko-capture3.txt`
 (2026-11-18: actuation, rapid trigger, dead zones), `akko-capture4.txt` (2026-11-18: Parameter Settings
-sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration).
+sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration), `akko-capture6b.txt` (2026-11-18: Base
+Functions; `akko-capture6.txt` is its first half).
 Status: **KNOWN** = akkoctl uses it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -40,9 +41,23 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 | `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = profile count (3 in `akko-capture2.txt`, mark "unplugging and replugging"); akkoctl reads it (falls back to 3 outside 1–8). Other bytes unknown |
 | `82 01` | GUESS | `11 00 00 00 00 59` — firmware/hardware version? |
 | `82 02` | DECODED | `08 01` — firmware version: the Device Info page shows v1.08 (0x0108) |
-| `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0e` | GUESS | settings blocks (polling rate, sleep, debounce, Win lock…). Settings tab capture will tell |
+| `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0d` `82 0e` | GUESS | unknown blocks. Not the Base Functions settings (those are `84 xx`, below). `82 0d` reads `01` |
 | `85 00` `87 00` `a6 ff` | GUESS | `ff ff`, `ff`, zeros |
 | `a1 00` | DECODED | key → LED index: `key u16, 01, led`. LED = column×8 + row (Esc 0x00, F1 0x08, `` ` `` 0x01) |
+
+### Base Functions (`akko-capture6b.txt`)
+One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the `84` subs below on load.
+
+| cmd/sub | Status | Meaning |
+|---|---|---|
+| `04 15` / `84 15` | SEEN | Win Key Lock: `01` on, `00` off. On = the Win key does nothing (checked on the board). Marks "tick/untick Win Key Lock" |
+| `04 19` / `84 19` | SEEN | Adaptive Calibration: `01` on (stock), `00` off. Marks "untick/tick Adaptive Calibration" |
+| `04 18` / `84 18` | SEEN | Combo Optimization: `01` on (stock), `00` off. Marks "untick/tick Combo Optimization" |
+| `04 17` / `84 17` | SEEN | Polling rate: `00` 1000 Hz (stock), `01` 500 Hz, `04` 8000 Hz. Keyboard restarts, the page re-reads everything. GUESS for the rest: `02` 250, `03` 125, `05` 4000, `06` 2000. Marks "click 500Hz", "click 8000Hz"; the switch back to 1000 Hz sits under the 8000Hz mark (mark was late) |
+| `84 11` | GUESS | `01` |
+| `84 13` | GUESS | 2 bytes, `00 b4` (180) |
+| `84 1d` `84 1e` | GUESS | `00` |
+| `84 20` | GUESS | `01` |
 
 ### Lighting
 | cmd/sub | Status | Meaning |
@@ -50,7 +65,6 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 | `04 01` / `84 01` | KNOWN | `[effect, colour mode, R, G, B, brightness 0–20, speed 0–4]`. Colour mode 07 = random/rainbow, 00 = fixed colour |
 | `04 02` | KNOWN | effect only `[effect]`. Switching effect resets speed to 2 |
 | `06 00` / `86 00` | SEEN | custom per-key colour: list of `key u16, R, G, B` (5 B each, up to 11 per packet). Read = 8 packets |
-| `84 11` | GUESS | `01` |
 | `08 04` | SEEN, not decoded | **Mural**: first a 2-packet header `00 00 53` + 83 LED indices, then 5-packet frames (254 B) streamed repeatedly. Frame encoding unknown (not raw RGB) |
 
 Effects (SEEN): 00 Off · 01 Steady · 02 Breathing · 03 Dream rainbow · 04 Instant trigger (reactive, row) ·
@@ -125,6 +139,5 @@ session shows the result of the previous one):
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
 - Macros: record "ab", assign, delete. The UI shows 4096 B of macro storage.
-- Base Functions page (UI as of 2026-11-18): Win Key Lock, Adaptive Calibration, Combo Optimization,
-  polling rate 125/250/500/1000/2000/4000/8000 Hz (the device restarts on change). One toggle per mark.
+- Polling rate 125/250/2000/4000 Hz, to confirm the guessed values (one restart each).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.
