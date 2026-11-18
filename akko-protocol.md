@@ -4,7 +4,8 @@ Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: pro
 (2026-11-02: connect, all effects, custom per-key RGB, Mural, Basic Key, Advanced Key), `akko-capture3.txt`
 (2026-11-18: actuation, rapid trigger, dead zones), `akko-capture4.txt` (2026-11-18: Parameter Settings
 sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration), `akko-capture6b.txt` (2026-11-18: Base
-Functions; `akko-capture6.txt` is its first half).
+Functions; `akko-capture6.txt` is its first half), later captures up to `akko-capture10.txt` (2026-11-18:
+polling rates, DKS hold, Mural solid colours) are cited by mark.
 Status: **KNOWN** = akkoctl uses it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -59,7 +60,7 @@ One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the
 | `04 15` / `84 15` | SEEN | Win Key Lock: `01` on, `00` off. On = the Win key does nothing (checked on the board). Marks "tick/untick Win Key Lock" |
 | `04 19` / `84 19` | SEEN | Adaptive Calibration: `01` on (stock), `00` off. Marks "untick/tick Adaptive Calibration" |
 | `04 18` / `84 18` | SEEN | Combo Optimization: `01` on (stock), `00` off. Marks "untick/tick Combo Optimization" |
-| `04 17` / `84 17` | SEEN | Polling rate: `00` 1000 Hz (stock), `01` 500 Hz, `04` 8000 Hz. Keyboard restarts, the page re-reads everything. GUESS for the rest: `02` 250, `03` 125, `05` 4000, `06` 2000. Marks "click 500Hz", "click 8000Hz"; the switch back to 1000 Hz sits under the 8000Hz mark (mark was late) |
+| `04 17` / `84 17` | SEEN | Polling rate: `00` 1000 Hz (stock), `01` 500 Hz, `02` 250, `03` 125, `04` 8000, `05` 4000, `06` 2000 Hz. Keyboard restarts, the page re-reads everything. 500/8000: capture6b; 125/250/2000/4000 and back to 1000: `akko-capture10.txt` marks 1–5 |
 | `84 11` | GUESS | `01` |
 | `84 13` | GUESS | 2 bytes, `00 b4` (180) |
 | `84 1d` `84 1e` | GUESS | `00` |
@@ -71,7 +72,9 @@ One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the
 | `04 01` / `84 01` | KNOWN | `[effect, colour mode, R, G, B, brightness 0–20, speed 0–4]`. Colour mode 07 = random/rainbow, 00 = fixed colour |
 | `04 02` | KNOWN | effect only `[effect]`. Switching effect resets speed to 2 |
 | `06 00` / `86 00` | SEEN | custom per-key colour: list of `key u16, R, G, B` (5 B each, up to 11 per packet). Read = 8 packets |
-| `08 04` | SEEN, not decoded | **Mural**: first a 2-packet header `00 00 53` + 83 LED indices, then 5-packet frames (254 B) streamed repeatedly. Frame encoding unknown (not raw RGB) |
+| `08 04` | SEEN | **Mural** frame, streamed about once a second, not echoed. Payload = groups of `colour u16 (RGB565, BE), n, n × LED index`; every LED appears once per frame. pkt_count follows the frame size (a one-colour frame = 1 group, 2 packets; a photo = 57 groups, 5 packets, 254 B). Solid red/green/blue images gave `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, and the board showed that colour (`akko-capture10.txt` Mural marks). Colour Enhancement is applied in the browser before sending |
+
+Mural LED index = `column × 8 + row` (6 rows, columns 0–14, 0x00–0x72, 83 LEDs). Not the key IDs.
 
 Effects (SEEN): 00 Off · 01 Steady · 02 Breathing · 03 Dream rainbow · 04 Instant trigger (reactive, row) ·
 05 Walking in the rain · 06 Rainbow wheel · 07 Ripple (reactive, all) · 08 Starry night ·
@@ -91,8 +94,8 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | 00 | SEEN | clear: `key` (sent before every save, and per key on restore) |
 | 01 Toggle | SEEN | `key, action(4), hold ms u16` |
 | 02 Mod-Tap | SEEN | `key, hold action(4), tap action(4), hold ms u16` |
-| 03 DKS | SEEN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage, `0a` = fire once there (screenshot confirms W/A/C/U). Continuous "hold across stages" value not captured |
-| 04 SOCD | SEEN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2 (02 maybe First input?) |
+| 03 DKS | SEEN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). Bit meanings fit all three cases but each bit was not isolated |
+| 04 SOCD | SEEN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2. The UI offers only these four (screenshot 2026-11-18-29); `02` is unused |
 | 05 Multipoint | SEEN | `key, count, count × [action(4), depth u16]` |
 | 06 Release (END) | SEEN | `key, action(4)` fired on release |
 
@@ -164,8 +167,5 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
-- SOCD: any mode not tried (first input?).
+- DKS: a hold that starts after stage 1 (e.g. bottom → release from bottom), to isolate the `02`/`08` bits.
 - Macros: a macro > 256 B (to confirm the directory's byte order).
-- Polling rate 125/250/2000/4000 Hz, to confirm the guessed values (one restart each).
-- Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.

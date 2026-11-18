@@ -11,17 +11,14 @@ reflected in `akko-protocol.md`.
   does if its macro index points past the last macro (the app prevents it), and what `9a 00/01/02` is.
 
 ### Not captured at all
-- **Polling rate** values for 125/250/2000/4000 Hz are guessed; only 500, 1000 and 8000 were captured.
 - **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
 - **Adaptive Calibration vs bottom drift**: not tested (would need calibration read-backs with it off).
 - `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
-- **Mural (`08 04`)**: 2-packet header (`00 00 53` + 83 LED indices), then 5-packet frames (254 B)
-  re-sent about once per second, **not echoed** by the firmware. Encoding is not raw RGB. Needs a
-  capture of one trivial frame (whole board one colour).
-- **DKS stage value for "hold across stages"**: only `0a` (fire once) was captured.
-- **SOCD mode `02`**: probably "first input", never captured.
+- **Mural**: frame format decoded, but the LED index → key mapping is only inferred from the grid, and the
+  firmware's behaviour when frames stop (the 3 s fallback) was not observed in the log.
+- **DKS stage bits** (`02` down, `04` hold, `08` up) fit the three captured cases but weren't each isolated.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
@@ -62,7 +59,7 @@ reflected in `akko-protocol.md`.
 - The full desktop app hasn't been started; language, UI toolkit and packaging are undecided.
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked
   from the public repo alone.
-- The DKS decoding relied on a screenshot of the web UI that is not in the repo.
+- The DKS and advanced-key decoding relied on screenshots of the web UI that are not in the repo.
 
 ## Legal
 - The vendor web app's terms of use were not found, so it's unknown whether they forbid reverse
