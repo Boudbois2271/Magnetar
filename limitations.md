@@ -6,7 +6,6 @@ reflected in `akko-protocol.md`.
 ## Protocol gaps
 
 ### Not captured at all
-- **Continuous RT**: the toggle exists on Actuation Settings (off) but was never flipped in a capture.
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
 - **Base Functions**: Win Key Lock, Adaptive Calibration, Combo Optimization, polling rate. The
@@ -22,9 +21,10 @@ reflected in `akko-protocol.md`.
 - **Layer 02** of the keymap (`83 02`): probably the UI's "Fn1 Layer" (reads as a copy of base). Unconfirmed by a write.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
-- **Key calibration**: Save (confirmed by Ilan) and leaving both send only `94 04`; unknown how
-  the firmware tells them apart. The
-  bit-15 flag in `94 02` is a guess ("reached bottom"). Calibration mode stops the keys typing.
+- **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
+  press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
+  guess ("reached bottom"). Bottom drift between sessions is guessed to be Adaptive Calibration.
+  Calibration mode stops the keys typing.
 - **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
 - Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).
 - `84 11` (returns `01`), `85 00`, `87 00`, `a6 ff`: unknown.

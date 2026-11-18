@@ -2,7 +2,8 @@
 
 Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: profile switch, lighting) and `akko-capture2.txt`
 (2026-11-02: connect, all effects, custom per-key RGB, Mural, Basic Key, Advanced Key), `akko-capture3.txt`
-(2026-11-18: actuation, rapid trigger, dead zones).
+(2026-11-18: actuation, rapid trigger, dead zones), `akko-capture4.txt` (2026-11-18: Parameter Settings
+sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration).
 Status: **KNOWN** = akkoctl uses it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -103,15 +104,23 @@ Source: `akko-capture4.txt` (2026-11-18).
 | `98 00` | SEEN | Visual Feedback on: sent at start, then every 1 s as keep-alive (echoed) |
 | `98 01` | DECODED | unsolicited IN every 50 ms while on: `key u16, depth u16, ad u16` for the last key moved. depth in 0.005 mm (0 → ~700 = 3.5 mm at bottom). ad bit 15 = pressed (UI "Action"), bits 0–14 = raw sensor, **falls** as the key goes down (F12 ~11300 rest → ~2270 bottom) |
 | `98 02` | SEEN | Visual Feedback off |
-| `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743). Sent on Start Calibration |
+| `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743) = the **stored** calibration. Sent on Start Calibration |
 | `94 00` | SEEN | calibration keep-alive, every 1 s while calibrating. Keys don't type in this mode |
 | `94 02` | DECODED | unsolicited IN while calibrating: 1–2 × `key u16, cur u16, min u16`; cur bit 15 = flag (GUESS: reached bottom / "green"), bits 0–14 = raw sensor; min = lowest value seen |
-| `94 04` | SEEN | leave calibration. A full calibration ended with Save sent only this, same as leaving without Save (Ilan, after `akko-capture4.txt`); the keys typed normally afterwards |
+| `94 04` | SEEN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below |
+
+Calibration semantics, from `akko-capture5.txt` (each Start Calibration reads all 83 keys, so each
+session shows the result of the previous one):
+
+- Finish (`94 04`) stores, **for each key moved during the session**, the lowest raw value it reached
+  as its new bottom. Keys not touched keep their bottom (rest drifts by ±3, i.e. re-measured or noise).
+  Mark "calibrate every key…": all 83 keys changed. Opening then finishing with no key moved: no change.
+- A key pressed only halfway gets a **wrong bottom**: F12 went 2225 → 2307 → 2326 → 4272 over three
+  short sessions where it was pressed lightly (marks "press only F12 lightly…"). Nothing guards against it.
+- Between two sessions with no calibration in between (marks 1 → 2), 24 keys' bottoms moved by up to
+  +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- Actuation Settings: the "continuous RT" toggle (exists, off). Toggle it on/off for F12.
-- Key Calibration: how Save differs from leaving (both send only `94 04`); compare a `94 05`
-  read before and after a saved calibration.
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
