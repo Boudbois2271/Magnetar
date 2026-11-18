@@ -38,7 +38,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 | `10 00` / `90 00` | KNOWN | set / read active profile (0-based, payload[0]) |
 | `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = profile count (3 in `akko-capture2.txt`, mark "unplugging and replugging"); akkoctl reads it (falls back to 3 outside 1–8). Other bytes unknown |
 | `82 01` | GUESS | `11 00 00 00 00 59` — firmware/hardware version? |
-| `82 02` | GUESS | `08 01` — version 1.08? |
+| `82 02` | DECODED | `08 01` — firmware version: the Device Info page shows v1.08 (0x0108) |
 | `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0e` | GUESS | settings blocks (polling rate, sleep, debounce, Win lock…). Settings tab capture will tell |
 | `85 00` `87 00` `a6 ff` | GUESS | `ff ff`, `ff`, zeros |
 | `a1 00` | DECODED | key → LED index: `key u16, 01, led`. LED = column×8 + row (Esc 0x00, F1 0x08, `` ` `` 0x01) |
@@ -62,7 +62,7 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Only layer 00 captured |
-| `83 LL` | DECODED | read layer LL (00 base, 01 Fn, 02 = copy of base: Mac or Fn2?). 10 packets × 9 keys, `key u16 + action(4)` |
+| `83 LL` | DECODED | read layer LL (00 Default, 01 Fn, 02 probably Fn1: the UI lists exactly these three layers; 02 reads as a copy of base). 10 packets × 9 keys, `key u16 + action(4)` |
 
 ### Advanced keys (arg byte = type)
 | type | Status | Payload |
@@ -96,8 +96,8 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).
-- Macros: record "ab", assign, delete.
-- Settings: each polling rate, sleep, Win lock, WASD swap, debounce, anything else.
-- Device / about page (firmware version).
+- Macros: record "ab", assign, delete. The UI shows 4096 B of macro storage.
+- Base Functions page (UI as of 2026-11-18): Win Key Lock, Adaptive Calibration, Combo Optimization,
+  polling rate 125/250/500/1000/2000/4000/8000 Hz (the device restarts on change). One toggle per mark.
 - Key test / travel view (live data).
 - Mural: what it does on screen, and one simple frame (whole board one colour) to crack the encoding.

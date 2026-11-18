@@ -2,5 +2,7 @@ CLAUDE.local.md
 
 # Raw capture logs stay local; only the decoded results are published
 akko-capture*.txt
+# Screenshots of the vendor app: reference only, not ours to publish
+screenshots/
 
 __pycache__/

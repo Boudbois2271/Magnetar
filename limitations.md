@@ -10,10 +10,9 @@ reflected in `akko-protocol.md`.
   Visual Feedback. Continuous RT not found yet. `95 00` (`key, u8 69`) still unknown.
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
-- **Settings**: polling rate, sleep, debounce, Win lock, WASD swap. The `82 xx` read blocks are
-  probably these, but nothing is mapped.
-- **Device/about page**: firmware version. `82 01` (`11 00 00 00 00 59`) and `82 02` (`08 01`) are
-  guesses.
+- **Base Functions**: Win Key Lock, Adaptive Calibration, Combo Optimization, polling rate. The
+  `82 xx` read blocks are probably these, but nothing is mapped. `82 01` (`11 00 00 00 00 59`)
+  is unknown.
 - **Key test / live travel view**: no capture.
 
 ### Captured but not decoded
@@ -22,7 +21,7 @@ reflected in `akko-protocol.md`.
   capture of one trivial frame (whole board one colour).
 - **DKS stage value for "hold across stages"**: only `0a` (fire once) was captured.
 - **SOCD mode `02`**: probably "first input", never captured.
-- **Layer 02** of the keymap (`83 02`): it reads as a copy of the base layer. Mac layer or Fn2?
+- **Layer 02** of the keymap (`83 02`): probably the UI's "Fn1 Layer" (reads as a copy of base). Unconfirmed by a write.
 - **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
   never captured as a write.
 - Mouse buttons other than left (`01 bb 01 00`, bb = 02/04 guessed).

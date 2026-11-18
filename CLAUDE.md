@@ -29,6 +29,7 @@ there: capture logs stay local and are gitignored.
 | `akko-protocol.md` | **Source of truth** for everything decoded. Update it whenever a capture teaches us something. |
 | `akko-capture.js` | WebHID logger pasted into the browser DevTools console on the vendor configurator. Read-only: it wraps `sendReport`/`sendFeatureReport`/`receiveFeatureReport` and `inputreport` events, then calls the originals unchanged. |
 | `akko-capture*.txt` | Raw capture logs, one per session. **Gitignored, local only.** Immutable once written. |
+| `screenshots/` | Screenshots of the vendor app's pages, named `date-NN-page.png`. **Gitignored** (vendor UI). |
 | `limitations.md` | Known gaps, unsolved questions, half-finished topics. Read it before starting work, update it before finishing. |
 | `LICENSE` | GPL-3.0. Every source file carries `SPDX-License-Identifier: GPL-3.0-or-later`. |
 | `CLAUDE.local.md` | Private, gitignored session state and handoff notes (may not exist on your machine). |
