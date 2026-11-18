@@ -1,7 +1,8 @@
 # Akko TAC75 HE (38ee:0016) — protocol recap
 
 Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: profile switch, lighting) and `akko-capture2.txt`
-(2026-11-02: connect, all effects, custom per-key RGB, Mural, Basic Key, Advanced Key).
+(2026-11-02: connect, all effects, custom per-key RGB, Mural, Basic Key, Advanced Key), `akko-capture3.txt`
+(2026-11-18: actuation, rapid trigger, dead zones).
 Status: **KNOWN** = akkoctl uses it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -15,7 +16,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 - One session at a time or the firmware stops sending keystrokes (akkoctl flock).
 
 ## Units
-- Key IDs: u16 BE, 82 keys, 0x01..0x67 with gaps (layout below).
+- Key IDs: u16 BE, 83 keys (Select All in `akko-capture3.txt`), 0x01..0x67 with gaps (layout below).
 - Travel: **0.005 mm per unit** (SEEN: 127 = 0.635 mm, 233 = 1.165, 639 = 3.195; DKS 227 = 1.14 shown).
 - Time: ms, u16 BE (322, 965 SEEN).
 - Action (4 bytes), same in keymap and advanced keys:
@@ -77,18 +78,21 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 Read: `92 00` with `key` → echoes the type in arg byte and the same payload (all-zero = none).
 The first `92 00` read (no key, 4 packets, 216 B) is the physical layout: column-major, 6 rows × 18 cols, 0 = no key.
 
-### Per-key travel tables (read-only so far)
-| cmd | Status | Per key | Probably |
+### Per-key travel (Parameter Settings → Actuation Settings)
+Source: `akko-capture3.txt` (2026-11-18). Test key F12 = `0d`. Writes are echoed, then the web app
+reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 0.
+
+| cmd/sub | Status | Per key | Notes |
 |---|---|---|---|
-| `93 00` | GUESS | `key, u16 200, u8 0` | actuation 200 × 0.005 = **1.00 mm** (or 2.00 mm if 0.01 mm units) |
-| `96 00` | GUESS | `key, u16 26, u16 25, u16 0` | Rapid Trigger press/release 0.13/0.125 mm? |
-| `95 00` | GUESS | `key, u8 69` | dead zone / switch type? |
-| `99 00` | GUESS | `key, 6 × 00` | ? |
+| `13 00` / `93 00` | SEEN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
+| `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
+| `16 00` / `96 00` | SEEN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
+| `95 00` | GUESS | `key, u8 69` | not touched by this tab (Switch Settings / calibration?) |
 | `9a 00/01/02` | GUESS | 56 × `ff` | macros (3 slots?) |
 
 ## Still to capture
-- **Performance tab**: global actuation, single-key actuation, RT on/off, RT press and release
-  separately, continuous RT, top/bottom dead zones → confirms 93/95/96/99 and their write commands.
+- Parameter Settings, other sub-tabs: Switch Settings, Key Calibration, Parameter Preset, Visual
+  Feedback (continuous RT may be in one of them; `95 00` too).
 - Keymap: one key on the Fn layer, a media key, right/middle mouse button.
 - DKS: one binding held across two stages (the drag), to get the non-`0a` stage value.
 - SOCD: any mode not tried (first input?).

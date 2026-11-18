@@ -6,9 +6,8 @@ reflected in `akko-protocol.md`.
 ## Protocol gaps
 
 ### Not captured at all
-- **Performance tab**: global/single-key actuation, rapid trigger (on/off, press, release,
-  continuous), top/bottom dead zones. Only the read tables `93 00`, `95 00`, `96 00`, `99 00` are
-  known, and their meaning is guessed. No write command known.
+- **Parameter Settings, other sub-tabs**: Switch Settings, Key Calibration, Parameter Preset,
+  Visual Feedback. Continuous RT not found yet. `95 00` (`key, u8 69`) still unknown.
 - **Macros**: `9a 00/01/02` read back 56 × `ff` (empty). Recording, assigning and deleting are
   not captured.
 - **Settings**: polling rate, sleep, debounce, Win lock, WASD swap. The `82 xx` read blocks are
@@ -30,8 +29,12 @@ reflected in `akko-protocol.md`.
 - `84 11` (returns `01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
-- Travel is 0.005 mm per unit, consistent across three multipoint values and one DKS value. The
-  `93 00` default of 200 → 1.00 mm is consistent with that, but unconfirmed against the UI.
+- Travel is 0.005 mm per unit, confirmed against the UI by actuation, RT and dead-zone writes
+  (`akko-capture3.txt`).
+- The UI showed 0.6 mm on every key, but `akko-capture2.txt` read actuation 200 (1.00 mm). No `93 00`
+  read happened before the first write in `akko-capture3.txt`, so the true starting value is unknown.
+- Actuation/RT/dead-zone writes are SEEN only: akkoctl doesn't send them yet. Trailing `00` byte in
+  `13`/`19` entries: meaning unknown.
 
 ## Existing tooling (`akkoctl`, widget)
 
