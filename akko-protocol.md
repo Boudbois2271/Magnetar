@@ -169,3 +169,14 @@ session shows the result of the previous one):
 ## Still to capture
 - DKS: a hold that starts after stage 1 (e.g. bottom → release from bottom), to isolate the `02`/`08` bits.
 - Macros: a macro > 256 B (to confirm the directory's byte order).
+- Profile Management: rename, export, and applying an inactive profile (reboots the board, overwrites
+  an onboard profile). Never captured.
+- Device Info: Factory Reset. Never captured.
+- Basic Key: the layer Reset button, a System & Shortcuts (`07`) and a Lighting & Special Keys (`08`)
+  action, a Key Combination with 2 modifiers + 2 keys.
+- Switch Settings: models `41`, `42`, `44` (only `43`, `45` seen).
+- Actuation Settings: the "continuous RT" option (noted as off in `akko-capture4.txt` mark 1, never toggled).
+- RGB: the Main Light selector (other zones?).
+- Mural: what is sent when the stream stops (page closed), and one built-in effect.
+- No UI found yet for `82 xx`, `84 11/13/1d/1e/20`, `85 00`, `87 00`, `9a`, `a6 ff`: maybe on-board Fn
+  shortcuts. Diff read dumps before/after Fn combos (reads only).
