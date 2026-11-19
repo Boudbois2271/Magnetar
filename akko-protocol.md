@@ -24,12 +24,12 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 - Time: ms, u16 BE (322, 965 SEEN).
 - Action (4 bytes), same in keymap and advanced keys:
   - `00 00 00 uu` plain key, `uu` = HID usage
-  - `00 mm 00 00` modifier key alone (mm: 01 LCtrl 02 LShift 04 LAlt 08 LGui 10 RCtrl 20 RShift 40 RAlt)
-  - `00 mm uu 00` shortcut, e.g. `00 01 19 00` = Ctrl+V (SEEN; note usage moves to byte 2)
+  - `00 mm 00 00` modifier key alone (mm: 01 LCtrl 02 LShift 04 LAlt 08 LGui 10 RCtrl 20 RShift 40 RAlt 80 RGui; "Right Windows" = `00 80 00 00`, `akko-capture11.txt` mark 12)
+  - `00 mm uu 00` shortcut, e.g. `00 01 19 00` = Ctrl+V (SEEN; note usage moves to byte 2). Two keys: Ctrl+Shift, First Key A, second key B = `00 03 05 04` (SEEN, `akko-capture11.txt` mark 16: the second key comes first)
   - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle (SEEN, `akko-capture8.txt` marks 2, 4)
   - `02 00 hi lo` consumer usage (volume, media, mail, calc…); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6)
   - `07 00 00 nn` system function (Fn+Win = 01 Win lock?, Fn+W = 00 WASD swap?) GUESS
-  - `08 aa bb 00` lighting control (`08 09 xx` = effect xx, `08 03 ±` brightness, `08 01 ±` speed) GUESS
+  - `08 aa bb 00` lighting control. "Main Lightning Brightness Cycle" = `08 03 00 00` (SEEN, `akko-capture11.txt` mark 14: steps 0→5→10→15→20). Others (`08 09 xx` effect, `08 01` speed) GUESS
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d nn 00 00` layer key: nn 00 = Fn, 01 = Fn1 ("Function Key 1", SEEN capture8 mark 8). Moving a key
     off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
@@ -46,6 +46,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 |---|---|---|
 | `10 00` / `90 00` | KNOWN | set / read active profile (0-based, payload[0]) |
 | `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = profile count (3 in `akko-capture2.txt`, mark "unplugging and replugging"); akkoctl reads it (falls back to 3 outside 1–8). Other bytes unknown |
+| `1a PP` / `9a PP` | SEEN | profile PP name (PP 0-based): write `len, ASCII name`; read = 56 B `len, name`, rest `ff` (stock names are all `ff`, the UI then shows "Onboard Profile N"). A shorter name only overwrites the start, `len` bounds it. Profile Management pencil, `akko-capture11.txt` (marks 1–3 lost, frames before mark 4) |
 | `82 01` | GUESS | `11 00 00 00 00 59` — firmware/hardware version? |
 | `82 02` | DECODED | `08 01` — firmware version: the Device Info page shows v1.08 (0x0108) |
 | `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0d` `82 0e` | GUESS | unknown blocks. Not the Base Functions settings (those are `84 xx`, below). `82 0d` reads `01` |
@@ -71,10 +72,15 @@ One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the
 |---|---|---|
 | `04 01` / `84 01` | KNOWN | `[effect, colour mode, R, G, B, brightness 0–20, speed 0–4]`. Colour mode 07 = random/rainbow, 00 = fixed colour |
 | `04 02` | KNOWN | effect only `[effect]`. Switching effect resets speed to 2 |
+| `fe 0b` | SEEN | unsolicited IN `fe 0b 02 bb` after an on-board brightness change: bb = new brightness (`00 05 0a 0f 14` while cycling). `akko-capture11.txt` mark 14 |
 | `06 00` / `86 00` | SEEN | custom per-key colour: list of `key u16, R, G, B` (5 B each, up to 11 per packet). Read = 8 packets |
-| `08 04` | SEEN | **Mural** frame, streamed about once a second, not echoed. Payload = groups of `colour u16 (RGB565, BE), n, n × LED index`; every LED appears once per frame. pkt_count follows the frame size (a one-colour frame = 1 group, 2 packets; a photo = 57 groups, 5 packets, 254 B). Solid red/green/blue images gave `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, and the board showed that colour (`akko-capture10.txt` Mural marks). Colour Enhancement is applied in the browser before sending |
+| `08 04` | SEEN | **Mural** frame, streamed about once a second, not echoed. Payload = groups of `colour u16 (RGB565, BE), n, n × LED index`; every LED appears once per frame. pkt_count follows the frame size (a one-colour frame = 1 group, 2 packets; a photo = 57 groups, 5 packets, 254 B). Solid red/green/blue images gave `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, and the board showed that colour (`akko-capture10.txt` Mural marks). Colour Enhancement is applied in the browser before sending. Built-in effects (Rainbow) stream the same frames. There is no stop command: the app just stops sending and the board returns to its stored effect (`akko-capture11.txt` marks 8–11) |
+
+Profile Management's second icon ("back up to inactive profiles") only reads (`84`, `85`, `92`, `93`, `95`, `96`, `99`); the backup lives in the browser (`akko-capture11.txt` mark 4).
 
 Mural LED index = `column × 8 + row` (6 rows, columns 0–14, 0x00–0x72, 83 LEDs). Not the key IDs.
+
+Each effect keeps its own colour mode, colour and speed: `04 02 02` (Breathing) read back `07 ff 00 00 14 00`, then `04 02 01` (Steady) read back `00 00 ff 00 14 02` (`akko-capture11.txt` mark 6). So `04 02` doesn't reset speed, it loads that effect's stored values.
 
 Effects (SEEN): 00 Off · 01 Steady · 02 Breathing · 03 Dream rainbow · 04 Instant trigger (reactive, row) ·
 05 Walking in the rain · 06 Rainbow wheel · 07 Ripple (reactive, all) · 08 Starry night ·
@@ -86,6 +92,7 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured |
+| `11 00` | SEEN | Basic Key "Reset" on Default Layer: payload `01` (meaning GUESS: layer bitmask or layer+1), echoed, then the app re-reads the layer. Insert came back to default (`akko-capture11.txt` marks 17–18) |
 | `83 LL` | DECODED | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
 
 ### Advanced keys (arg byte = type)
@@ -94,7 +101,7 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | 00 | SEEN | clear: `key` (sent before every save, and per key on restore) |
 | 01 Toggle | SEEN | `key, action(4), hold ms u16` |
 | 02 Mod-Tap | SEEN | `key, hold action(4), tap action(4), hold ms u16` |
-| 03 DKS | SEEN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). Bit meanings fit all three cases but each bit was not isolated |
+| 03 DKS | SEEN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). In `akko-capture11.txt` marks 29–31: B held bottom → release from bottom = stages `00 0e 00 00`, C fire-once at full release = `00 00 00 0a`; the board did exactly that. Depths there: `00c8 0258 0258 00c8` |
 | 04 SOCD | SEEN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2. The UI offers only these four (screenshot 2026-11-18-29); `02` is unused |
 | 05 Multipoint | SEEN | `key, count, count × [action(4), depth u16]` |
 | 06 Release (END) | SEEN | `key, action(4)` fired on release |
@@ -109,10 +116,9 @@ reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 
 | cmd/sub | Status | Per key | Notes |
 |---|---|---|---|
 | `13 00` / `93 00` | SEEN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
-| `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
+| `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
 | `16 00` / `96 00` | SEEN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
-| `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Luminous `45` (stock), Xingyao `43`. UI order suggests 41 Ultra Mag Pro+, 42 Star Magnetic, 44 Star Gravity (GUESS). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
-| `9a 00/01/02` | GUESS | 56 × `ff` | unknown (not touched by macro edits in `akko-capture7.txt`) |
+| `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Ultra Mag Pro+ `1f`, Star Magnetic `27`, Xingyao `43`, Star Gravity `44`, Luminous `45` (stock); all five SEEN (`akko-capture11.txt` marks 19–21). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
 
 ### Macros (`akko-capture7.txt`)
 All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole on every save or delete.
@@ -120,11 +126,11 @@ All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole 
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `05 00` | SEEN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
-| `85 00` | SEEN | read: arg = byte offset (`00`, `38`, `70`…), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
+| `85 00` | SEEN | read: bytes 1–2 (sub + arg) = byte offset, u16 BE (`00 00`, `00 38`, … `01 18`, `akko-capture11.txt`), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
 
 Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
-  protocol; all values < 256 so far). Directory size = 4 × macros, so the first u16 is also the
+  protocol; confirmed above 256: one 609 B macro = `04 00 5d 02`, size 605, `akko-capture11.txt` mark 35). Directory size = 4 × macros, so the first u16 is also the
   first macro's offset.
 - Macro at `offset`: `name_len u8, name[name_len]` (ASCII; the UI requires ≥ 2 chars), then actions.
 - Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release; delay = ms to wait after
@@ -167,16 +173,8 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- DKS: a hold that starts after stage 1 (e.g. bottom → release from bottom), to isolate the `02`/`08` bits.
-- Macros: a macro > 256 B (to confirm the directory's byte order).
-- Profile Management: rename, export, and applying an inactive profile (reboots the board, overwrites
-  an onboard profile). Never captured.
-- Device Info: Factory Reset. Never captured.
-- Basic Key: the layer Reset button, a System & Shortcuts (`07`) and a Lighting & Special Keys (`08`)
-  action, a Key Combination with 2 modifiers + 2 keys.
-- Switch Settings: models `41`, `42`, `44` (only `43`, `45` seen).
-- Actuation Settings: the "continuous RT" option (noted as off in `akko-capture4.txt` mark 1, never toggled).
-- RGB: the Main Light selector (other zones?).
-- Mural: what is sent when the stream stops (page closed), and one built-in effect.
-- No UI found yet for `82 xx`, `84 11/13/1d/1e/20`, `85 00`, `87 00`, `9a`, `a6 ff`: maybe on-board Fn
-  shortcuts. Diff read dumps before/after Fn combos (reads only).
+- Profile Management: applying an inactive profile (reboots, overwrites a profile). Skipped on purpose.
+- Device Info: Factory Reset. Skipped on purpose.
+- `11 00` on the Fn and Fn1 layers, to pin down its payload.
+- No UI found for `82 xx`, `84 11/13/1d/1e/20`, `87 00`, `a6 ff`: maybe on-board Fn shortcuts.
+  Diff read dumps before/after Fn combos (reads only).

@@ -7,8 +7,7 @@ reflected in `akko-protocol.md`.
 
 ### Partly decoded
 - **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
-  Unknown: the directory's byte order above 256 B, what a key
-  does if its macro index points past the last macro (the app prevents it), and what `9a 00/01/02` is.
+  Unknown: what a key does if its macro index points past the last macro (the app prevents it).
 
 ### Not captured at all
 - **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
@@ -18,14 +17,15 @@ reflected in `akko-protocol.md`.
 ### Captured but not decoded
 - **Mural**: frame format decoded, but the LED index → key mapping is only inferred from the grid, and the
   firmware's behaviour when frames stop (the 3 s fallback) was not observed in the log.
-- **DKS stage bits** (`02` down, `04` hold, `08` up) fit the three captured cases but weren't each isolated.
-- **System (`07`) and lighting (`08`) actions** in the keymap: values are guessed from defaults,
-  never captured as a write.
+- **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`
+  and `08` were never sent alone.
+- **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is
+  SEEN; the rest are guessed from defaults. The System & Shortcuts tab gave a plain RGui key, not `07`.
+- **`11 00` layer reset**: payload `01` seen on Default Layer only; its meaning is a guess.
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
   press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
   guess ("reached bottom"). Bottom drift between sessions is guessed to be Adaptive Calibration.
   Calibration mode stops the keys typing.
-- **Switch models** `41`, `42`, `44` are guessed from the UI order; only `43` and `45` were captured.
 - `84 11` (`01`), `84 13` (`00 b4`), `84 1d`/`84 1e` (`00`), `84 20` (`01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
@@ -53,7 +53,7 @@ reflected in `akko-protocol.md`.
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command
   arrives. Any tool must serialise access; the web app and our code can't run together.
-- Changing effect with `04 02` resets speed to 2.
+- Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 
 ## Repo / docs
 - The full desktop app hasn't been started; language, UI toolkit and packaging are undecided.
