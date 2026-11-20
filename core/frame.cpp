@@ -13,14 +13,16 @@ std::uint8_t checksum(std::span<const std::uint8_t> frame)
     return static_cast<std::uint8_t>((0xFF - sum) & 0xFF);
 }
 
-Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload)
+Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload,
+                 std::uint8_t packetCount, std::uint8_t packetIndex)
 {
     if (payload.size() > kMaxPayload)
         throw Error("payload too long for one frame (" + std::to_string(payload.size()) + " bytes)");
     Frame f{};
     f[0] = cmd;
     f[1] = sub;
-    f[3] = 0x01;  // packet count: everything the CLI sends fits in one packet
+    f[3] = packetCount;
+    f[4] = packetIndex;
     f[5] = static_cast<std::uint8_t>(payload.size());
     for (std::size_t i = 0; i < payload.size(); ++i)
         f[kPayloadOffset + i] = payload[i];
@@ -28,9 +30,11 @@ Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_
     return f;
 }
 
-bool isReplyTo(std::span<const std::uint8_t> report, std::uint8_t cmd, std::uint8_t sub)
+bool isReplyTo(std::span<const std::uint8_t> report, std::uint8_t cmd, std::uint8_t sub,
+               std::uint8_t packetIndex)
 {
-    return report.size() == kReportLen && report[0] == kReportId && report[1] == cmd && report[2] == sub;
+    return report.size() == kReportLen && report[0] == kReportId && report[1] == cmd && report[2] == sub &&
+           report[5] == packetIndex;
 }
 
 std::string commandName(std::uint8_t cmd, std::uint8_t sub)

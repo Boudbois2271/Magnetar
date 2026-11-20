@@ -8,6 +8,7 @@
 #include <QtTest>
 
 #include <fstream>
+#include <set>
 #include <sstream>
 
 using namespace akko;
@@ -84,7 +85,7 @@ private slots:
     void framesMatchVendorApp()
     {
         const auto cases = loadFrames("vendor-frames.txt");
-        QCOMPARE(cases.size(), std::size_t(5));
+        QCOMPARE(cases.size(), std::size_t(8));
         for (const auto &c : cases) {
             const Frame f = buildFrame(c.cmd, c.sub, c.payload);
             QCOMPARE(Bytes(f.begin(), f.end()), c.frame);
@@ -242,6 +243,121 @@ private slots:
         QCOMPARE(kb.firmwareVersion(), std::uint16_t(0x0108));
         QCOMPARE(QString::fromStdString(formatFirmware(0x0108)), QString("v1.08"));
         QCOMPARE(QString::fromStdString(formatFirmware(0x0210)), QString("v2.10"));
+    }
+
+    // ---- keymap ----------------------------------------------------------
+    void layoutHasEveryKeyOnce()
+    {
+        QCOMPARE(layout().size(), std::size_t(kKeyCount));
+        std::set<std::uint16_t> ids, read;
+        for (const auto &k : layout())
+            ids.insert(k.id);
+        for (auto id : keyReadOrder())
+            read.insert(id);
+        QCOMPARE(ids.size(), std::size_t(kKeyCount));
+        QVERIFY(ids == read);
+        // No two keys overlap.
+        for (const auto &a : layout())
+            for (const auto &b : layout())
+                if (a.id != b.id)
+                    QVERIFY2(a.x + a.w <= b.x || b.x + b.w <= a.x || a.y + 4 <= b.y || b.y + 4 <= a.y,
+                             qPrintable(QString("keys %1 and %2 overlap").arg(a.id).arg(b.id)));
+    }
+
+    void factoryKeymap()
+    {
+        QCOMPARE(QString::fromStdString(actionHex(factoryAction(0, 0x01))), QString("00 00 00 29"));  // Esc
+        QCOMPARE(QString::fromStdString(actionHex(factoryAction(0, 0x48))), QString("0d 00 00 00"));  // Fn
+        QCOMPARE(QString::fromStdString(actionHex(factoryAction(1, 0x40))), QString("02 00 00 e9"));  // Fn+. = Vol+
+        QVERIFY(factoryAction(2, 0x62) == factoryAction(0, 0x62));  // Fn1 starts as Default
+    }
+
+    void actionEncodings()
+    {
+        // The SEEN forms of akko-protocol.md, Units.
+        QCOMPARE(QString::fromStdString(actionHex(keyAction(0x29))), QString("00 00 00 29"));
+        const std::uint8_t v[] = {0x19}, ab[] = {0x04, 0x05};
+        QCOMPARE(QString::fromStdString(actionHex(comboAction(0x01, v))), QString("00 01 19 00"));
+        QCOMPARE(QString::fromStdString(actionHex(comboAction(0x03, ab))), QString("00 03 05 04"));
+        QCOMPARE(QString::fromStdString(actionHex(comboAction(0x80, {}))), QString("00 80 00 00"));
+        QCOMPARE(QString::fromStdString(actionHex(mouseAction(2))), QString("01 02 01 00"));
+        QCOMPARE(QString::fromStdString(actionHex(consumerAction(0xe9))), QString("02 00 00 e9"));
+        QCOMPARE(QString::fromStdString(actionHex(layerAction(1))), QString("0d 01 00 00"));
+        QVERIFY_THROWS_EXCEPTION(Error, comboAction(0x00, ab));
+
+        const auto c = keyCombo(*parseAction("00 03 05 04"));
+        QVERIFY(c);
+        QCOMPARE(c->modifiers, std::uint8_t(0x03));
+        QVERIFY((c->keys == std::vector<std::uint8_t>{0x04, 0x05}));
+        QVERIFY((keyCombo(keyAction(0x29))->keys == std::vector<std::uint8_t>{0x29}));
+        QVERIFY(!keyCombo(kUnbound));
+        QCOMPARE(int(actionKind(kUnbound)), int(ActionKind::Unbound));
+        QCOMPARE(int(actionKind(*parseAction("09 00 00 01"))), int(ActionKind::Profile));
+        QVERIFY(!parseAction("00 00 00"));
+        QVERIFY(!parseAction("00 00 00 zz"));
+        QVERIFY(!parseAction("00 00 00 29 "));
+    }
+
+    void readLayerLikeTheVendorApp()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        const auto keys = kb.readLayer(0);
+        QCOMPARE(keys.size(), std::size_t(kKeyCount));
+
+        std::ifstream in(FIXTURES_DIR "/vendor-keymap-read.txt");
+        std::vector<Bytes> expected;
+        for (std::string line; std::getline(in, line);)
+            if (!line.empty() && line[0] != '#')
+                expected.push_back(parseHex(line));
+        QCOMPARE(expected.size(), std::size_t(10));
+        QCOMPARE(t.written.size(), expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i)
+            QCOMPARE(Bytes(t.written[i].begin() + 1, t.written[i].end()), expected[i]);
+        for (const auto &[id, action] : keys)
+            QVERIFY(action == factoryAction(0, id));
+    }
+
+    void readLayerRejectsShortAnswers()
+    {
+        FakeTransport t;
+        FakeKeyboard kb0;
+        t.respond = [&](const Bytes &w) {
+            auto r = kb0(w);
+            if (w[1] == 0x83 && w[5] == 9)
+                r[0][7] = 0x7f;  // last packet names a key we didn't ask for
+            return r;
+        };
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.readLayer(1));
+        QVERIFY_THROWS_EXCEPTION(Error, kb.readLayer(3));
+    }
+
+    void setKeyWritesThenReadsBack()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const Action back = kb.setKey(2, 0x62, keyAction(0x04));
+        QVERIFY(back == keyAction(0x04));
+        QCOMPARE(t.written.size(), std::size_t(2));
+        const auto vendor = loadFrames("vendor-frames.txt");
+        QCOMPARE(Bytes(t.written[0].begin() + 1, t.written[0].end()), vendor[7].frame);  // 03 02 A on Insert
+        QCOMPARE(t.written[1][1], std::uint8_t(0x83));
+        QVERIFY(board.keymap[2][0x62] == keyAction(0x04));
+        QVERIFY(kb.readKey(2, 0x62) == keyAction(0x04));
+    }
+
+    void setKeyFailsWhenTheBoardKeepsTheOldAction()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreKeyWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setKey(0, 0x62, keyAction(0x04)));
     }
 
     // ---- device discovery and lock ---------------------------------------

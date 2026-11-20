@@ -6,5 +6,5 @@ CONFIG += staticlib c++20 warn_on
 CONFIG -= qt
 QMAKE_CXXFLAGS += -Wextra
 
-HEADERS = frame.h transport.h device.h keyboard.h lights.h
-SOURCES = frame.cpp device.cpp keyboard.cpp lights.cpp
+HEADERS = frame.h transport.h device.h keyboard.h keymap.h lights.h
+SOURCES = frame.cpp device.cpp keyboard.cpp keymap.cpp lights.cpp

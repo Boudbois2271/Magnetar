@@ -25,14 +25,18 @@ constexpr std::size_t kMaxPayload = kFrameLen - 1 - kPayloadOffset;  // byte 62 
 
 using Frame = std::array<std::uint8_t, kFrameLen>;
 
-// A single-packet frame: cmd, sub, arg 0, packet count 1, packet index 0, len, payload, checksum.
-Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload = {});
+// A frame: cmd, sub, arg 0, packet count, packet index, len, payload, checksum. Most commands
+// fit in one packet (count 1, index 0); multi-packet reads number their requests.
+Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload = {},
+                 std::uint8_t packetCount = 1, std::uint8_t packetIndex = 0);
 
 // The byte that makes (report ID + sum of frame[0..61] + checksum) & 0xFF equal 0xFF.
 std::uint8_t checksum(std::span<const std::uint8_t> frame);
 
-// True when a 64-byte input report is the keyboard's answer to cmd/sub.
-bool isReplyTo(std::span<const std::uint8_t> report, std::uint8_t cmd, std::uint8_t sub);
+// True when a 64-byte input report is the keyboard's answer to cmd/sub (and, for a
+// multi-packet exchange, to that packet index).
+bool isReplyTo(std::span<const std::uint8_t> report, std::uint8_t cmd, std::uint8_t sub,
+               std::uint8_t packetIndex = 0);
 
 // "90 00" style name of a command, as used in messages and in akko-protocol.md.
 std::string commandName(std::uint8_t cmd, std::uint8_t sub);

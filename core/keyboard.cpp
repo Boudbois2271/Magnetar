@@ -10,8 +10,15 @@ namespace akko {
 Frame Keyboard::transact(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload,
                          int timeoutMs, int retries)
 {
+    return transactPacket(cmd, sub, 1, 0, payload, timeoutMs, retries);
+}
+
+Frame Keyboard::transactPacket(std::uint8_t cmd, std::uint8_t sub, std::uint8_t packetCount,
+                               std::uint8_t packetIndex, std::span<const std::uint8_t> payload, int timeoutMs,
+                               int retries)
+{
     using clock = std::chrono::steady_clock;
-    const Frame frame = buildFrame(cmd, sub, payload);
+    const Frame frame = buildFrame(cmd, sub, payload, packetCount, packetIndex);
     std::array<std::uint8_t, kReportLen> report{};
     report[0] = kReportId;
     std::copy(frame.begin(), frame.end(), report.begin() + 1);
@@ -27,7 +34,7 @@ Frame Keyboard::transact(std::uint8_t cmd, std::uint8_t sub, std::span<const std
             const auto data = t_.read(static_cast<int>(left.count()));
             if (!data)
                 break;  // timed out: send again
-            if (isReplyTo(*data, cmd, sub)) {
+            if (isReplyTo(*data, cmd, sub, packetIndex)) {
                 Frame answer{};
                 std::copy(data->begin() + 1, data->end(), answer.begin());
                 return answer;
@@ -84,6 +91,75 @@ std::uint16_t Keyboard::firmwareVersion()
     // The two bytes read 08 01 for v1.08: low byte first, unlike the rest of the protocol.
     const Frame r = transact(0x82, 0x02);
     return static_cast<std::uint16_t>(r[kPayloadOffset] | (r[kPayloadOffset + 1] << 8));
+}
+
+namespace {
+
+void checkLayer(int layer)
+{
+    if (layer < 0 || layer >= kLayerCount)
+        throw Error("no such layer: " + std::to_string(layer));
+}
+
+std::uint16_t be16(const Frame &f, std::size_t at)
+{
+    return static_cast<std::uint16_t>(f[at] << 8 | f[at + 1]);
+}
+
+}  // namespace
+
+std::vector<std::pair<std::uint16_t, Action>> Keyboard::readLayer(int layer)
+{
+    checkLayer(layer);
+    constexpr std::size_t kPerPacket = 9, kEntry = 6;  // key u16 + action
+    const auto order = keyReadOrder();
+    const auto packets = static_cast<std::uint8_t>((order.size() + kPerPacket - 1) / kPerPacket);
+    std::vector<std::pair<std::uint16_t, Action>> keys;
+    for (std::uint8_t p = 0; p < packets; ++p) {
+        const auto chunk = order.subspan(p * kPerPacket, std::min(kPerPacket, order.size() - p * kPerPacket));
+        std::vector<std::uint8_t> request;
+        for (auto id : chunk) {
+            request.push_back(static_cast<std::uint8_t>(id >> 8));
+            request.push_back(static_cast<std::uint8_t>(id & 0xFF));
+        }
+        const Frame r = transactPacket(0x83, static_cast<std::uint8_t>(layer), packets, p, request);
+        const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
+        for (std::size_t at = kPayloadOffset; at + kEntry <= kPayloadOffset + len; at += kEntry) {
+            const std::uint16_t id = be16(r, at);
+            if (std::find(chunk.begin(), chunk.end(), id) == chunk.end())
+                continue;  // not a key we asked for in this packet
+            Action a;
+            std::copy_n(r.begin() + at + 2, 4, a.begin());
+            keys.emplace_back(id, a);
+        }
+    }
+    if (keys.size() != order.size())
+        throw Error("incomplete keymap read on layer " + std::to_string(layer));
+    return keys;
+}
+
+Action Keyboard::readKey(int layer, std::uint16_t key)
+{
+    checkLayer(layer);
+    const std::uint8_t p[] = {static_cast<std::uint8_t>(key >> 8), static_cast<std::uint8_t>(key & 0xFF)};
+    const Frame r = transact(0x83, static_cast<std::uint8_t>(layer), p);
+    if (be16(r, kPayloadOffset) != key)
+        throw Error("keymap read answered for another key");
+    Action a;
+    std::copy_n(r.begin() + kPayloadOffset + 2, 4, a.begin());
+    return a;
+}
+
+Action Keyboard::setKey(int layer, std::uint16_t key, const Action &action)
+{
+    checkLayer(layer);
+    const std::uint8_t p[] = {static_cast<std::uint8_t>(key >> 8), static_cast<std::uint8_t>(key & 0xFF),
+                              action[0], action[1], action[2], action[3]};
+    transact(0x03, static_cast<std::uint8_t>(layer), p);
+    const Action back = readKey(layer, key);
+    if (back != action)
+        throw Error("the keyboard kept " + actionHex(back) + " instead of " + actionHex(action));
+    return back;
 }
 
 std::string formatFirmware(std::uint16_t version)

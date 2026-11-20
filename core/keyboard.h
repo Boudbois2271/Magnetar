@@ -4,12 +4,15 @@
 #pragma once
 
 #include "frame.h"
+#include "keymap.h"
 #include "transport.h"
 
 #include <array>
 #include <cstdint>
 #include <span>
 #include <string>
+#include <utility>
+#include <vector>
 
 namespace akko {
 
@@ -36,6 +39,9 @@ public:
     // (report ID stripped), so payload[n] is at index 6 + n. Writes are echoed back.
     Frame transact(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload = {},
                    int timeoutMs = 1000, int retries = 2);
+    // The same for one packet of a multi-packet exchange; the answer must carry the same index.
+    Frame transactPacket(std::uint8_t cmd, std::uint8_t sub, std::uint8_t packetCount, std::uint8_t packetIndex,
+                         std::span<const std::uint8_t> payload = {}, int timeoutMs = 1000, int retries = 2);
 
     int profile();       // 0-based active profile (90 00)
     int profileCount();  // from 82 0f; 3 when the answer is missing or implausible
@@ -49,6 +55,14 @@ public:
 
     // 82 02: firmware version, e.g. 0x0108 for the v1.08 the vendor app shows.
     std::uint16_t firmwareVersion();
+
+    // Keymap of the active profile. Layer 0 Default, 1 Fn, 2 Fn1.
+    // readLayer: 10 × 83 LL, 9 keys per packet, in keyReadOrder(), like the vendor app.
+    std::vector<std::pair<std::uint16_t, Action>> readLayer(int layer);
+    Action readKey(int layer, std::uint16_t key);  // single-key 83 LL
+    // 03 LL, then reads the key back (as the vendor app does) and returns what the board has.
+    // Throws if the read-back differs from what was sent.
+    Action setKey(int layer, std::uint16_t key, const Action &action);
 
 private:
     Transport &t_;

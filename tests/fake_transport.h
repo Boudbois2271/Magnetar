@@ -3,11 +3,13 @@
 #pragma once
 
 #include "frame.h"
+#include "keymap.h"
 #include "transport.h"
 
 #include <algorithm>
 #include <deque>
 #include <functional>
+#include <map>
 #include <vector>
 
 namespace akko::test {
@@ -68,10 +70,37 @@ struct FakeKeyboard {
     std::uint8_t profileCount = 3;
     bool silentProfileCount = false;  // never answers 82 0f
     std::array<std::uint8_t, 7> lighting{0x02, 0x00, 0x00, 0xff, 0x00, 20, 0x04};
+    std::map<std::uint16_t, Action> keymap[kLayerCount];  // starts as the factory keymap
+    bool ignoreKeyWrites = false;                          // echoes 03 LL but keeps the old action
+
+    FakeKeyboard()
+    {
+        for (int l = 0; l < kLayerCount; ++l)
+            for (const auto &k : layout())
+                keymap[l][k.id] = factoryAction(l, k.id);
+    }
 
     std::vector<Bytes> operator()(const Bytes &w)
     {
         const std::uint8_t cmd = w[1], sub = w[2];
+        if (cmd == 0x83 && sub < kLayerCount) {
+            // Answers each key ID listed in the request with key + action, packet header kept.
+            Bytes r(kReportLen, 0);
+            std::copy_n(w.begin(), 6, r.begin());
+            std::size_t at = 7;
+            for (std::size_t i = 7; i + 1 < 7 + w[6]; i += 2) {
+                const std::uint16_t id = static_cast<std::uint16_t>(w[i] << 8 | w[i + 1]);
+                const Action a = keymap[sub][id];
+                r[at++] = w[i];
+                r[at++] = w[i + 1];
+                for (auto b : a)
+                    r[at++] = b;
+            }
+            r[6] = static_cast<std::uint8_t>(at - 7);
+            return {r};
+        }
+        if (cmd == 0x03 && sub < kLayerCount && !ignoreKeyWrites)
+            std::copy_n(w.begin() + 9, 4, keymap[sub][static_cast<std::uint16_t>(w[7] << 8 | w[8])].begin());
         if (cmd == 0x90 && sub == 0x00)
             return {reply(cmd, sub, {profile})};
         if (cmd == 0x82 && sub == 0x0f) {
