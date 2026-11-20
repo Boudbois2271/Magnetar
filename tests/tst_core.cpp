@@ -271,5 +271,10 @@ private slots:
     }
 };
 
-QTEST_GUILESS_MAIN(CoreTests)
+int runCoreTests(int argc, char **argv)
+{
+    CoreTests t;
+    return QTest::qExec(&t, argc, argv);
+}
+
 #include "tst_core.moc"

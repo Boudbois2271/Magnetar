@@ -66,6 +66,7 @@ public:
 struct FakeKeyboard {
     std::uint8_t profile = 0;
     std::uint8_t profileCount = 3;
+    bool silentProfileCount = false;  // never answers 82 0f
     std::array<std::uint8_t, 7> lighting{0x02, 0x00, 0x00, 0xff, 0x00, 20, 0x04};
 
     std::vector<Bytes> operator()(const Bytes &w)
@@ -73,8 +74,11 @@ struct FakeKeyboard {
         const std::uint8_t cmd = w[1], sub = w[2];
         if (cmd == 0x90 && sub == 0x00)
             return {reply(cmd, sub, {profile})};
-        if (cmd == 0x82 && sub == 0x0f)
+        if (cmd == 0x82 && sub == 0x0f) {
+            if (silentProfileCount)
+                return {};
             return {reply(cmd, sub, {0x00, 0x00, 0x00, profileCount})};
+        }
         if (cmd == 0x84 && sub == 0x01) {
             const auto &l = lighting;
             return {reply(cmd, sub, {l[0], l[1], l[2], l[3], l[4], l[5], l[6]})};
