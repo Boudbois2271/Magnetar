@@ -3,6 +3,7 @@
 
 #include <algorithm>
 #include <chrono>
+#include <cstdio>
 
 namespace akko {
 
@@ -70,6 +71,26 @@ Lighting Keyboard::lighting()
 void Keyboard::setLighting(const Lighting &l)
 {
     transact(0x04, 0x01, l.bytes);
+}
+
+void Keyboard::setEffect(int effect)
+{
+    const std::uint8_t p[] = {static_cast<std::uint8_t>(effect)};
+    transact(0x04, 0x02, p);
+}
+
+std::uint16_t Keyboard::firmwareVersion()
+{
+    // The two bytes read 08 01 for v1.08: low byte first, unlike the rest of the protocol.
+    const Frame r = transact(0x82, 0x02);
+    return static_cast<std::uint16_t>(r[kPayloadOffset] | (r[kPayloadOffset + 1] << 8));
+}
+
+std::string formatFirmware(std::uint16_t version)
+{
+    char buf[16];
+    std::snprintf(buf, sizeof buf, "v%x.%02x", version >> 8, version & 0xFF);
+    return buf;
 }
 
 }  // namespace akko

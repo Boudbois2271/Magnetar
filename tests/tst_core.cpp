@@ -222,6 +222,28 @@ private slots:
         QCOMPARE(fake.lighting[Lighting::Speed], std::uint8_t(0x04));
     }
 
+    void effectSwitch()
+    {
+        FakeTransport t;
+        FakeKeyboard fake;
+        t.respond = std::ref(fake);
+        Keyboard kb(t);
+        kb.setEffect(0x13);
+        const Frame f = buildFrame(0x04, 0x02, Bytes{0x13});
+        QVERIFY(std::equal(f.begin(), f.end(), t.written.back().begin() + 1));
+        QCOMPARE(kb.lighting()[Lighting::Effect], std::uint8_t(0x13));
+    }
+
+    void firmwareVersionReadsLowByteFirst()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        QCOMPARE(kb.firmwareVersion(), std::uint16_t(0x0108));
+        QCOMPARE(QString::fromStdString(formatFirmware(0x0108)), QString("v1.08"));
+        QCOMPARE(QString::fromStdString(formatFirmware(0x0210)), QString("v2.10"));
+    }
+
     // ---- device discovery and lock ---------------------------------------
     void findHidrawPicksVendorInterface()
     {

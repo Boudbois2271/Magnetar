@@ -79,6 +79,8 @@ struct FakeKeyboard {
                 return {};
             return {reply(cmd, sub, {0x00, 0x00, 0x00, profileCount})};
         }
+        if (cmd == 0x82 && sub == 0x02)
+            return {reply(cmd, sub, {0x08, 0x01})};
         if (cmd == 0x84 && sub == 0x01) {
             const auto &l = lighting;
             return {reply(cmd, sub, {l[0], l[1], l[2], l[3], l[4], l[5], l[6]})};
@@ -87,6 +89,8 @@ struct FakeKeyboard {
             profile = w[7];
         else if (cmd == 0x04 && sub == 0x01)
             std::copy_n(w.begin() + 7, 7, lighting.begin());
+        else if (cmd == 0x04 && sub == 0x02)
+            lighting[0] = w[7];
         Bytes echo(w);  // writes are echoed back unchanged
         return {echo};
     }

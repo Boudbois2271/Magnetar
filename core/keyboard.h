@@ -9,6 +9,7 @@
 #include <array>
 #include <cstdint>
 #include <span>
+#include <string>
 
 namespace akko {
 
@@ -23,6 +24,9 @@ struct Lighting {
     std::uint8_t operator[](std::size_t i) const { return bytes[i]; }
     bool rainbow() const { return bytes[ColorMode] >= 7; }
 };
+
+// "v1.08" for 0x0108, as the vendor app's Device Info page writes it.
+std::string formatFirmware(std::uint16_t version);
 
 class Keyboard {
 public:
@@ -39,6 +43,12 @@ public:
 
     Lighting lighting();  // 84 01
     void setLighting(const Lighting &l);
+    // 04 02: switch effect. The board loads that effect's own stored colour and speed,
+    // so read lighting() again afterwards.
+    void setEffect(int effect);
+
+    // 82 02: firmware version, e.g. 0x0108 for the v1.08 the vendor app shows.
+    std::uint16_t firmwareVersion();
 
 private:
     Transport &t_;
