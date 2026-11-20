@@ -254,6 +254,30 @@ private slots:
         QCOMPARE(Translator::readLanguage(dir.filePath("nothing")), QString("en"));
     }
 
+    void everyStringIsTranslatedToFrench()
+    {
+        // Every qsTr("…") in the QML has a French entry, and French has no leftovers.
+        QSet<QString> used;
+        const QRegularExpression call("qsTr\\(\"((?:[^\"\\\\]|\\\\.)*)\"");  // qsTr("…"), escapes allowed
+        QDirIterator it(APP_SRC_DIR, {"*.qml"});
+        while (it.hasNext()) {
+            const QString source = readText(it.next());
+            for (auto m = call.globalMatch(source); m.hasNext();)
+                used.insert(m.next().captured(1).replace("\\\"", "\""));
+        }
+        QVERIFY(used.size() > 50);
+        const QJsonObject fr = QJsonDocument::fromJson(readText(":/i18n/fr.json").toUtf8()).object();
+        QStringList missing, stale;
+        for (const auto &s : used)
+            if (fr.value(s).toString().isEmpty())
+                missing << s;
+        for (const auto &k : fr.keys())
+            if (!used.contains(k))
+                stale << k;
+        QVERIFY2(missing.isEmpty(), qPrintable("missing in fr.json: " + missing.join(" | ")));
+        QVERIFY2(stale.isEmpty(), qPrintable("unused in fr.json: " + stale.join(" | ")));
+    }
+
     // ---- the window ----------------------------------------------------------
     void windowLoadsWithoutWarnings()
     {

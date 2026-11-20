@@ -13,6 +13,7 @@ without the vendor's web configurator.
 
 | Path | What it does |
 |---|---|
+| `app/` | **Magnetar**, the desktop app: profile switching and lighting so far, more pages to come. English and French. |
 | `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
 | `core/` | The C++ library that talks to the keyboard, shared by the CLI and the future desktop app. |
 | `tests/` | Automated tests (no keyboard needed). |
@@ -22,13 +23,13 @@ without the vendor's web configurator.
 | `akko-capture.js` | Browser console logger used to record the official web app's traffic. |
 | `limitations.md` | What isn't decoded or supported yet. |
 
-A full desktop configurator (keymap, advanced keys, rapid trigger, macros…) is planned once the
-protocol is decoded far enough.
+Magnetar grows one page at a time; keymap, per-key travel and rapid trigger, advanced keys and
+macros are next (the protocol for them is already decoded in `akko-protocol.md`).
 
 ## Install
 
-Build requirements: Linux, a C++20 compiler, `make` and Qt 6's `qmake6` (on Arch:
-`base-devel qt6-base`). The installed `akkoctl` itself has no dependencies.
+Build requirements: Linux, a C++20 compiler, `make` and Qt 6 (on Arch:
+`base-devel qt6-base qt6-declarative`). The installed `akkoctl` itself has no dependencies.
 
 ```sh
 # Let your user talk to the keyboard
@@ -37,6 +38,9 @@ sudo udevadm control --reload && sudo udevadm trigger   # or replug the keyboard
 
 # CLI: builds, then installs to ~/.local/bin/akkoctl
 bin/install
+
+# Magnetar, as an Arch package (shows up in the app launcher; asks for your password)
+bin/package
 
 # Tests (optional, no keyboard needed)
 bin/test

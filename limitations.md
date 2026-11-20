@@ -54,6 +54,17 @@ reflected in `akko-protocol.md`.
 - `transact()` matches responses on `cmd`/`sub` only, not `arg` or packet index.
 - Only covers profile and global lighting (`10/90 00`, `04/84 01`).
 
+## Magnetar (desktop app)
+
+- Pages: Lighting and Device only. No keyboard drawing yet (comes with the Keys page).
+- Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
+- Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the
+  unsolicited `fe 0b` brightness reports aren't listened to.
+- While unplugged it retries every 3 s; there is no udev hotplug watch.
+- Firmware version byte order (`82 02` = `08 01` → v1.08, low byte first) rests on one sample.
+- Colour choice is swatches plus a hex field, no free colour picker yet.
+- No Arch package for `akkoctl` or the widget yet: `bin/package` installs Magnetar only.
+
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command
   arrives. Any tool must serialise access; the web app and our code can't run together.

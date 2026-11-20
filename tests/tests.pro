@@ -10,7 +10,7 @@ QMAKE_CXXFLAGS += -Wextra
 INCLUDEPATH += ../core ../cli ../app/src
 LIBS += -L$$OUT_PWD/../core -lakkocore
 PRE_TARGETDEPS += $$OUT_PWD/../core/libakkocore.a
-DEFINES += FIXTURES_DIR=\\\"$$PWD/fixtures\\\"
+DEFINES += FIXTURES_DIR=\\\"$$PWD/fixtures\\\" APP_SRC_DIR=\\\"$$PWD/../app/src\\\"
 
 HEADERS = fake_transport.h \
     ../app/src/backend.h ../app/src/device_worker.h ../app/src/theme.h ../app/src/translator.h

@@ -13,7 +13,9 @@ starting. Stack: **C++20 and Qt Quick, built with qmake6**, the way Omarchy's ow
 One protocol library (`core/`) is shared by the CLI and the app.
 
 What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
-global lighting (effect, colour, brightness); and an Omarchy bar widget that shells out to `akkoctl`.
+global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
+and **Magnetar**, the desktop app (sidebar of pages; so far Lighting and Device). Next pages: Keys
+(with the clickable keyboard drawing), Travel, Advanced keys, Macros, Settings, Mural, Calibration.
 
 The repo publishes **results** (tools, decoded protocol, docs), not the raw material used to get
 there: capture logs stay local and are gitignored.
@@ -26,7 +28,9 @@ there: capture logs stay local and are gitignored.
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
 | `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
 | `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool and frames from captures: the reference the C++ code must match. |
-| `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`). |
+| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
+| `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
+| `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
 | `akkoctl/akkoctl` | The original Python CLI, kept until the C++ one has had some daily use, then removed. |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
 | `udev/70-akko-tac75-he.rules` | Grants the logged-in user access to the keyboard's hidraw nodes. Goes in `/etc/udev/rules.d/`. |
@@ -132,6 +136,9 @@ The keyboard under test is a daily-use keyboard. Rules:
 - `akkoctl` keeps its commands and JSON output stable, byte for byte: the widget parses it. The
   `tests/fixtures/python-cli.jsonl` replay guards this.
 - Protocol changes come with a test against a fake device before anything is sent to the board.
+- App: every visible string is `qsTr()` with a French entry in `app/src/i18n/fr.json` (a test fails
+  otherwise); the app shows only values read back from the board; pages appear when they work,
+  never as placeholders. Check layout with offscreen screenshots in English and French.
 - Nothing personal in tracked files: no home paths, usernames, machine names. That goes in
   `CLAUDE.local.md`.
 

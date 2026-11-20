@@ -9,3 +9,7 @@ __pycache__/
 
 # Build output (bin/build)
 build/
+# Arch package build (bin/package)
+/pkgbuild/pkg/
+/pkgbuild/src/
+*.pkg.tar.*

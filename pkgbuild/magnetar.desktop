@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Magnetar
+Comment=Configure the Akko TAC75 HE keyboard (unofficial)
+Comment[fr]=Configurer le clavier Akko TAC75 HE (non officiel)
+Exec=magnetar
+Icon=magnetar
+Terminal=false
+Categories=Settings;HardwareSettings;
+Keywords=keyboard;rgb;lighting;hall effect;
+Keywords[fr]=clavier;rgb;éclairage;effet hall;
+StartupWMClass=magnetar

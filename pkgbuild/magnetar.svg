@@ -1,0 +1,9 @@
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<!-- Magnetar: a horseshoe magnet on a keycap. -->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <rect width="64" height="64" rx="14" fill="#FFD60A"/>
+  <rect x="11" y="11" width="42" height="42" rx="9" fill="#141417"/>
+  <path d="M22 20 V33 A10 10 0 0 0 42 33 V20" fill="none" stroke="#FFD60A" stroke-width="6.5"/>
+  <rect x="18.75" y="17" width="6.5" height="6" fill="#f2f2f2"/>
+  <rect x="38.75" y="17" width="6.5" height="6" fill="#f2f2f2"/>
+</svg>
