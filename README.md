@@ -13,7 +13,9 @@ without the vendor's web configurator.
 
 | Path | What it does |
 |---|---|
-| `akkoctl/akkoctl` | Command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
+| `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
+| `core/` | The C++ library that talks to the keyboard, shared by the CLI and the future desktop app. |
+| `tests/` | Automated tests (no keyboard needed). |
 | `omarchy-widget/boudbois.akko/` | Bar widget for [Omarchy](https://omarchy.org) built on `akkoctl`. |
 | `udev/70-akko-tac75-he.rules` | udev rule giving your user access to the keyboard. |
 | `akko-protocol.md` | The decoded HID protocol, with how confident we are in each part. |
@@ -25,15 +27,19 @@ protocol is decoded far enough.
 
 ## Install
 
-Requirements: Linux, Python 3.8+ (standard library only).
+Build requirements: Linux, a C++20 compiler, `make` and Qt 6's `qmake6` (on Arch:
+`base-devel qt6-base`). The installed `akkoctl` itself has no dependencies.
 
 ```sh
 # Let your user talk to the keyboard
 sudo cp udev/70-akko-tac75-he.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger   # or replug the keyboard
 
-# CLI
-install -Dm755 akkoctl/akkoctl ~/.local/bin/akkoctl
+# CLI: builds, then installs to ~/.local/bin/akkoctl
+bin/install
+
+# Tests (optional, no keyboard needed)
+bin/test
 
 # Omarchy widget (optional)
 mkdir -p ~/.config/omarchy/plugins

@@ -38,12 +38,16 @@ reflected in `akko-protocol.md`.
 
 ## Existing tooling (`akkoctl`, widget)
 
-- No install script: the repo copies must be copied by hand to `~/.local/bin/` and
-  `~/.config/omarchy/plugins/`, and the two can drift apart.
+- `bin/install` covers the CLI only: the widget is still copied by hand to
+  `~/.config/omarchy/plugins/`, and the two copies can drift apart.
+- The CLI's `state.json` only keeps `lastBrightness`: any other key written there by hand is dropped
+  on the next save (the Python version kept them).
+- The CLI's behaviour is pinned to recorded runs of the old Python tool
+  (`tests/fixtures/python-cli.jsonl`), against a fake keyboard. Real-board checks were done by hand.
 - The widget hardcodes `~/.local/bin/akkoctl` and depends on Omarchy's own QML modules
   (`qs.Commons`, `qs.Ui`), so it only runs inside Omarchy's shell.
 - The widget shows the colour picker on profile 1 only.
-- `profile_count()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
+- `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
   outside 1–8 falls back to 3.
 - Only builds single-packet frames (`pkt_count = 1`, `pkt_index = 0`, `arg = 0`): no multi-packet
   reads/writes, no advanced-key `arg`.
@@ -56,7 +60,7 @@ reflected in `akko-protocol.md`.
 - Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 
 ## Repo / docs
-- The full desktop app hasn't been started; language, UI toolkit and packaging are undecided.
+- The desktop app (C++/Qt Quick) hasn't been started. No Arch package yet.
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked
   from the public repo alone.
 - The DKS and advanced-key decoding relied on screenshots of the web UI that are not in the repo.

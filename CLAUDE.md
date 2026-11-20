@@ -8,12 +8,12 @@ keyboard (USB `38ee:0016`, firmware by BY Tech). The vendor only ships a WebHID 
 a native app that does what the web driver does: profiles, lighting, keymap, advanced keys,
 per-key travel/rapid trigger, macros, settings.
 
-Current phase: **protocol reverse engineering**. The full desktop app hasn't been started and its
-stack/UI is not chosen. Don't scaffold one unless asked.
+Current phase: protocol reverse engineering is done (a few gaps remain), and the desktop app is
+starting. Stack: **C++20 and Qt Quick, built with qmake6**, the way Omarchy's own apps are built.
+One protocol library (`core/`) is shared by the CLI and the app.
 
-What exists today: `akkoctl`, a small CLI covering profile switching and global lighting (effect,
-colour, brightness), and an Omarchy bar widget built on top of it. `akkoctl` is the reference
-implementation for the transport layer.
+What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
+global lighting (effect, colour, brightness); and an Omarchy bar widget that shells out to `akkoctl`.
 
 The repo publishes **results** (tools, decoded protocol, docs), not the raw material used to get
 there: capture logs stay local and are gitignored.
@@ -23,7 +23,11 @@ there: capture logs stay local and are gitignored.
 | Path | What it is |
 |---|---|
 | `README.md` | Public overview: unofficial disclaimer, install, usage. Keep it in sync when tools change. |
-| `akkoctl/akkoctl` | Python 3 CLI, stdlib only, talks to `/dev/hidraw*` directly. Prints the keyboard state as JSON after every command. Installed as `~/.local/bin/akkoctl`. |
+| `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
+| `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
+| `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool and frames from captures: the reference the C++ code must match. |
+| `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`). |
+| `akkoctl/akkoctl` | The original Python CLI, kept until the C++ one has had some daily use, then removed. |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
 | `udev/70-akko-tac75-he.rules` | Grants the logged-in user access to the keyboard's hidraw nodes. Goes in `/etc/udev/rules.d/`. |
 | `akko-protocol.md` | **Source of truth** for everything decoded. Update it whenever a capture teaches us something. |
@@ -34,8 +38,8 @@ there: capture logs stay local and are gitignored.
 | `LICENSE` | GPL-3.0. Every source file carries `SPDX-License-Identifier: GPL-3.0-or-later`. |
 | `CLAUDE.local.md` | Private, gitignored session state and handoff notes (may not exist on your machine). |
 
-The repo copies of `akkoctl` and the widget are the source of truth; reinstall them after editing
-(the installed copies don't update themselves).
+The repo copies are the source of truth; the installed copies don't update themselves. After
+editing, run `bin/test`, then `bin/install` for the CLI; the widget is still copied by hand.
 
 ## Clean-room rules (legal)
 
@@ -124,7 +128,10 @@ The keyboard under test is a daily-use keyboard. Rules:
 - "payload[n]" offsets count from the first payload byte (frame byte 6); "frame[n]" from `cmd`.
 - Keep docs in English, terse, tables over prose.
 - New source files start with an `SPDX-License-Identifier: GPL-3.0-or-later` comment.
-- `akkoctl` stays stdlib-only Python and keeps its JSON output stable: the widget parses it.
+- `core/` and `cli/` stay Qt-free (the CLI has no runtime dependencies); Qt is for tests and the app.
+- `akkoctl` keeps its commands and JSON output stable, byte for byte: the widget parses it. The
+  `tests/fixtures/python-cli.jsonl` replay guards this.
+- Protocol changes come with a test against a fake device before anything is sent to the board.
 - Nothing personal in tracked files: no home paths, usernames, machine names. That goes in
   `CLAUDE.local.md`.
 

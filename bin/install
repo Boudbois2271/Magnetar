@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Build and install the akkoctl CLI to ~/.local/bin (or $PREFIX/bin). The Omarchy widget
+# calls ~/.local/bin/akkoctl, so it picks the new version up on its next refresh.
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+"$root/bin/build" >/dev/null
+dest="${PREFIX:-$HOME/.local}/bin/akkoctl"
+install -Dm755 "$root/build/cli/akkoctl" "$dest"
+echo "installed $dest"
