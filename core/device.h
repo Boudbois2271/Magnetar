@@ -51,9 +51,11 @@ class Connection {
 public:
     Connection();
     Transport &transport() { return transport_; }
+    const std::string &path() const { return path_; }
 
 private:
     SessionLock lock_;
+    std::string path_;
     HidrawTransport transport_;
 };
 

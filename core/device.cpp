@@ -145,7 +145,7 @@ std::optional<std::vector<std::uint8_t>> HidrawTransport::read(int timeoutMs)
 }
 
 Connection::Connection()
-    : lock_(), transport_(findHidraw())
+    : lock_(), path_(findHidraw()), transport_(path_)
 {
 }
 
