@@ -88,7 +88,7 @@ struct FakeKeyboard {
             Bytes r(kReportLen, 0);
             std::copy_n(w.begin(), 6, r.begin());
             std::size_t at = 7;
-            for (std::size_t i = 7; i + 1 < 7 + w[6]; i += 2) {
+            for (std::size_t i = 7; i + 1 < std::size_t(7) + w[6]; i += 2) {
                 const std::uint16_t id = static_cast<std::uint16_t>(w[i] << 8 | w[i + 1]);
                 const Action a = keymap[sub][id];
                 r[at++] = w[i];

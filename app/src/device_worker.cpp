@@ -57,31 +57,48 @@ void DeviceWorker::post(const std::string &key, Action action)
     wake_.notify_one();
 }
 
+void DeviceWorker::invalidateKeymap()
+{
+    std::lock_guard lock(mutex_);
+    keymapStale_ = true;
+}
+
 void DeviceWorker::loop()
 {
     for (;;) {
         std::deque<Item> batch;
+        bool keymapStale = false;
         {
             std::unique_lock lock(mutex_);
             wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
             if (stopping_)
                 return;
             batch.swap(queue_);
+            keymapStale = std::exchange(keymapStale_, false);
         }
+        Snapshot &s = state_;
         try {
             const auto session = sessions_();
             akko::Keyboard kb(session->transport());
+            if (keymapStale)
+                s.keymapProfile = -1;
             for (auto &item : batch)
-                item.action(kb);
-            Snapshot s;
+                item.action(kb, s);
             s.lighting = kb.lighting();
             s.profile = kb.profile();
             s.profileCount = kb.profileCount();
             s.firmware = kb.firmwareVersion();
             s.path = session->path();
+            if (s.keymapProfile != s.profile) {
+                for (int layer = 0; layer < akko::kLayerCount; ++layer)
+                    s.keymap[layer] = kb.readLayer(layer);
+                s.keymapProfile = s.profile;
+            }
             onState_(s);
         } catch (const std::exception &e) {
-            // A failed batch is dropped: the user sees the error and the real state on retry.
+            // A failed batch is dropped: the user sees the error and the real state on retry,
+            // keymap included.
+            s.keymapProfile = -1;
             onError_(e.what());
         }
     }

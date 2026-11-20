@@ -15,6 +15,8 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
+#include <vector>
 
 // An open connection to the keyboard. The real one is akko::Connection; tests pass a fake.
 class Session {
@@ -29,18 +31,25 @@ using SessionFactory = std::function<std::unique_ptr<Session>()>;
 // The real thing: takes the lock and opens the hidraw node, or throws akko::Error.
 SessionFactory hidrawSessions();
 
-// What the app shows, read from the keyboard after every batch.
+using LayerMap = std::vector<std::pair<std::uint16_t, akko::Action>>;
+
+// What the app shows, read from the keyboard after every batch. The keymap (30 frames) is
+// only read again when the profile changed, after an error, or when asked; key writes update
+// it from their read-back.
 struct Snapshot {
     int profile = 0;  // 0-based
     int profileCount = 0;
     akko::Lighting lighting;
     std::uint16_t firmware = 0;
     std::string path;
+    int keymapProfile = -1;  // profile the keymap below was read from, -1 = not read
+    std::array<LayerMap, akko::kLayerCount> keymap;
 };
 
 class DeviceWorker {
 public:
-    using Action = std::function<void(akko::Keyboard &)>;
+    // An action may update the snapshot it gets (a key write stores its read-back there).
+    using Action = std::function<void(akko::Keyboard &, Snapshot &)>;
 
     // Both callbacks run on the worker thread.
     DeviceWorker(SessionFactory sessions, std::function<void(const Snapshot &)> onState,
@@ -52,6 +61,8 @@ public:
     // Queue an action. An action still waiting with the same key is replaced instead, so
     // dragging a slider sends only the latest value. An empty key never replaces anything.
     void post(const std::string &key, Action action);
+    // Read the whole keymap again at the end of the next batch.
+    void invalidateKeymap();
 
 private:
     struct Item {
@@ -67,5 +78,7 @@ private:
     std::condition_variable wake_;
     std::deque<Item> queue_;
     bool stopping_ = false;
+    Snapshot state_;  // worker thread only, apart from keymapStale_
+    bool keymapStale_ = true;
     std::thread thread_;  // last, so it starts after everything it uses exists
 };

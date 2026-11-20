@@ -3,7 +3,11 @@
         <file alias="Main.qml">Main.qml</file>
         <file alias="ConnectionBanner.qml">ConnectionBanner.qml</file>
         <file alias="Card.qml">Card.qml</file>
+        <file alias="Chip.qml">Chip.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
+        <file alias="KeysPage.qml">KeysPage.qml</file>
+        <file alias="KeyboardView.qml">KeyboardView.qml</file>
+        <file alias="KeyNames.qml">KeyNames.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>

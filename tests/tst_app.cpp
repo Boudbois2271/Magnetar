@@ -90,6 +90,19 @@ QString readText(const QString &path)
     return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
 }
 
+// Finds an item by objectName in the visual tree (Repeater delegates aren't QObject children).
+QQuickItem *findItem(QQuickItem *root, const QString &name)
+{
+    if (!root)
+        return nullptr;
+    if (root->objectName() == name)
+        return root;
+    for (auto *child : root->childItems())
+        if (auto *found = findItem(child, name))
+            return found;
+    return nullptr;
+}
+
 }  // namespace
 
 class AppTests : public QObject {
@@ -218,6 +231,66 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(b.connected(), 5000);  // the 3 s retry, no refresh() call
     }
 
+    void keymapIsReadOnceAndKeptUpToDate()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.keymapReady());
+        QCOMPARE(b.keymap().size(), 3);
+        QCOMPARE(b.keymap()[0].toMap().value("1").toMap().value("code").toString(), QString("00 00 00 29"));
+        QCOMPARE(board.writesOf(0x83, 0x00), 10);
+
+        // A plain refresh (window focus) doesn't read the keymap again; Ctrl+R does.
+        b.refresh();
+        QTRY_VERIFY(board.writesOf(0x84, 0x01) >= 2);
+        QCOMPARE(board.writesOf(0x83, 0x00), 10);
+        b.reload();
+        QTRY_COMPARE(board.writesOf(0x83, 0x00), 20);
+
+        // A write sends 03 LL, reads the key back and shows the read-back.
+        QVERIFY(b.setKeyAction(2, 0x62, b.comboCode(0x01, {0x19})));
+        QTRY_COMPARE(b.keymap()[2].toMap().value(QString::number(0x62)).toMap().value("code").toString(),
+                     QString("00 01 19 00"));
+        QCOMPARE(board.writesOf(0x03, 0x02), 1);
+        {
+            std::lock_guard lock(board.mutex);
+            QVERIFY(board.keyboard.keymap[2][0x62] == comboAction(0x01, std::vector<std::uint8_t>{0x19}));
+        }
+        QVERIFY(b.restoreKeyDefault(2, 0x62));
+        QTRY_COMPARE(b.keymap()[2].toMap().value(QString::number(0x62)).toMap().value("code").toString(),
+                     QString("00 00 00 49"));
+
+        // Switching profile reads the new profile's keymap.
+        const int reads = board.writesOf(0x83, 0x00);
+        b.setProfile(2);
+        QTRY_COMPARE(board.writesOf(0x83, 0x00), reads + 10);
+
+        // Bad input sends nothing.
+        QVERIFY(!b.setKeyAction(3, 0x62, "00 00 00 04"));
+        QVERIFY(!b.setKeyAction(0, 0x7f, "00 00 00 04"));
+        QVERIFY(!b.setKeyAction(0, 0x62, "nonsense"));
+        QCOMPARE(b.comboCode(0, {0x04, 0x05}), QString());
+        QCOMPARE(b.mouseCode(4), QString());
+    }
+
+    void actionInfoDescribesEveryKind()
+    {
+        FakeBoard board;
+        Backend b(fakeSessions(board), QTemporaryDir().filePath("state.json"));
+        const auto combo = b.actionInfo("00 03 05 04");
+        QCOMPARE(combo.value("kind").toString(), QString("key"));
+        QCOMPARE(combo.value("modifiers").toInt(), 3);
+        QCOMPARE(combo.value("keys").toList(), (QVariantList{4, 5}));
+        QCOMPARE(b.actionInfo("02 00 00 e9").value("value").toInt(), 0xe9);
+        QCOMPARE(b.actionInfo("0d 01 00 00").value("kind").toString(), QString("layer"));
+        QCOMPARE(b.actionInfo("ff ff ff ff").value("kind").toString(), QString("unbound"));
+        QCOMPARE(b.actionInfo("09 00 00 02").value("value").toInt(), 2);
+        QVERIFY(b.actionInfo("zz").isEmpty());
+        QCOMPARE(b.factoryAction(1, 0x40).value("code").toString(), QString("02 00 00 e9"));
+        QCOMPARE(b.layout().size(), 83);
+    }
+
     void errorKinds()
     {
         QCOMPARE(Backend::classifyError("keyboard not found (is it plugged in?)"), QString("notFound"));
@@ -305,6 +378,66 @@ private slots:
         auto *banner = window->findChild<QQuickItem *>("connectionBanner");
         QVERIFY(banner);
         QTRY_VERIFY(!banner->isVisible());
+
+        QString text;
+        for (const auto &w : warnings)
+            text += w.toString() + "\n";
+        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+    }
+
+    void keysPageRemapsAKey()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend backend(fakeSessions(board), dir.filePath("state.json"));
+        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
+        Translator translator(dir.filePath("language"), ":/i18n");
+
+        QQmlApplicationEngine engine;
+        QList<QQmlError> warnings;
+        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
+        engine.rootContext()->setContextProperty("translator", &translator);
+        engine.rootContext()->setContextProperty("theme", &theme);
+        engine.rootContext()->setContextProperty("backend", &backend);
+        engine.load(QUrl("qrc:/Main.qml"));
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->setProperty("page", 1);
+        QTRY_VERIFY(backend.keymapReady());
+
+        auto *esc = findItem(window->contentItem(), "key_1");
+        QVERIFY(esc);
+        QTRY_COMPARE(esc->findChild<QQuickItem *>()->property("text").toString(), QString("Esc"));
+        auto *insert = findItem(window->contentItem(), "key_98");  // 0x62
+        QVERIFY(insert);
+
+        // Select Insert, search "f5" and click the result.
+        auto *page = window->findChild<QQuickItem *>("keyboardView")->parentItem();
+        while (page && !page->property("selectedKey").isValid())
+            page = page->parentItem();
+        QVERIFY(page);
+        QMetaObject::invokeMethod(window->findChild<QQuickItem *>("keyboardView"), "keyClicked", Q_ARG(int, 0x62));
+        QCOMPARE(page->property("selectedKey").toInt(), 0x62);
+        page->setProperty("search", "f5");
+        QMetaObject::invokeMethod(page, "assign", Q_ARG(QVariant, backend.keyCode(0x3e)));
+        QTRY_COMPARE(backend.keymap()[0].toMap().value("98").toMap().value("code").toString(), QString("00 00 00 3e"));
+        QTRY_COMPARE(insert->findChild<QQuickItem *>()->property("text").toString(), QString("F5"));
+        QCOMPARE(window->findChild<QQuickItem *>("currentAction")->property("text").toString(), QString("F5"));
+
+        // Restore default puts Insert back.
+        auto *restore = window->findChild<QQuickItem *>("restoreButton");
+        QVERIFY(restore->property("enabled").toBool());
+        QMetaObject::invokeMethod(restore, "clicked");
+        QTRY_COMPARE(insert->findChild<QQuickItem *>()->property("text").toString(), QString("Ins"));
+
+        // Moving the only Fn key asks first, and sends nothing until confirmed.
+        QMetaObject::invokeMethod(window->findChild<QQuickItem *>("keyboardView"), "keyClicked", Q_ARG(int, 0x48));
+        const int writes = board.writesOf(0x03, 0x00);
+        QMetaObject::invokeMethod(page, "assign", Q_ARG(QVariant, backend.keyCode(0x04)));
+        auto *confirm = window->findChild<QObject *>("confirmLayerKey");
+        QVERIFY(confirm);
+        QTRY_VERIFY(confirm->property("visible").toBool());
+        QCOMPARE(board.writesOf(0x03, 0x00), writes);
 
         QString text;
         for (const auto &w : warnings)

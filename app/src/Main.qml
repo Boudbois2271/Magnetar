@@ -29,7 +29,7 @@ ApplicationWindow {
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
     Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
     Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected; onActivated: backend.toggleLights() }
-    Shortcut { sequence: "Ctrl+R"; context: Qt.ApplicationShortcut; onActivated: backend.refresh() }
+    Shortcut { sequence: "Ctrl+R"; context: Qt.ApplicationShortcut; onActivated: backend.reload() }
     Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(1) }
     Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(2) }
     Shortcut { sequence: "Ctrl+3"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(3) }
@@ -93,7 +93,7 @@ ApplicationWindow {
                     Item { implicitHeight: 18 }
 
                     Repeater {
-                        model: [qsTr("Lighting"), qsTr("Device")]
+                        model: [qsTr("Lighting"), qsTr("Keys"), qsTr("Device")]
                         delegate: ItemDelegate {
                             required property int index
                             required property string modelData
@@ -138,6 +138,7 @@ ApplicationWindow {
                     currentIndex: win.page
 
                     LightingPage {}
+                    KeysPage {}
                     DevicePage {}
                 }
             }

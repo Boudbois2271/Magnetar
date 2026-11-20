@@ -9,6 +9,8 @@
 #include <QObject>
 #include <QString>
 #include <QTimer>
+#include <QVariantList>
+#include <QVariantMap>
 
 #include <memory>
 
@@ -29,6 +31,11 @@ class Backend : public QObject {
     Q_PROPERTY(bool lightsOn READ lightsOn NOTIFY stateChanged)
     Q_PROPERTY(QString firmware READ firmware NOTIFY stateChanged)
     Q_PROPERTY(QString devicePath READ devicePath NOTIFY stateChanged)
+    // Keys page. layout: [{id, x, y, w}] in quarter key widths. keymap: one object per layer,
+    // key ID (as a string) → action info (see actionInfo).
+    Q_PROPERTY(QVariantList layout READ layout CONSTANT)
+    Q_PROPERTY(bool keymapReady READ keymapReady NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList keymap READ keymap NOTIFY stateChanged)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -53,7 +60,32 @@ public:
     QString firmware() const;
     QString devicePath() const { return QString::fromStdString(m_state.path); }
 
+    QVariantList layout() const;
+    bool keymapReady() const { return m_state.keymapProfile >= 0; }
+    QVariantList keymap() const { return m_keymap; }
+
     Q_INVOKABLE void refresh();
+    Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
+
+    // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |
+    // "consumer" | "macro" | "system" | "lighting" | "profile" | "layer" | "unbound" | "unknown",
+    // modifiers, keys: [usages], value}. value = mouse button, consumer usage, macro index,
+    // layer, profile (0-based) or the last byte for system/lighting.
+    Q_INVOKABLE QVariantMap actionInfo(const QString &code) const;
+    Q_INVOKABLE QVariantMap factoryAction(int layer, int key) const;
+    // Action codes for the picker; an empty string when the input can't be encoded.
+    Q_INVOKABLE QString keyCode(int usage) const;
+    Q_INVOKABLE QString comboCode(int modifiers, const QVariantList &keys) const;
+    Q_INVOKABLE QString mouseCode(int button) const;
+    Q_INVOKABLE QString consumerCode(int usage) const;
+    Q_INVOKABLE QString layerCode(int layer) const;
+    Q_INVOKABLE QString unboundCode() const;
+    Q_INVOKABLE QString brightnessCycleCode() const;
+    // Writes the action, the drawing then shows the board's read-back. False (nothing sent) for
+    // a bad layer, key or code.
+    Q_INVOKABLE bool setKeyAction(int layer, int key, const QString &code);
+    Q_INVOKABLE bool restoreKeyDefault(int layer, int key);
+
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
     Q_INVOKABLE bool setColor(const QString &color);  // false (and nothing sent) if it isn't a colour
@@ -76,6 +108,7 @@ private:
 
     std::string m_stateFile;
     Snapshot m_state;
+    QVariantList m_keymap;
     bool m_connected = false;
     bool m_ready = false;
     QString m_errorKind;
