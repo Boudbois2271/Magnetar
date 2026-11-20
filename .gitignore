@@ -6,3 +6,6 @@ akko-capture*.txt
 screenshots/
 
 __pycache__/
+
+# Build output (bin/build)
+build/

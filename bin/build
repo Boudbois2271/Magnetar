@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Build everything into build/ (out of tree, gitignored).
+set -euo pipefail
+root="$(cd "$(dirname "$0")/.." && pwd)"
+mkdir -p "$root/build"
+cd "$root/build"
+qmake6 "$root/akkoctl.pro"
+make -j"$(nproc)"
