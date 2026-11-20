@@ -6,7 +6,7 @@ Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: pro
 sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration), `akko-capture6b.txt` (2026-11-18: Base
 Functions; `akko-capture6.txt` is its first half), later captures up to `akko-capture10.txt` (2026-11-18:
 polling rates, DKS hold, Mural solid colours) are cited by mark.
-Status: **KNOWN** = akkoctl uses it, verified on the board · **SEEN** = captured write with a clear
+Status: **KNOWN** = our code (`core/`) sends it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
 ## Transport (KNOWN)

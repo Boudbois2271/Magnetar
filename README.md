@@ -1,7 +1,8 @@
-# Akko TAC75 HE on Linux
+# Magnetar
 
 Open-source tools to configure the **Akko TAC75 HE** magnetic keyboard (USB `38ee:0016`) on Linux,
-without the vendor's web configurator.
+without the vendor's web configurator: **Magnetar**, a desktop app, and `akkoctl`, a command-line
+tool for scripts and status bars.
 
 > **Unofficial project.** It is not affiliated with, endorsed by or supported by Akko or the
 > keyboard's firmware vendor. "Akko" and "TAC75 HE" are used only to name the hardware this works

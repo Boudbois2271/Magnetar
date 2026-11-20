@@ -2,7 +2,7 @@
 
 ## Project
 
-An open-source, Linux-first configuration tool for the **Akko TAC75 HE** magnetic (Hall effect)
+**Magnetar**: an open-source, Linux-first configuration tool for the **Akko TAC75 HE** magnetic (Hall effect)
 keyboard (USB `38ee:0016`, firmware by BY Tech). The vendor only ships a WebHID configurator
 (`demo.hubx.pro`). This repo reverse engineers its HID protocol from captured traffic, so we can build
 a native app that does what the web driver does: profiles, lighting, keymap, advanced keys,
@@ -16,6 +16,9 @@ What exists today: the core library; `akkoctl`, a CLI on top of it covering prof
 global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
 and **Magnetar**, the desktop app (sidebar of pages; so far Lighting and Device). Next pages: Keys
 (with the clickable keyboard drawing), Travel, Advanced keys, Macros, Settings, Mural, Calibration.
+
+Names: the project, repo and desktop app are **Magnetar**. `akkoctl` is the CLI inside it, and keeps
+that name everywhere it appears (command, `akkoctl.lock`, `~/.local/state/akkoctl/`, log).
 
 The repo publishes **results** (tools, decoded protocol, docs), not the raw material used to get
 there: capture logs stay local and are gitignored.

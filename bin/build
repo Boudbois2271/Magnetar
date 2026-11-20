@@ -5,5 +5,5 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 mkdir -p "$root/build"
 cd "$root/build"
-qmake6 "$root/akkoctl.pro"
+qmake6 "$root/magnetar.pro"
 make -j"$(nproc)"
