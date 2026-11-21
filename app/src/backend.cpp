@@ -191,6 +191,18 @@ bool Backend::setKeyAction(int layer, int key, const QString &c)
     return true;
 }
 
+bool Backend::setKeyActions(int layer, const QVariantList &keys, const QString &c)
+{
+    if (!akko::parseAction(c.toStdString()) || layer < 0 || layer >= akko::kLayerCount || keys.isEmpty())
+        return false;
+    for (const auto &k : keys)
+        if (!knownKey(k.toInt()))
+            return false;
+    for (const auto &k : keys)
+        setKeyAction(layer, k.toInt(), c);
+    return true;
+}
+
 bool Backend::restoreKeyDefault(int layer, int key)
 {
     if (layer < 0 || layer >= akko::kLayerCount || !knownKey(key))
@@ -559,27 +571,44 @@ bool Backend::advancedValid(const QVariantMap &record) const
     return a && akko::advancedProblem(*a).empty();
 }
 
-bool Backend::saveAdvanced(const QVariantMap &record)
+bool Backend::saveAdvanced(const QVariantList &records)
 {
-    const auto a = fromVariant(record);
-    if (!a || !akko::advancedProblem(*a).empty() || !advancedReady())
+    if (records.isEmpty() || !advancedReady())
         return false;
-    // Keyed per key: only the last save of a key waiting in the queue is sent.
-    post("advanced " + std::to_string(a->key), [a = *a](akko::Keyboard &kb, Snapshot &s) {
+    std::vector<akko::AdvancedKey> batch;
+    std::vector<std::uint16_t> ids;
+    for (const auto &r : records) {
+        const auto a = fromVariant(r.toMap());
+        if (!a || !akko::advancedProblem(*a).empty())
+            return false;
+        for (auto id : akko::advancedKeyIds(*a)) {
+            if (std::find(ids.begin(), ids.end(), id) != ids.end())
+                return false;
+            ids.push_back(id);
+        }
+        batch.push_back(*a);
+    }
+    // Never replaced in the queue: a later save may be for other keys.
+    post("", [batch = std::move(batch)](akko::Keyboard &kb, Snapshot &s) {
         const int profile = kb.profile();
-        storeAdvanced(s, kb.setAdvanced(a), profile);
+        storeAdvanced(s, kb.setAdvanced(batch), profile);
     });
     return true;
 }
 
-bool Backend::removeAdvanced(int key)
+bool Backend::removeAdvanced(const QVariantList &keys)
 {
-    if (!knownKey(key) || !advancedReady())
+    if (keys.isEmpty() || !advancedReady())
         return false;
-    const auto id = static_cast<std::uint16_t>(key);
-    post("advanced " + std::to_string(key), [id](akko::Keyboard &kb, Snapshot &s) {
+    std::vector<std::uint16_t> ids;
+    for (const auto &k : keys) {
+        if (!knownKey(k.toInt()))
+            return false;
+        ids.push_back(static_cast<std::uint16_t>(k.toInt()));
+    }
+    post("", [ids = std::move(ids)](akko::Keyboard &kb, Snapshot &s) {
         const int profile = kb.profile();
-        storeAdvanced(s, kb.clearAdvanced(id), profile);
+        storeAdvanced(s, kb.clearAdvanced(ids), profile);
     });
     return true;
 }

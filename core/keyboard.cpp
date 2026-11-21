@@ -385,25 +385,47 @@ void Keyboard::clearKeys(std::span<const std::uint16_t> keys, const std::vector<
 
 std::vector<AdvancedKey> Keyboard::setAdvanced(const AdvancedKey &a)
 {
-    if (const auto problem = advancedProblem(a); !problem.empty())
-        throw Error(problem);
-    const auto ids = advancedKeyIds(a);
+    return setAdvanced(std::span<const AdvancedKey>(&a, 1));
+}
+
+std::vector<AdvancedKey> Keyboard::setAdvanced(std::span<const AdvancedKey> records)
+{
+    std::vector<std::uint16_t> ids;
+    for (const auto &a : records) {
+        if (const auto problem = advancedProblem(a); !problem.empty())
+            throw Error(problem);
+        for (auto id : advancedKeyIds(a)) {
+            if (std::find(ids.begin(), ids.end(), id) != ids.end())
+                throw Error("two advanced keys on key " + std::to_string(id));
+            ids.push_back(id);
+        }
+    }
+    if (records.empty())
+        return readAdvancedKeys();
     clearKeys(ids, readAdvancedKeys());
-    transactPacket(0x12, 0x00, 1, 0, encodeAdvanced(a), 1000, 2, static_cast<std::uint8_t>(a.type));
+    for (const auto &a : records)
+        transactPacket(0x12, 0x00, 1, 0, encodeAdvanced(a), 1000, 2, static_cast<std::uint8_t>(a.type));
     auto after = readAdvancedKeys();
-    const auto back = std::find_if(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, a.key); });
-    if (back == after.end() || *back != a)
-        throw Error("the keyboard kept another advanced key on key " + std::to_string(a.key));
+    for (const auto &a : records) {
+        const auto back = std::find_if(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, a.key); });
+        if (back == after.end() || *back != a)
+            throw Error("the keyboard kept another advanced key on key " + std::to_string(a.key));
+    }
     return after;
 }
 
 std::vector<AdvancedKey> Keyboard::clearAdvanced(std::uint16_t key)
 {
-    const std::uint16_t keys[] = {key};
+    return clearAdvanced(std::span<const std::uint16_t>(&key, 1));
+}
+
+std::vector<AdvancedKey> Keyboard::clearAdvanced(std::span<const std::uint16_t> keys)
+{
     clearKeys(keys, readAdvancedKeys());
     auto after = readAdvancedKeys();
-    if (std::any_of(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, key); }))
-        throw Error("the keyboard kept the advanced key on key " + std::to_string(key));
+    for (auto key : keys)
+        if (std::any_of(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, key); }))
+            throw Error("the keyboard kept the advanced key on key " + std::to_string(key));
     return after;
 }
 

@@ -261,6 +261,18 @@ private slots:
         QTRY_COMPARE(b.keymap()[2].toMap().value(QString::number(0x62)).toMap().value("code").toString(),
                      QString("00 00 00 49"));
 
+        // The same action on several keys: one 03 LL per key.
+        QVERIFY(b.setKeyActions(1, {0x62, 0x63, 0x64}, b.keyCode(0x04)));
+        QTRY_VERIFY([&] {
+            for (int key : {0x62, 0x63, 0x64})
+                if (b.keymap()[1].toMap().value(QString::number(key)).toMap().value("code").toString() != "00 00 00 04")
+                    return false;
+            return true;
+        }());
+        QCOMPARE(board.writesOf(0x03, 0x01), 3);
+        QVERIFY(!b.setKeyActions(1, {0x62, 0x7f}, b.keyCode(0x04)));  // one bad key: nothing
+        QVERIFY(!b.setKeyActions(1, {}, b.keyCode(0x04)));
+
         // Switching profile reads the new profile's keymap.
         const int reads = board.writesOf(0x83, 0x00);
         b.setProfile(2);
@@ -338,7 +350,7 @@ private slots:
         const QVariantMap mt{{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"},
                              {"tap", "00 00 00 17"}, {"holdMs", 322}};
         QVERIFY(b.advancedValid(mt));
-        QVERIFY(b.saveAdvanced(mt));
+        QVERIFY(b.saveAdvanced({mt}));
         QTRY_COMPARE(b.advancedKeys().size(), 1);
         QCOMPARE(b.advancedKeys()[0].toMap(), mt);
         {
@@ -352,7 +364,7 @@ private slots:
                                 QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}},
                                 QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}}};
         const QVariantMap dks{{"type", "dks"}, {"key", 0x46}, {"depths", QVariantList{1.0, 3.0, 3.0, 1.0}}, {"rows", rows}};
-        QVERIFY(b.saveAdvanced(dks));
+        QVERIFY(b.saveAdvanced({dks}));
         QTRY_COMPARE(b.advancedKeys().size(), 2);
         QVariantMap read;
         for (const auto &v : b.advancedKeys())
@@ -365,9 +377,9 @@ private slots:
         QCOMPARE(read.value("rows").toList().at(2).toMap().value("action").toString(), QString());
 
         // SOCD A + D, then Release on D: the pair goes, D gets the new key.
-        QVERIFY(b.saveAdvanced({{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}));
+        QVERIFY(b.saveAdvanced({QVariantMap{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}}));
         QTRY_COMPARE(b.advancedKeys().size(), 3);
-        QVERIFY(b.saveAdvanced({{"type", "release"}, {"key", 0x2d}, {"action", "00 00 00 22"}}));
+        QVERIFY(b.saveAdvanced({QVariantMap{{"type", "release"}, {"key", 0x2d}, {"action", "00 00 00 22"}}}));
         QTRY_VERIFY([&] {
             for (const auto &v : b.advancedKeys())
                 if (v.toMap().value("type") == "release")
@@ -377,7 +389,7 @@ private slots:
         QCOMPARE(b.advancedKeys().size(), 3);
 
         // Removing clears the key on the board.
-        QVERIFY(b.removeAdvanced(0x26));
+        QVERIFY(b.removeAdvanced({0x26}));
         QTRY_COMPARE(b.advancedKeys().size(), 2);
         {
             std::lock_guard lock(board.mutex);
@@ -386,14 +398,29 @@ private slots:
 
         // Bad records send nothing.
         const int writes = board.writesOf(0x12, 0x00);
-        QVERIFY(!b.saveAdvanced({{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"}, {"tap", ""}, {"holdMs", 322}}));
-        QVERIFY(!b.saveAdvanced({{"type", "toggle"}, {"key", 0x31}, {"action", "00 00 00 0e"}, {"holdMs", 5000}}));
-        QVERIFY(!b.saveAdvanced({{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2b}, {"mode", "neutral"}}));
-        QVERIFY(!b.saveAdvanced({{"type", "teleport"}, {"key", 0x26}}));
-        QVERIFY(!b.saveAdvanced({{"type", "release"}, {"key", 0x7f}, {"action", "00 00 00 22"}}));
-        QVERIFY(!b.removeAdvanced(0x7f));
+        QVERIFY(!b.saveAdvanced({QVariantMap{{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"}, {"tap", ""}, {"holdMs", 322}}}));
+        QVERIFY(!b.saveAdvanced({QVariantMap{{"type", "toggle"}, {"key", 0x31}, {"action", "00 00 00 0e"}, {"holdMs", 5000}}}));
+        QVERIFY(!b.saveAdvanced({QVariantMap{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2b}, {"mode", "neutral"}}}));
+        QVERIFY(!b.saveAdvanced({QVariantMap{{"type", "teleport"}, {"key", 0x26}}}));
+        QVERIFY(!b.saveAdvanced({QVariantMap{{"type", "release"}, {"key", 0x7f}, {"action", "00 00 00 22"}}}));
+        QVERIFY(!b.removeAdvanced({0x7f}));
+        QVERIFY(!b.saveAdvanced({}));
+        QVERIFY(!b.saveAdvanced({mt, mt}));  // two records on one key
+        QVERIFY(!b.removeAdvanced({}));
         QTest::qWait(50);
         QCOMPARE(board.writesOf(0x12, 0x00), writes);
+
+        // The same Mod-Tap on three keys in one save, then two of them removed in one go.
+        QVariantList three;
+        for (int key : {0x26, 0x31, 0x38}) {
+            QVariantMap r = mt;
+            r["key"] = key;
+            three.append(r);
+        }
+        QVERIFY(b.saveAdvanced(three));
+        QTRY_COMPARE(b.advancedKeys().size(), 5);
+        QVERIFY(b.removeAdvanced({0x26, 0x31}));
+        QTRY_COMPARE(b.advancedKeys().size(), 3);
     }
 
     void actionInfoDescribesEveryKind()

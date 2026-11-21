@@ -89,8 +89,13 @@ public:
     // board's advanced keys. Throws before sending anything if advancedProblem() objects, and
     // after writing if the read-back differs.
     std::vector<AdvancedKey> setAdvanced(const AdvancedKey &a);
+    // The same for several records at once (one list read before, one after): all the keys they
+    // occupy are cleared first, then each record is written. Throws before sending anything if
+    // a record is refused or two records share a key.
+    std::vector<AdvancedKey> setAdvanced(std::span<const AdvancedKey> records);
     // Removes the key's advanced key (both keys of a SOCD pair). Returns the board's advanced keys.
     std::vector<AdvancedKey> clearAdvanced(std::uint16_t key);
+    std::vector<AdvancedKey> clearAdvanced(std::span<const std::uint16_t> keys);
 
 private:
     // Sends 12 00 type 00 for each key that has an advanced key, and for the other key of a

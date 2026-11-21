@@ -681,6 +681,56 @@ private slots:
         QVERIFY(!board.advanced.contains(0x2b));
     }
 
+    void setAdvancedOnSeveralKeys()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        // P already has a Release: it is cleared before the batch is written.
+        AdvancedKey end = makeAdvanced(AdvancedType::Release, 0x26);
+        end.action = keyAction(0x22);
+        kb.setAdvanced(end);
+        t.written.clear();
+
+        std::vector<AdvancedKey> batch;
+        for (std::uint16_t key : {0x26, 0x31, 0x38}) {
+            AdvancedKey mt = makeAdvanced(AdvancedType::ModTap, key);
+            mt.action = keyAction(0x15);
+            mt.tap = keyAction(0x17);
+            mt.holdMs = 322;
+            batch.push_back(mt);
+        }
+        const auto after = kb.setAdvanced(batch);
+        QCOMPARE(after.size(), std::size_t(3));
+        for (const auto &a : batch)
+            QVERIFY(std::find(after.begin(), after.end(), a) != after.end());
+        std::vector<Bytes> ours;
+        for (std::size_t i = 0; i < t.written.size(); ++i)
+            if (sent(t, i)[0] == 0x12)
+                ours.push_back(sent(t, i));
+        QCOMPARE(ours.size(), std::size_t(1 + 3));  // P's clear, then the three records
+        QCOMPARE(ours[0][2], std::uint8_t(0x00));
+        // The list is read once before and once after, not per key.
+        std::size_t lists = 0;
+        for (std::size_t i = 0; i < t.written.size(); ++i)
+            if (sent(t, i)[0] == 0x92 && sent(t, i)[5] == 0)
+                ++lists;
+        QCOMPARE(lists, std::size_t(2));
+
+        const std::uint16_t keys[] = {0x26, 0x38};
+        const auto left = kb.clearAdvanced(keys);
+        QCOMPARE(left.size(), std::size_t(1));
+        QCOMPARE(left[0].key, std::uint16_t(0x31));
+
+        // Two records on one key: refused before anything is sent.
+        t.written.clear();
+        batch.resize(2);
+        batch[1].key = batch[0].key;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(batch));
+        QVERIFY(t.written.empty());
+    }
+
     void setAdvancedRefusesBadRecords()
     {
         FakeTransport t;

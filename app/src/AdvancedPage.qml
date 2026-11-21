@@ -219,7 +219,7 @@ Item {
     }
     function save() {
         if (page.dirty && page.problem() === "")
-            backend.saveAdvanced(page.draft)
+            backend.saveAdvanced([page.draft])
     }
 
     onSelectedKeyChanged: page.load()
@@ -580,7 +580,7 @@ Item {
                         visible: page.saved !== null
                         text: page.saved !== null && page.saved.type === "socd" ? qsTr("Remove the SOCD pair") : qsTr("Remove")
                         onClicked: {
-                            backend.removeAdvanced(page.selectedKey)
+                            backend.removeAdvanced([page.selectedKey])
                             page.draft = null
                         }
                     }

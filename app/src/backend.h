@@ -110,6 +110,8 @@ public:
     // Writes the action, the drawing then shows the board's read-back. False (nothing sent) for
     // a bad layer, key or code.
     Q_INVOKABLE bool setKeyAction(int layer, int key, const QString &code);
+    // The same action on each of these keys. False (nothing sent) if any of them is bad.
+    Q_INVOKABLE bool setKeyActions(int layer, const QVariantList &keys, const QString &code);
     Q_INVOKABLE bool restoreKeyDefault(int layer, int key);
 
     // Changes one part of the travel on these keys and keeps the rest of each key as it is.
@@ -121,10 +123,12 @@ public:
 
     // True when the record (same shape as advancedKeys) can be saved.
     Q_INVOKABLE bool advancedValid(const QVariantMap &record) const;
-    // Saves it: whatever its keys hold now is cleared first (both keys of a SOCD pair), then the
-    // page shows the board's read-back. False, and nothing sent, if it isn't valid.
-    Q_INVOKABLE bool saveAdvanced(const QVariantMap &record);
-    Q_INVOKABLE bool removeAdvanced(int key);  // the key's advanced key, or its whole SOCD pair
+    // Saves these records in one go: whatever their keys hold now is cleared first (both keys of
+    // a SOCD pair), then the page shows the board's read-back. False, and nothing sent, if one
+    // isn't valid or two share a key.
+    Q_INVOKABLE bool saveAdvanced(const QVariantList &records);
+    // Removes these keys' advanced keys (a SOCD pair whole, from either key).
+    Q_INVOKABLE bool removeAdvanced(const QVariantList &keys);
 
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
