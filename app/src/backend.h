@@ -36,6 +36,10 @@ class Backend : public QObject {
     Q_PROPERTY(QVariantList layout READ layout CONSTANT)
     Q_PROPERTY(bool keymapReady READ keymapReady NOTIFY stateChanged)
     Q_PROPERTY(QVariantList keymap READ keymap NOTIFY stateChanged)
+    Q_PROPERTY(bool travelReady READ travelReady NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap travel READ travel NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap travelLimits READ travelLimits CONSTANT)
+    Q_PROPERTY(bool canUndoTravel READ canUndoTravel NOTIFY stateChanged)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -64,6 +68,13 @@ public:
     bool keymapReady() const { return m_state.keymapProfile >= 0; }
     QVariantList keymap() const { return m_keymap; }
 
+    // Travel of the active profile, in mm: key id (string) → actuation, rapidTrigger, press,
+    // release, deadZones, deadTop, deadBottom.
+    bool travelReady() const { return m_state.travelProfile >= 0; }
+    QVariantMap travel() const { return m_travel; }
+    QVariantMap travelLimits() const;  // min/max in mm for the page's sliders, and the step
+    bool canUndoTravel() const { return m_state.travelUndo.has_value(); }
+
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
@@ -85,6 +96,13 @@ public:
     // a bad layer, key or code.
     Q_INVOKABLE bool setKeyAction(int layer, int key, const QString &code);
     Q_INVOKABLE bool restoreKeyDefault(int layer, int key);
+
+    // Changes one part of the travel on these keys and keeps the rest of each key as it is.
+    // change holds fields of one part only, in mm: {actuation}, {rapidTrigger, press, release}
+    // or {deadZones, deadTop, deadBottom}. Turning Rapid Trigger on for a key at 0 / 0 gives it
+    // 0.005 / 0.005, as the vendor app does. False, and nothing sent, if it isn't valid.
+    Q_INVOKABLE bool changeTravel(const QVariantList &keys, const QVariantMap &change);
+    Q_INVOKABLE void undoTravel();  // puts back what the last change replaced
 
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
@@ -109,6 +127,7 @@ private:
     std::string m_stateFile;
     Snapshot m_state;
     QVariantList m_keymap;
+    QVariantMap m_travel;
     bool m_connected = false;
     bool m_ready = false;
     QString m_errorKind;

@@ -13,6 +13,7 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <string>
 #include <thread>
 #include <utility>
@@ -33,9 +34,9 @@ SessionFactory hidrawSessions();
 
 using LayerMap = std::vector<std::pair<std::uint16_t, akko::Action>>;
 
-// What the app shows, read from the keyboard after every batch. The keymap (30 frames) is
-// only read again when the profile changed, after an error, or when asked; key writes update
-// it from their read-back.
+// What the app shows, read from the keyboard after every batch. The keymap (30 frames) and the
+// travel (32 frames) are only read again when the profile changed, after an error, or when
+// asked; writes update them from their read-back.
 struct Snapshot {
     int profile = 0;  // 0-based
     int profileCount = 0;
@@ -44,6 +45,16 @@ struct Snapshot {
     std::string path;
     int keymapProfile = -1;  // profile the keymap below was read from, -1 = not read
     std::array<LayerMap, akko::kLayerCount> keymap;
+    int travelProfile = -1;               // same, for the travel below
+    std::vector<akko::KeyTravel> travel;  // all 83 keys, in keyReadOrder()
+
+    // The values the last travel change replaced, so it can be undone (one level).
+    struct TravelUndo {
+        int profile;
+        akko::TravelPart part;
+        std::vector<akko::KeyTravel> before;
+    };
+    std::optional<TravelUndo> travelUndo;
 };
 
 class DeviceWorker {
@@ -61,7 +72,7 @@ public:
     // Queue an action. An action still waiting with the same key is replaced instead, so
     // dragging a slider sends only the latest value. An empty key never replaces anything.
     void post(const std::string &key, Action action);
-    // Read the whole keymap again at the end of the next batch.
+    // Read the whole keymap and travel again at the end of the next batch.
     void invalidateKeymap();
 
 private:

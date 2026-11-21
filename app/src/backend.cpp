@@ -7,6 +7,8 @@
 #include <QMetaObject>
 
 #include <algorithm>
+#include <cmath>
+#include <optional>
 
 Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *parent)
     : QObject(parent),
@@ -196,6 +198,151 @@ bool Backend::restoreKeyDefault(int layer, int key)
     return setKeyAction(layer, key, code(akko::factoryAction(layer, static_cast<std::uint16_t>(key))));
 }
 
+// ---- travel ----------------------------------------------------------------
+
+namespace {
+
+// Units to mm as the page shows them: 57 → 0.285, not 0.28500000000000003.
+double mm(std::uint16_t units)
+{
+    return std::round(units * akko::kMmPerUnit * 1000) / 1000;
+}
+
+struct TravelChange {
+    akko::TravelPart part = akko::TravelPart::Actuation;
+    std::optional<std::uint16_t> actuation, press, release, deadTop, deadBottom;
+    std::optional<bool> rapidTrigger, deadZones;
+
+    void apply(akko::KeyTravel &t) const
+    {
+        if (actuation)
+            t.actuation = *actuation;
+        if (rapidTrigger) {
+            t.rapidTrigger = *rapidTrigger;
+            if (t.rapidTrigger && !press && t.press == 0)
+                t.press = akko::kMinRapidTrigger;
+            if (t.rapidTrigger && !release && t.release == 0)
+                t.release = akko::kMinRapidTrigger;
+        }
+        if (press)
+            t.press = *press;
+        if (release)
+            t.release = *release;
+        if (deadZones)
+            t.deadZones = *deadZones;
+        if (deadTop)
+            t.deadTop = *deadTop;
+        if (deadBottom)
+            t.deadBottom = *deadBottom;
+    }
+};
+
+// Reads {field: value} into a change; nullopt if a field is unknown, fields of two parts are
+// mixed, or a distance isn't a number.
+std::optional<TravelChange> parseChange(const QVariantMap &m)
+{
+    using P = akko::TravelPart;
+    TravelChange c;
+    std::optional<P> part;
+    for (auto it = m.begin(); it != m.end(); ++it) {
+        const QString &f = it.key();
+        const P p = f == "actuation"                                           ? P::Actuation
+                    : (f == "rapidTrigger" || f == "press" || f == "release") ? P::RapidTrigger
+                    : (f == "deadZones" || f == "deadTop" || f == "deadBottom") ? P::DeadZones
+                                                                                 : P(-1);
+        if (int(p) < 0 || (part && *part != p))
+            return std::nullopt;
+        part = p;
+        if (f == "rapidTrigger" || f == "deadZones") {
+            (f == "rapidTrigger" ? c.rapidTrigger : c.deadZones) = it.value().toBool();
+            continue;
+        }
+        bool ok = false;
+        const double v = it.value().toDouble(&ok);
+        if (!ok || v < 0 || v > 10)
+            return std::nullopt;
+        const auto units = static_cast<std::uint16_t>(std::lround(v / akko::kMmPerUnit));
+        (f == "actuation" ? c.actuation
+         : f == "press"   ? c.press
+         : f == "release" ? c.release
+         : f == "deadTop" ? c.deadTop
+                          : c.deadBottom) = units;
+    }
+    if (!part)
+        return std::nullopt;
+    c.part = *part;
+    return c;
+}
+
+}  // namespace
+
+QVariantMap Backend::travelLimits() const
+{
+    return {{"minActuation", mm(akko::kMinActuation)}, {"maxActuation", mm(akko::kMaxActuation)},
+            {"minRapidTrigger", mm(akko::kMinRapidTrigger)}, {"maxRapidTrigger", mm(akko::kMaxRapidTrigger)},
+            {"maxDeadZone", mm(akko::kMaxDeadZone)}, {"step", akko::kMmPerUnit}};
+}
+
+bool Backend::changeTravel(const QVariantList &keys, const QVariantMap &change)
+{
+    const auto c = parseChange(change);
+    if (!c || keys.isEmpty() || !travelReady())
+        return false;
+    std::vector<std::uint16_t> ids;
+    for (const auto &k : keys) {
+        const int id = k.toInt();
+        if (!knownKey(id))
+            return false;
+        if (std::find(ids.begin(), ids.end(), id) == ids.end())
+            ids.push_back(static_cast<std::uint16_t>(id));
+    }
+    // Check against what the page shows; the worker checks again against the board's values.
+    for (auto t : m_state.travel)
+        if (std::find(ids.begin(), ids.end(), t.key) != ids.end()) {
+            c->apply(t);
+            if (!akko::travelProblem(t, c->part).empty())
+                return false;
+        }
+    // Not keyed: each change builds on the one before, so none may be merged away.
+    post({}, [ids, c = *c](akko::Keyboard &kb, Snapshot &s) {
+        const int profile = kb.profile();
+        if (s.travelProfile != profile) {
+            s.travel = kb.readTravel();
+            s.travelProfile = profile;
+        }
+        std::vector<akko::KeyTravel> before, after;
+        for (const auto &t : s.travel)  // in keyReadOrder(), like the vendor app
+            if (std::find(ids.begin(), ids.end(), t.key) != ids.end()) {
+                before.push_back(t);
+                after.push_back(t);
+                c.apply(after.back());
+            }
+        // Kept before writing: if the write fails halfway, Undo can still put the old values back.
+        s.travelUndo = Snapshot::TravelUndo{profile, c.part, before};
+        const auto back = kb.setTravel(c.part, after);
+        for (auto &t : s.travel)
+            for (const auto &b : back)
+                if (t.key == b.key)
+                    t = b;
+    });
+    return true;
+}
+
+void Backend::undoTravel()
+{
+    post({}, [](akko::Keyboard &kb, Snapshot &s) {
+        if (!s.travelUndo || s.travelUndo->profile != kb.profile())
+            return;
+        const auto undo = *s.travelUndo;
+        s.travelUndo.reset();
+        const auto back = kb.setTravel(undo.part, undo.before);
+        for (auto &t : s.travel)
+            for (const auto &b : back)
+                if (t.key == b.key)
+                    t = b;
+    });
+}
+
 void Backend::setProfile(int profile)
 {
     if (profile < 1 || (m_state.profileCount && profile > m_state.profileCount))
@@ -276,6 +423,14 @@ void Backend::applyState(const Snapshot &s)
                 keys.insert(QString::number(id), info(action));
             m_keymap.append(keys);
         }
+    m_travel.clear();
+    if (s.travelProfile >= 0)
+        for (const auto &t : s.travel)
+            m_travel.insert(QString::number(t.key),
+                            QVariantMap{{"actuation", mm(t.actuation)}, {"rapidTrigger", t.rapidTrigger},
+                                        {"press", mm(t.press)}, {"release", mm(t.release)},
+                                        {"deadZones", t.deadZones}, {"deadTop", mm(t.deadTop)},
+                                        {"deadBottom", mm(t.deadBottom)}});
     m_ready = true;
     m_retry.stop();
     if (!m_connected || !m_errorKind.isEmpty()) {

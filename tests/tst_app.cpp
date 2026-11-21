@@ -274,6 +274,57 @@ private slots:
         QCOMPARE(b.mouseCode(4), QString());
     }
 
+    void travelIsChangedAndUndone()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.travelReady());
+        QCOMPARE(b.travel().size(), kKeyCount);
+        auto f12 = [&] { return b.travel().value(QString::number(0x0d)).toMap(); };
+        QCOMPARE(f12().value("actuation").toDouble(), 0.6);
+        QCOMPARE(board.writesOf(0x93, 0x00), 8);
+
+        // One change on two keys: 13 00 once (one packet), then the read-back shows.
+        QVERIFY(b.changeTravel({0x0d, 0x0c}, {{"actuation", 0.42}}));
+        QTRY_COMPARE(f12().value("actuation").toDouble(), 0.42);
+        QCOMPARE(board.writesOf(0x13, 0x00), 1);
+        QVERIFY(b.canUndoTravel());
+        {
+            std::lock_guard lock(board.mutex);
+            QCOMPARE(board.keyboard.travel[0x0c].actuation, std::uint16_t(84));
+            QCOMPARE(board.keyboard.travel[0x01].actuation, std::uint16_t(120));
+        }
+
+        // Rapid Trigger on from 0 / 0 gets 0.005 / 0.005; a later sensitivity change keeps it on.
+        QVERIFY(b.changeTravel({0x0d}, {{"rapidTrigger", true}}));
+        QVERIFY(b.changeTravel({0x0d}, {{"press", 0.17}, {"release", 0.285}}));
+        QTRY_COMPARE(f12().value("release").toDouble(), 0.285);
+        QVERIFY(f12().value("rapidTrigger").toBool());
+        QCOMPARE(f12().value("press").toDouble(), 0.17);
+
+        // Undo puts back the values from before the last change only.
+        b.undoTravel();
+        QTRY_COMPARE(f12().value("release").toDouble(), 0.005);
+        QVERIFY(f12().value("rapidTrigger").toBool());
+        QTRY_VERIFY(!b.canUndoTravel());
+
+        // Dead zones: one 16 00 frame per key.
+        const int before = board.writesOf(0x16, 0x00);
+        QVERIFY(b.changeTravel({0x01, 0x02, 0x03}, {{"deadZones", true}, {"deadTop", 0.185}}));
+        QTRY_COMPARE(board.writesOf(0x16, 0x00), before + 3);
+        QTRY_COMPARE(b.travel().value("2").toMap().value("deadTop").toDouble(), 0.185);
+
+        // Bad input sends nothing.
+        QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 0.05}}));              // under 0.1 mm
+        QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 4.0}}));               // over 3.5 mm
+        QVERIFY(!b.changeTravel({0x0d}, {{"press", 1.5}}));                   // over our cap
+        QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 1.0}, {"press", 0.1}}));  // two parts
+        QVERIFY(!b.changeTravel({0x7f}, {{"actuation", 1.0}}));               // no such key
+        QVERIFY(!b.changeTravel({}, {{"actuation", 1.0}}));
+        QVERIFY(!b.changeTravel({0x0d}, {{"colour", 1.0}}));
+    }
+
     void actionInfoDescribesEveryKind()
     {
         FakeBoard board;
