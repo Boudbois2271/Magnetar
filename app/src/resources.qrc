@@ -6,12 +6,13 @@
         <file alias="Chip.qml">Chip.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
         <file alias="KeysPage.qml">KeysPage.qml</file>
-        <file alias="TravelPage.qml">TravelPage.qml</file>
+        <file alias="ActionTab.qml">ActionTab.qml</file>
+        <file alias="TravelTab.qml">TravelTab.qml</file>
         <file alias="KeyboardView.qml">KeyboardView.qml</file>
         <file alias="KeyNames.qml">KeyNames.qml</file>
         <file alias="ActionPicker.qml">ActionPicker.qml</file>
         <file alias="MmSlider.qml">MmSlider.qml</file>
-        <file alias="AdvancedPage.qml">AdvancedPage.qml</file>
+        <file alias="AdvancedTab.qml">AdvancedTab.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>

@@ -54,21 +54,24 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Lighting, Keys, Travel, Advanced keys and Device.
+- Pages: Keys (tabs Action, Travel, Advanced; Colour to come), Lighting and Device.
+- Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
+  is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
+- Keys page: the merged layout hasn't been checked in offscreen screenshots yet (EN/FR, 760 px).
 - Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
   board; Toggle, Multi-Point and Release were not (frames match the vendor captures only). The page
   itself hasn't been used by hand on the board yet.
-- Advanced keys page: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
+- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
   app's ranges were never captured (seen: 200 default, 322, 965 ms).
-- Advanced keys page: whether an advanced key applies on every layer, and how it combines with the
+- Advanced tab: whether an advanced key applies on every layer, and how it combines with the
   key's keymap action, isn't known. Assumed per profile (read again on a profile switch).
-- Advanced keys page: clearing one key of a SOCD pair might leave the other key's record on the
+- Advanced tab: clearing one key of a SOCD pair might leave the other key's record on the
   board; Magnetar always clears both, like the vendor app.
-- Advanced keys page: DKS patterns other than "once at a point" or "held from one point to another"
+- Advanced tab: DKS patterns other than "once at a point" or "held from one point to another"
   (e.g. two separate taps in one row) are shown as "another pattern" and kept as read, not editable.
-- Advanced keys page: no Undo (Remove, or saving the old values again). Macros can't be chosen as an
+- Advanced tab: no Undo (Remove, or saving the old values again). Macros can't be chosen as an
   action (the picker has no macros yet).
-- Advanced keys page: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
+- Advanced tab: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.

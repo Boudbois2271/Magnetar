@@ -93,7 +93,7 @@ ApplicationWindow {
                     Item { implicitHeight: 18 }
 
                     Repeater {
-                        model: [qsTr("Lighting"), qsTr("Keys"), qsTr("Travel"), qsTr("Advanced keys"), qsTr("Device")]
+                        model: [qsTr("Keys"), qsTr("Lighting"), qsTr("Device")]
                         delegate: ItemDelegate {
                             required property int index
                             required property string modelData
@@ -137,10 +137,8 @@ ApplicationWindow {
                     Layout.fillHeight: true
                     currentIndex: win.page
 
+                    KeysPage { objectName: "keysPage" }
                     LightingPage {}
-                    KeysPage {}
-                    TravelPage {}
-                    AdvancedPage {}
                     DevicePage {}
                 }
             }

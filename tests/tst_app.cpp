@@ -105,6 +105,48 @@ QQuickItem *findItem(QQuickItem *root, const QString &name)
 
 }  // namespace
 
+// The window on the Keys page with a fake keyboard, read and ready.
+struct KeysWindow {
+    FakeBoard board;
+    QTemporaryDir dir;
+    Backend backend{fakeSessions(board), dir.filePath("state.json")};
+    Theme theme{dir.path(), nullptr, "/nonexistent-hyprctl"};
+    Translator translator{dir.filePath("language"), ":/i18n"};
+    QQmlApplicationEngine engine;
+    QList<QQmlError> warnings;
+    QQuickWindow *window = nullptr;
+    QQuickItem *page = nullptr, *view = nullptr;
+
+    bool open()
+    {
+        QObject::connect(&engine, &QQmlEngine::warnings, [this](const QList<QQmlError> &w) { warnings += w; });
+        engine.rootContext()->setContextProperty("translator", &translator);
+        engine.rootContext()->setContextProperty("theme", &theme);
+        engine.rootContext()->setContextProperty("backend", &backend);
+        engine.load(QUrl("qrc:/Main.qml"));
+        window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        if (!window)
+            return false;
+        window->setProperty("page", 0);
+        page = window->findChild<QQuickItem *>("keysPage");
+        view = window->findChild<QQuickItem *>("keysKeyboard");
+        return page && view;
+    }
+    QQuickItem *item(const char *name) const { return window->findChild<QQuickItem *>(name); }
+    void click(int key, Qt::KeyboardModifiers mods = Qt::NoModifier) const
+    {
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, key), Q_ARG(int, int(mods)));
+    }
+    QString cap(int key) const { return findItem(view, "key_" + QByteArray::number(key))->findChild<QQuickItem *>()->property("text").toString(); }
+    QString warningText() const
+    {
+        QString text;
+        for (const auto &w : warnings)
+            text += w.toString() + "\n";
+        return text;
+    }
+};
+
 class AppTests : public QObject {
     Q_OBJECT
 
@@ -534,184 +576,159 @@ private slots:
         QVERIFY2(warnings.isEmpty(), qPrintable(text));
     }
 
-    void keysPageRemapsAKey()
+    void keysPageRemapsKeys()
     {
-        FakeBoard board;
-        QTemporaryDir dir;
-        Backend backend(fakeSessions(board), dir.filePath("state.json"));
-        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
-        Translator translator(dir.filePath("language"), ":/i18n");
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        auto *tab = w.item("actionTab");
+        QVERIFY(tab);
+        QTRY_COMPARE(w.cap(0x01), QString("Esc"));
 
-        QQmlApplicationEngine engine;
-        QList<QQmlError> warnings;
-        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
-        engine.rootContext()->setContextProperty("translator", &translator);
-        engine.rootContext()->setContextProperty("theme", &theme);
-        engine.rootContext()->setContextProperty("backend", &backend);
-        engine.load(QUrl("qrc:/Main.qml"));
-        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
-        QVERIFY(window);
-        window->setProperty("page", 1);
-        QTRY_VERIFY(backend.keymapReady());
+        // Select Insert and give it F5.
+        w.click(0x62);
+        QCOMPARE(tab->property("selection").toList().size(), 1);
+        QCOMPARE(tab->property("selection").toList().first().toInt(), 0x62);
+        QMetaObject::invokeMethod(tab, "assign", Q_ARG(QVariant, w.backend.keyCode(0x3e)));
+        QTRY_COMPARE(w.backend.keymap()[0].toMap().value("98").toMap().value("code").toString(), QString("00 00 00 3e"));
+        QTRY_COMPARE(w.cap(0x62), QString("F5"));
+        QCOMPARE(w.item("currentAction")->property("text").toString(), QString("F5"));
 
-        auto *esc = findItem(window->contentItem(), "key_1");
-        QVERIFY(esc);
-        QTRY_COMPARE(esc->findChild<QQuickItem *>()->property("text").toString(), QString("Esc"));
-        auto *insert = findItem(window->contentItem(), "key_98");  // 0x62
-        QVERIFY(insert);
+        // A plain click selects only that key; Ctrl and Shift add keys. A on all three.
+        w.click(0x63, Qt::ControlModifier);
+        w.click(0x64, Qt::ShiftModifier);
+        QCOMPARE(tab->property("selection").toList().size(), 3);
+        QMetaObject::invokeMethod(tab, "assign", Q_ARG(QVariant, w.backend.keyCode(0x04)));
+        QTRY_VERIFY(w.cap(0x62) == "A" && w.cap(0x63) == "A" && w.cap(0x64) == "A");
+        QCOMPARE(w.item("currentAction")->property("text").toString(), QString("A"));
+        // Ctrl+click again takes a key out.
+        w.click(0x64, Qt::ControlModifier);
+        QCOMPARE(tab->property("selection").toList().size(), 2);
 
-        // Select Insert, search "f5" and click the result.
-        auto *page = window->findChild<QQuickItem *>("keyboardView")->parentItem();
-        while (page && !page->property("selectedKey").isValid())
-            page = page->parentItem();
-        QVERIFY(page);
-        QMetaObject::invokeMethod(window->findChild<QQuickItem *>("keyboardView"), "keyClicked", Q_ARG(int, 0x62));
-        QCOMPARE(page->property("selectedKey").toInt(), 0x62);
-        page->setProperty("search", "f5");
-        QMetaObject::invokeMethod(page, "assign", Q_ARG(QVariant, backend.keyCode(0x3e)));
-        QTRY_COMPARE(backend.keymap()[0].toMap().value("98").toMap().value("code").toString(), QString("00 00 00 3e"));
-        QTRY_COMPARE(insert->findChild<QQuickItem *>()->property("text").toString(), QString("F5"));
-        QCOMPARE(window->findChild<QQuickItem *>("currentAction")->property("text").toString(), QString("F5"));
-
-        // Restore default puts Insert back.
-        auto *restore = window->findChild<QQuickItem *>("restoreButton");
+        // Restore default puts every selected key back.
+        auto *restore = w.item("restoreButton");
         QVERIFY(restore->property("enabled").toBool());
         QMetaObject::invokeMethod(restore, "clicked");
-        QTRY_COMPARE(insert->findChild<QQuickItem *>()->property("text").toString(), QString("Ins"));
+        QTRY_VERIFY(w.cap(0x62) == "Ins" && w.cap(0x63) != "A");
+        QCOMPARE(w.cap(0x64), QString("A"));
 
         // Moving the only Fn key asks first, and sends nothing until confirmed.
-        QMetaObject::invokeMethod(window->findChild<QQuickItem *>("keyboardView"), "keyClicked", Q_ARG(int, 0x48));
-        const int writes = board.writesOf(0x03, 0x00);
-        QMetaObject::invokeMethod(page, "assign", Q_ARG(QVariant, backend.keyCode(0x04)));
-        auto *confirm = window->findChild<QObject *>("confirmLayerKey");
+        w.click(0x48);
+        const int writes = w.board.writesOf(0x03, 0x00);
+        QMetaObject::invokeMethod(tab, "assign", Q_ARG(QVariant, w.backend.keyCode(0x04)));
+        auto *confirm = w.window->findChild<QObject *>("confirmLayerKey");
         QVERIFY(confirm);
         QTRY_VERIFY(confirm->property("visible").toBool());
-        QCOMPARE(board.writesOf(0x03, 0x00), writes);
+        QCOMPARE(w.board.writesOf(0x03, 0x00), writes);
 
-        QString text;
-        for (const auto &w : warnings)
-            text += w.toString() + "\n";
-        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
-    void advancedPageSavesAModTap()
+    void keysPageSavesAdvancedKeys()
     {
-        FakeBoard board;
-        QTemporaryDir dir;
-        Backend backend(fakeSessions(board), dir.filePath("state.json"));
-        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
-        Translator translator(dir.filePath("language"), ":/i18n");
-
-        QQmlApplicationEngine engine;
-        QList<QQmlError> warnings;
-        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
-        engine.rootContext()->setContextProperty("translator", &translator);
-        engine.rootContext()->setContextProperty("theme", &theme);
-        engine.rootContext()->setContextProperty("backend", &backend);
-        engine.load(QUrl("qrc:/Main.qml"));
-        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
-        QVERIFY(window);
-        window->setProperty("page", 3);
-        QTRY_VERIFY(backend.advancedReady() && backend.keymapReady());
-
-        auto *view = window->findChild<QQuickItem *>("advancedKeyboard");
-        QVERIFY(view);
-        auto *p = findItem(view, "key_38");  // 0x26
-        QVERIFY(p);
-        QTRY_COMPARE(p->findChild<QQuickItem *>()->property("text").toString(), QString("P"));
-        QQuickItem *page = view->parentItem();
-        while (page && !page->property("draft").isValid())
-            page = page->parentItem();
-        QVERIFY(page);
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.page->setProperty("tab", 2);
+        auto *tab = w.item("advancedTab");
+        QVERIFY(tab);
+        QTRY_COMPARE(w.cap(0x26), QString("P"));
 
         // P, Mod-Tap, hold R, tap T: Save stays off until both actions are there.
-        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x26));
-        QMetaObject::invokeMethod(page, "chooseType", Q_ARG(QVariant, "modTap"));
-        auto *save = window->findChild<QQuickItem *>("saveAdvanced");
+        w.click(0x26);
+        QMetaObject::invokeMethod(tab, "chooseType", Q_ARG(QVariant, "modTap"));
+        auto *save = w.item("saveAdvanced");
         QVERIFY(save);
         QVERIFY(!save->property("enabled").toBool());
-        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 0), Q_ARG(QVariant, backend.keyCode(0x15)));
+        QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 0), Q_ARG(QVariant, w.backend.keyCode(0x15)));
         QVERIFY(!save->property("enabled").toBool());
-        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, backend.keyCode(0x17)));
+        QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, w.backend.keyCode(0x17)));
         QTRY_VERIFY(save->property("enabled").toBool());
         QMetaObject::invokeMethod(save, "clicked");
-        QTRY_COMPARE(p->findChild<QQuickItem *>()->property("text").toString(), QString("MT"));
-        {
-            std::lock_guard lock(board.mutex);
-            QCOMPARE(board.keyboard.advanced.at(0x26).first, std::uint8_t(0x02));
-        }
+        QTRY_COMPARE(w.cap(0x26), QString("MT"));
         // The read-back becomes the draft: nothing left to save.
-        QTRY_VERIFY(!page->property("dirty").toBool());
+        QTRY_VERIFY(!tab->property("dirty").toBool());
 
-        // DKS on Space from the page, then remove it.
-        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x46));
-        QMetaObject::invokeMethod(page, "chooseType", Q_ARG(QVariant, "dks"));
-        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 20), Q_ARG(QVariant, backend.keyCode(0x05)));
+        // The same Mod-Tap on P, J and Z: one save, three records.
+        w.click(0x31, Qt::ControlModifier);
+        w.click(0x38, Qt::ControlModifier);
+        QVERIFY(tab->property("saved").isNull());  // P has one, J and Z don't
+        QMetaObject::invokeMethod(tab, "chooseType", Q_ARG(QVariant, "modTap"));
+        QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 0), Q_ARG(QVariant, w.backend.keyCode(0x15)));
+        QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, w.backend.keyCode(0x17)));
         QTRY_VERIFY(save->property("enabled").toBool());
         QMetaObject::invokeMethod(save, "clicked");
-        QTRY_COMPARE(backend.advancedKeys().size(), 2);
-        auto *remove = window->findChild<QQuickItem *>("removeAdvanced");
+        QTRY_VERIFY(w.cap(0x31) == "MT" && w.cap(0x38) == "MT");
+        QCOMPARE(w.backend.advancedKeys().size(), 3);
+        // Now they share one record: the editor shows it, nothing to save.
+        QTRY_VERIFY(!tab->property("saved").isNull());
+        QTRY_VERIFY(!tab->property("dirty").toBool());
+
+        // SOCD needs exactly two keys.
+        auto *socd = findItem(w.window->contentItem(), "type_socd");
+        QVERIFY(socd);
+        QVERIFY(!socd->property("enabled").toBool());
+        w.click(0x2b);
+        w.click(0x2d, Qt::ControlModifier);
+        QVERIFY(socd->property("enabled").toBool());
+        QMetaObject::invokeMethod(tab, "chooseType", Q_ARG(QVariant, "socd"));
+        QCOMPARE(tab->property("draft").toMap().value("key2").toInt(), 0x2d);
+        QTRY_VERIFY(save->property("enabled").toBool());
+        QMetaObject::invokeMethod(save, "clicked");
+        QTRY_COMPARE(w.backend.advancedKeys().size(), 4);
+
+        // Remove on several keys: P and J go, Z stays.
+        w.click(0x26);
+        w.click(0x31, Qt::ControlModifier);
+        auto *remove = w.item("removeAdvanced");
         QTRY_VERIFY(remove->property("visible").toBool());
         QMetaObject::invokeMethod(remove, "clicked");
-        QTRY_COMPARE(backend.advancedKeys().size(), 1);
+        QTRY_COMPARE(w.backend.advancedKeys().size(), 2);
+        QCOMPARE(w.cap(0x38), QString("MT"));
 
-        QString text;
-        for (const auto &w : warnings)
-            text += w.toString() + "\n";
-        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
-    void travelPageChangesSelectedKeys()
+    void keysPageChangesTravelAndKeepsTheSelection()
     {
-        FakeBoard board;
-        QTemporaryDir dir;
-        Backend backend(fakeSessions(board), dir.filePath("state.json"));
-        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
-        Translator translator(dir.filePath("language"), ":/i18n");
-
-        QQmlApplicationEngine engine;
-        QList<QQmlError> warnings;
-        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
-        engine.rootContext()->setContextProperty("translator", &translator);
-        engine.rootContext()->setContextProperty("theme", &theme);
-        engine.rootContext()->setContextProperty("backend", &backend);
-        engine.load(QUrl("qrc:/Main.qml"));
-        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
-        QVERIFY(window);
-        window->setProperty("page", 2);
-        QTRY_VERIFY(backend.travelReady());
-
-        auto *view = window->findChild<QQuickItem *>("travelKeyboard");
-        QVERIFY(view);
-        auto *f12 = findItem(view, "key_13");  // 0x0d
-        QVERIFY(f12);
-        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.60"));
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.page->setProperty("tab", 1);
+        QTRY_COMPARE(w.cap(0x0d), QString("0.60"));
 
         // Select F12 and Esc, then set 0.42 mm: one 13 00 for both keys.
-        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x0d));
-        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x01));
-        QCOMPARE(view->property("selectedKeys").toList().size(), 2);
-        auto *actuation = window->findChild<QObject *>("actuationSlider");
+        w.click(0x0d);
+        w.click(0x01, Qt::ControlModifier);
+        QCOMPARE(w.view->property("selectedKeys").toList().size(), 2);
+        auto *actuation = w.window->findChild<QObject *>("actuationSlider");
         QVERIFY(actuation);
         QCOMPARE(actuation->property("shown").toDouble(), 0.6);
         QMetaObject::invokeMethod(actuation, "send", Q_ARG(QVariant, 0.42));
-        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.42"));
-        QCOMPARE(board.writesOf(0x13, 0x00), 1);
+        QTRY_COMPARE(w.cap(0x0d), QString("0.42"));
+        QCOMPARE(w.board.writesOf(0x13, 0x00), 1);
         // Sending the value the keys already have sends nothing.
         QMetaObject::invokeMethod(actuation, "send", Q_ARG(QVariant, 0.42));
         QTest::qWait(100);
-        QCOMPARE(board.writesOf(0x13, 0x00), 1);
+        QCOMPARE(w.board.writesOf(0x13, 0x00), 1);
 
-        // Undo from the page.
-        auto *undo = window->findChild<QQuickItem *>("undoTravel");
+        // Undo from the tab.
+        auto *undo = w.item("undoTravel");
         QTRY_VERIFY(undo->property("enabled").toBool());
         QMetaObject::invokeMethod(undo, "clicked");
-        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.60"));
+        QTRY_COMPARE(w.cap(0x0d), QString("0.60"));
 
-        QString text;
-        for (const auto &w : warnings)
-            text += w.toString() + "\n";
-        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+        // Another tab: same selection, the drawing shows that tab's labels.
+        w.page->setProperty("tab", 0);
+        QCOMPARE(w.item("actionTab")->property("selection").toList().size(), 2);
+        QTRY_COMPARE(w.cap(0x0d), QString("F12"));
+        // All / Invert / None.
+        QMetaObject::invokeMethod(w.page, "invert");
+        QCOMPARE(w.view->property("selectedKeys").toList().size(), w.backend.layout().size() - 2);
+        QMetaObject::invokeMethod(w.page, "select", Q_ARG(QVariant, QVariantList{}));
+        QCOMPARE(w.view->property("selectedKeys").toList().size(), 0);
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 };
 

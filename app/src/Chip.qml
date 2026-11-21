@@ -11,6 +11,7 @@ AbstractButton {
     implicitWidth: label.implicitWidth + 24
     implicitHeight: 34
     hoverEnabled: true
+    opacity: enabled ? 1 : 0.4
 
     background: Rectangle {
         radius: Math.min(theme.radius, 8)

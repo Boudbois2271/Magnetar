@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The keyboard drawn from backend.layout (quarter key widths), scaled to the item's width.
-// The page decides what each key says and which keys are selected (one, or a set).
+// The page decides what each key says and which keys are selected. A click reports the
+// keyboard modifiers held (Ctrl/Shift add to the selection).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -11,9 +12,8 @@ Item {
     property var keys: backend.layout
     property var labelFor: function (id) { return "" }  // text on a key
     property var markedFor: function (id) { return false }  // small dot: differs from factory
-    property int selectedKey: -1
-    property var selectedKeys: []  // for pages that select several keys at once
-    signal keyClicked(int id)
+    property var selectedKeys: []
+    signal keyClicked(int id, int modifiers)
 
     readonly property int columns: 66  // 16.5 keys
     readonly property int rows: 26     // 6 rows and the gaps
@@ -32,7 +32,7 @@ Item {
             id: cap
             required property var modelData
             readonly property int keyId: modelData.id
-            readonly property bool selected: view.selectedKey === keyId || view.selectedKeys.indexOf(keyId) >= 0
+            readonly property bool selected: view.selectedKeys.indexOf(keyId) >= 0
 
             objectName: "key_" + keyId
             x: modelData.x * view.unit + view.gap / 2
@@ -40,7 +40,7 @@ Item {
             width: modelData.w * view.unit - view.gap
             height: 4 * view.unit - view.gap
             radius: Math.min(theme.radius, 6)
-            color: selected ? theme.accent : (hover.hovered ? "#2a2a31" : "#202026")
+            color: selected ? theme.accent : (mouse.containsMouse ? "#2a2a31" : "#202026")
             border.width: 1
             border.color: selected ? theme.accent : "#2e2e36"
 
@@ -70,8 +70,13 @@ Item {
                 color: cap.selected ? "#0e0e10" : theme.accent
             }
 
-            HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-            TapHandler { onTapped: view.keyClicked(cap.keyId) }
+            MouseArea {
+                id: mouse
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: (m) => view.keyClicked(cap.keyId, m.modifiers)
+            }
         }
     }
 }
