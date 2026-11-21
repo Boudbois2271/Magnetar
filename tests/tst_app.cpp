@@ -567,6 +567,73 @@ private slots:
         QVERIFY2(warnings.isEmpty(), qPrintable(text));
     }
 
+    void advancedPageSavesAModTap()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend backend(fakeSessions(board), dir.filePath("state.json"));
+        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
+        Translator translator(dir.filePath("language"), ":/i18n");
+
+        QQmlApplicationEngine engine;
+        QList<QQmlError> warnings;
+        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
+        engine.rootContext()->setContextProperty("translator", &translator);
+        engine.rootContext()->setContextProperty("theme", &theme);
+        engine.rootContext()->setContextProperty("backend", &backend);
+        engine.load(QUrl("qrc:/Main.qml"));
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->setProperty("page", 3);
+        QTRY_VERIFY(backend.advancedReady() && backend.keymapReady());
+
+        auto *view = window->findChild<QQuickItem *>("advancedKeyboard");
+        QVERIFY(view);
+        auto *p = findItem(view, "key_38");  // 0x26
+        QVERIFY(p);
+        QTRY_COMPARE(p->findChild<QQuickItem *>()->property("text").toString(), QString("P"));
+        QQuickItem *page = view->parentItem();
+        while (page && !page->property("draft").isValid())
+            page = page->parentItem();
+        QVERIFY(page);
+
+        // P, Mod-Tap, hold R, tap T: Save stays off until both actions are there.
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x26));
+        QMetaObject::invokeMethod(page, "chooseType", Q_ARG(QVariant, "modTap"));
+        auto *save = window->findChild<QQuickItem *>("saveAdvanced");
+        QVERIFY(save);
+        QVERIFY(!save->property("enabled").toBool());
+        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 0), Q_ARG(QVariant, backend.keyCode(0x15)));
+        QVERIFY(!save->property("enabled").toBool());
+        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, backend.keyCode(0x17)));
+        QTRY_VERIFY(save->property("enabled").toBool());
+        QMetaObject::invokeMethod(save, "clicked");
+        QTRY_COMPARE(p->findChild<QQuickItem *>()->property("text").toString(), QString("MT"));
+        {
+            std::lock_guard lock(board.mutex);
+            QCOMPARE(board.keyboard.advanced.at(0x26).first, std::uint8_t(0x02));
+        }
+        // The read-back becomes the draft: nothing left to save.
+        QTRY_VERIFY(!page->property("dirty").toBool());
+
+        // DKS on Space from the page, then remove it.
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x46));
+        QMetaObject::invokeMethod(page, "chooseType", Q_ARG(QVariant, "dks"));
+        QMetaObject::invokeMethod(page, "setSlot", Q_ARG(QVariant, 20), Q_ARG(QVariant, backend.keyCode(0x05)));
+        QTRY_VERIFY(save->property("enabled").toBool());
+        QMetaObject::invokeMethod(save, "clicked");
+        QTRY_COMPARE(backend.advancedKeys().size(), 2);
+        auto *remove = window->findChild<QQuickItem *>("removeAdvanced");
+        QTRY_VERIFY(remove->property("visible").toBool());
+        QMetaObject::invokeMethod(remove, "clicked");
+        QTRY_COMPARE(backend.advancedKeys().size(), 1);
+
+        QString text;
+        for (const auto &w : warnings)
+            text += w.toString() + "\n";
+        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+    }
+
     void travelPageChangesSelectedKeys()
     {
         FakeBoard board;

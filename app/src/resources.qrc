@@ -9,6 +9,9 @@
         <file alias="TravelPage.qml">TravelPage.qml</file>
         <file alias="KeyboardView.qml">KeyboardView.qml</file>
         <file alias="KeyNames.qml">KeyNames.qml</file>
+        <file alias="ActionPicker.qml">ActionPicker.qml</file>
+        <file alias="MmSlider.qml">MmSlider.qml</file>
+        <file alias="AdvancedPage.qml">AdvancedPage.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
