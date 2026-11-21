@@ -122,8 +122,25 @@ the board. The factory keymap of layers 00 and 01 is the first `83` read of `akk
 | 05 Multipoint | SEEN | `key, count, count × [action(4), depth u16]` |
 | 06 Release (END) | SEEN | `key, action(4)` fired on release |
 
-Read: `92 00` with `key` → echoes the type in arg byte and the same payload (all-zero = none).
-The first `92 00` read (no key, 4 packets, 216 B) is the physical layout: column-major, 6 rows × 18 cols, 0 = no key.
+Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Details from
+`akko-capture2.txt` Advanced Key marks, `akko-capture10.txt` DKS marks, `akko-capture11.txt` marks 29–32:
+- SOCD's first byte is always `02` (maybe a key count); the record is stored on both keys and either
+  key reads it back whole.
+- Multi-Point always carries 3 slots; an unused slot is action `00 00 00 00` with a depth
+  (A only = `03, 00000004 007f, 00000000 00e9, 00000000 01c0`).
+- DKS rows as the vendor UI makes them: one click = `0a` at that stage; a drag from stage a to b =
+  `06` at a, `04` in between, and `08` added to the stage before b (`0e` when b = a + 1).
+- Saving over a key that has an advanced key: the vendor app sends the type `00` clear first; it
+  doesn't clear a key that has none. Removing a SOCD pair clears both keys, one frame each.
+- After each write the app reads the list, then each listed key.
+
+Read: `92 00` with no key (`pkt_count 1`, len 0) → the IDs (u16) of the keys that have an advanced key,
+both keys of a SOCD pair; empty when none (captures 2, 10, 11). `92 00` with `key` → the type in the arg
+byte and the same payload as the write; a key with none answers arg `00` and just its key. Magnetar
+reads both like that (`core/`, tested against the fake keyboard only).
+In `akko-capture.txt` (the oldest, 2026-10-03) the list read answered 4 packets (216 B) of what looks
+like the physical layout: column-major, 6 rows × 18 cols, 0 = no key. Later captures never did;
+Magnetar asks for any extra packets and skips IDs that aren't keys.
 
 ### Per-key travel (Parameter Settings → Actuation Settings)
 Source: `akko-capture3.txt` (2026-11-18). Test key F12 = `0d`. Writes are echoed, then the web app

@@ -49,13 +49,25 @@ reflected in `akko-protocol.md`.
 - The widget shows the colour picker on profile 1 only.
 - `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
   outside 1–8 falls back to 3.
-- Frames can be multi-packet now (keymap reads), but `arg` is always 0: no advanced keys yet.
-- `transact()` matches responses on `cmd`/`sub`/packet index, not `arg`.
+- `transact()` matches responses on `cmd`/`sub`/packet index, not `arg` (which only advanced keys use).
 - The CLI only covers profile and global lighting (`10/90 00`, `04/84 01`); the keymap is app-only.
 
 ## Magnetar (desktop app)
 
-- Pages: Lighting, Keys, Travel and Device.
+- Pages: Lighting, Keys, Travel, Advanced keys and Device.
+- Advanced keys page: **not tried on the board yet**. The `12 00` writes are SEEN (vendor captures)
+  and Magnetar's frames match them byte for byte, but none has been sent by Magnetar to the keyboard.
+- Advanced keys page: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
+  app's ranges were never captured (seen: 200 default, 322, 965 ms).
+- Advanced keys page: whether an advanced key applies on every layer, and how it combines with the
+  key's keymap action, isn't known. Assumed per profile (read again on a profile switch).
+- Advanced keys page: clearing one key of a SOCD pair might leave the other key's record on the
+  board; Magnetar always clears both, like the vendor app.
+- Advanced keys page: DKS patterns other than "once at a point" or "held from one point to another"
+  (e.g. two separate taps in one row) are shown as "another pattern" and kept as read, not editable.
+- Advanced keys page: no Undo (Remove, or saving the old values again). Macros can't be chosen as an
+  action (the picker has no macros yet).
+- Advanced keys page: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.
