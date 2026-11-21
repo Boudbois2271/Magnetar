@@ -49,14 +49,22 @@ reflected in `akko-protocol.md`.
 - The widget shows the colour picker on profile 1 only.
 - `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
   outside 1–8 falls back to 3.
-- Only builds single-packet frames (`pkt_count = 1`, `pkt_index = 0`, `arg = 0`): no multi-packet
-  reads/writes, no advanced-key `arg`.
-- `transact()` matches responses on `cmd`/`sub` only, not `arg` or packet index.
-- Only covers profile and global lighting (`10/90 00`, `04/84 01`).
+- Frames can be multi-packet now (keymap reads), but `arg` is always 0: no advanced keys yet.
+- `transact()` matches responses on `cmd`/`sub`/packet index, not `arg`.
+- The CLI only covers profile and global lighting (`10/90 00`, `04/84 01`); the keymap is app-only.
 
 ## Magnetar (desktop app)
 
-- Pages: Lighting and Device only. No keyboard drawing yet (comes with the Keys page).
+- Pages: Lighting, Keys and Device.
+- Keys page: macros, system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
+  actions are shown but can't be assigned; the Fn layer's factory ones show as "System function" /
+  "Lighting control" because their meaning is a guess. Mouse buttons 4/5 and media keys other than
+  the twelve in the factory Fn layer aren't offered (not captured).
+- Keys page: the layer reset `11 00` isn't used; resetting is per key ("Restore default", from the
+  factory table in `core/keymap.cpp`).
+- Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
+- Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
+- A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the
   unsolicited `fe 0b` brightness reports aren't listened to.
@@ -71,7 +79,6 @@ reflected in `akko-protocol.md`.
 - Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 
 ## Repo / docs
-- The desktop app (C++/Qt Quick) hasn't been started. No Arch package yet.
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked
   from the public repo alone.
 - The DKS and advanced-key decoding relied on screenshots of the web UI that are not in the repo.

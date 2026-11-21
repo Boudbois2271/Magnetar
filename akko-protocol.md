@@ -19,7 +19,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 - One session at a time or the firmware stops sending keystrokes (akkoctl flock).
 
 ## Units
-- Key IDs: u16 BE, 83 keys (Select All in `akko-capture3.txt`), 0x01..0x67 with gaps (layout below).
+- Key IDs: u16 BE, 83 keys (Select All in `akko-capture3.txt`), 0x01..0x67 with gaps (layout in the Keymap section).
 - Travel: **0.005 mm per unit** (SEEN: 127 = 0.635 mm, 233 = 1.165, 639 = 3.195; DKS 227 = 1.14 shown).
 - Time: ms, u16 BE (322, 965 SEEN).
 - Action (4 bytes), same in keymap and advanced keys:
@@ -91,9 +91,25 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 ### Keymap
 | cmd/sub | Status | Meaning |
 |---|---|---|
-| `03 LL` | SEEN | set one key on layer LL: `key u16 + action(4)`. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured |
+| `03 LL` | KNOWN | set one key on layer LL: `key u16 + action(4)`, echoed. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured. Sent by Magnetar and checked on the board 2026-11-21: Insert → Home, Ctrl+V, Volume up on Default and A on Fn1, each read back and restored |
 | `11 00` | SEEN | Basic Key "Reset" on Default Layer: payload `01` (meaning GUESS: layer bitmask or layer+1), echoed, then the app re-reads the layer. Insert came back to default (`akko-capture11.txt` marks 17–18) |
-| `83 LL` | DECODED | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
+| `83 LL` | KNOWN | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
+
+Key IDs on the board (rows top to bottom, left to right; factory action in brackets when not obvious):
+
+| Row | Key IDs |
+|---|---|
+| 0 | `01` Esc, `02`–`0d` F1–F12, `63` Delete, `62` Insert |
+| 1 | `0e` `` ` ``, `0f`–`18` 1–0, `19` -, `1a` =, `1b` Backspace, `64` Home |
+| 2 | `1c` Tab, `1d`–`26` Q–P, `27` [, `28` ], `29` \, `66` PgUp |
+| 3 | `2a` Caps, `2b`–`35` A–', `36` Enter, `67` PgDn |
+| 4 | `37` LShift, `38`–`41` Z–/, `42` RShift, `4a` Up, `65` End |
+| 5 | `43` LCtrl, `44` LWin, `45` LAlt, `46` Space, `47` RAlt, `48` Fn (`0d 00 00 00`), `49` RCtrl, `4c` Left, `4b` Down, `4d` Right |
+
+Geometry (key widths, the nav column half a key to the right) is in `core/keymap.cpp`, measured on
+the board. The factory keymap of layers 00 and 01 is the first `83` read of `akko-capture.txt`
+(identical in `akko-capture2.txt`); layer 02 starts as a copy of 00. The web app reads a layer as
+10 packets (`pkt_count 0a`) of 9 key IDs in a fixed order, also in `core/keymap.cpp`.
 
 ### Advanced keys (arg byte = type)
 | type | Status | Payload |
