@@ -495,6 +495,59 @@ private slots:
             text += w.toString() + "\n";
         QVERIFY2(warnings.isEmpty(), qPrintable(text));
     }
+
+    void travelPageChangesSelectedKeys()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend backend(fakeSessions(board), dir.filePath("state.json"));
+        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
+        Translator translator(dir.filePath("language"), ":/i18n");
+
+        QQmlApplicationEngine engine;
+        QList<QQmlError> warnings;
+        connect(&engine, &QQmlEngine::warnings, this, [&](const QList<QQmlError> &w) { warnings += w; });
+        engine.rootContext()->setContextProperty("translator", &translator);
+        engine.rootContext()->setContextProperty("theme", &theme);
+        engine.rootContext()->setContextProperty("backend", &backend);
+        engine.load(QUrl("qrc:/Main.qml"));
+        auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
+        QVERIFY(window);
+        window->setProperty("page", 2);
+        QTRY_VERIFY(backend.travelReady());
+
+        auto *view = window->findChild<QQuickItem *>("travelKeyboard");
+        QVERIFY(view);
+        auto *f12 = findItem(view, "key_13");  // 0x0d
+        QVERIFY(f12);
+        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.60"));
+
+        // Select F12 and Esc, then set 0.42 mm: one 13 00 for both keys.
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x0d));
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x01));
+        QCOMPARE(view->property("selectedKeys").toList().size(), 2);
+        auto *actuation = window->findChild<QObject *>("actuationSlider");
+        QVERIFY(actuation);
+        QCOMPARE(actuation->property("shown").toDouble(), 0.6);
+        QMetaObject::invokeMethod(actuation, "send", Q_ARG(QVariant, 0.42));
+        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.42"));
+        QCOMPARE(board.writesOf(0x13, 0x00), 1);
+        // Sending the value the keys already have sends nothing.
+        QMetaObject::invokeMethod(actuation, "send", Q_ARG(QVariant, 0.42));
+        QTest::qWait(100);
+        QCOMPARE(board.writesOf(0x13, 0x00), 1);
+
+        // Undo from the page.
+        auto *undo = window->findChild<QQuickItem *>("undoTravel");
+        QTRY_VERIFY(undo->property("enabled").toBool());
+        QMetaObject::invokeMethod(undo, "clicked");
+        QTRY_COMPARE(f12->findChild<QQuickItem *>()->property("text").toString(), QString("0.60"));
+
+        QString text;
+        for (const auto &w : warnings)
+            text += w.toString() + "\n";
+        QVERIFY2(warnings.isEmpty(), qPrintable(text));
+    }
 };
 
 int runAppTests(int argc, char **argv)

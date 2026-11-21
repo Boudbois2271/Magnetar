@@ -6,6 +6,7 @@
         <file alias="Chip.qml">Chip.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
         <file alias="KeysPage.qml">KeysPage.qml</file>
+        <file alias="TravelPage.qml">TravelPage.qml</file>
         <file alias="KeyboardView.qml">KeyboardView.qml</file>
         <file alias="KeyNames.qml">KeyNames.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>

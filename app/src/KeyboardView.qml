@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The keyboard drawn from backend.layout (quarter key widths), scaled to the item's width.
-// The page decides what each key says; clicking a key selects it.
+// The page decides what each key says and which keys are selected (one, or a set).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -12,6 +12,7 @@ Item {
     property var labelFor: function (id) { return "" }  // text on a key
     property var markedFor: function (id) { return false }  // small dot: differs from factory
     property int selectedKey: -1
+    property var selectedKeys: []  // for pages that select several keys at once
     signal keyClicked(int id)
 
     readonly property int columns: 66  // 16.5 keys
@@ -31,7 +32,7 @@ Item {
             id: cap
             required property var modelData
             readonly property int keyId: modelData.id
-            readonly property bool selected: view.selectedKey === keyId
+            readonly property bool selected: view.selectedKey === keyId || view.selectedKeys.indexOf(keyId) >= 0
 
             objectName: "key_" + keyId
             x: modelData.x * view.unit + view.gap / 2
