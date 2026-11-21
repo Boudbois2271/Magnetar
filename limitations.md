@@ -54,7 +54,9 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Keys (tabs Action, Travel, Advanced; Colour to come), Lighting and Device.
+- Pages: Keys (tabs Action, Travel, Advanced, Colour), Lighting and Device.
+- Colour tab: tested against the fake keyboard only, not used on the board yet. Assumed per profile
+  (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
 - Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
