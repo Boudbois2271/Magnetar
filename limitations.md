@@ -57,7 +57,6 @@ reflected in `akko-protocol.md`.
 - Pages: Keys (tabs Action, Travel, Advanced; Colour to come), Lighting and Device.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
-- Keys page: the merged layout hasn't been checked in offscreen screenshots yet (EN/FR, 760 px).
 - Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
   board; Toggle, Multi-Point and Release were not (frames match the vendor captures only). The page
   itself hasn't been used by hand on the board yet.

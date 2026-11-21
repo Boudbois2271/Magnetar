@@ -46,11 +46,13 @@ Item {
 
             Label {
                 anchors.fill: parent
-                anchors.margins: 3
+                anchors.margins: view.unit < 10 ? 1 : 3
                 text: view.labelFor(cap.keyId)
                 color: cap.selected ? "#0e0e10" : Material.foreground
-                font.pixelSize: Math.max(8, Math.min(13, view.unit * 2.6))
-                fontSizeMode: Text.HorizontalFit  // long names shrink before they are cut
+                // Sized from the key, so every label starts at the same size; only long names
+                // shrink on their own, before they are cut.
+                font.pixelSize: Math.max(8, Math.min(13, Math.round(view.unit * 1.5)))
+                fontSizeMode: Text.HorizontalFit
                 minimumPixelSize: 7
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
