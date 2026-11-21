@@ -14,13 +14,14 @@ std::uint8_t checksum(std::span<const std::uint8_t> frame)
 }
 
 Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload,
-                 std::uint8_t packetCount, std::uint8_t packetIndex)
+                 std::uint8_t packetCount, std::uint8_t packetIndex, std::uint8_t arg)
 {
     if (payload.size() > kMaxPayload)
         throw Error("payload too long for one frame (" + std::to_string(payload.size()) + " bytes)");
     Frame f{};
     f[0] = cmd;
     f[1] = sub;
+    f[2] = arg;
     f[3] = packetCount;
     f[4] = packetIndex;
     f[5] = static_cast<std::uint8_t>(payload.size());

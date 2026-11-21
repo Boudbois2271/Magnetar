@@ -75,6 +75,9 @@ struct FakeKeyboard {
     bool ignoreKeyWrites = false;                          // echoes 03 LL but keeps the old action
     std::map<std::uint16_t, KeyTravel> travel;  // starts as read in akko-capture2.txt
     bool ignoreTravelWrites = false;            // echoes 13/16/19 but keeps the old values
+    // Advanced keys: key → (type, payload as written). A SOCD pair is stored on both keys.
+    std::map<std::uint16_t, std::pair<std::uint8_t, Bytes>> advanced;
+    bool ignoreAdvancedWrites = false;  // echoes 12 00 but keeps the old records
 
     FakeKeyboard()
     {
@@ -146,9 +149,55 @@ struct FakeKeyboard {
         }
     }
 
+    // 92 00: with no key, the list of keys that have an advanced key; with one, its record
+    // (type in the arg byte, all zero when it has none).
+    Bytes advancedRead(const Bytes &w)
+    {
+        Bytes r(kReportLen, 0);
+        std::copy_n(w.begin(), 6, r.begin());
+        std::size_t at = 7;
+        if (w[6] == 0) {
+            for (const auto &[id, rec] : advanced) {
+                r[at++] = static_cast<std::uint8_t>(id >> 8);
+                r[at++] = static_cast<std::uint8_t>(id & 0xFF);
+            }
+        } else {
+            const std::uint16_t id = static_cast<std::uint16_t>(w[7] << 8 | w[8]);
+            const auto found = advanced.find(id);
+            if (found == advanced.end()) {
+                r[at++] = w[7];
+                r[at++] = w[8];
+            } else {
+                r[3] = found->second.first;
+                for (auto b : found->second.second)
+                    r[at++] = b;
+            }
+        }
+        r[6] = static_cast<std::uint8_t>(at - 7);
+        return r;
+    }
+
+    // 12 00: type 00 clears one key; SOCD (04) lands on both of its keys.
+    void advancedWrite(const Bytes &w)
+    {
+        const std::uint8_t type = w[3];
+        const Bytes payload(w.begin() + 7, w.begin() + 7 + w[6]);
+        auto be = [&](std::size_t i) { return static_cast<std::uint16_t>(payload[i] << 8 | payload[i + 1]); };
+        if (type == 0x00)
+            advanced.erase(be(0));
+        else if (type == 0x04)
+            advanced[be(1)] = advanced[be(3)] = {type, payload};
+        else
+            advanced[be(0)] = {type, payload};
+    }
+
     std::vector<Bytes> operator()(const Bytes &w)
     {
         const std::uint8_t cmd = w[1], sub = w[2];
+        if (cmd == 0x92 && sub == 0x00)
+            return {advancedRead(w)};
+        if (cmd == 0x12 && sub == 0x00 && !ignoreAdvancedWrites)
+            advancedWrite(w);
         if (cmd == 0x83 && sub < kLayerCount) {
             // Answers each key ID listed in the request with key + action, packet header kept.
             Bytes r(kReportLen, 0);

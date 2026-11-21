@@ -25,10 +25,11 @@ constexpr std::size_t kMaxPayload = kFrameLen - 1 - kPayloadOffset;  // byte 62 
 
 using Frame = std::array<std::uint8_t, kFrameLen>;
 
-// A frame: cmd, sub, arg 0, packet count, packet index, len, payload, checksum. Most commands
-// fit in one packet (count 1, index 0); multi-packet reads number their requests.
+// A frame: cmd, sub, arg, packet count, packet index, len, payload, checksum. Most commands
+// fit in one packet (count 1, index 0); multi-packet reads number their requests. arg is 0
+// except for advanced keys (12 00), where it is the type.
 Frame buildFrame(std::uint8_t cmd, std::uint8_t sub, std::span<const std::uint8_t> payload = {},
-                 std::uint8_t packetCount = 1, std::uint8_t packetIndex = 0);
+                 std::uint8_t packetCount = 1, std::uint8_t packetIndex = 0, std::uint8_t arg = 0);
 
 // The byte that makes (report ID + sum of frame[0..61] + checksum) & 0xFF equal 0xFF.
 std::uint8_t checksum(std::span<const std::uint8_t> frame);

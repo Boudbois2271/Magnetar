@@ -3,6 +3,7 @@
 // (see the status labels in akko-protocol.md).
 #pragma once
 
+#include "advanced.h"
 #include "frame.h"
 #include "keymap.h"
 #include "travel.h"
@@ -43,7 +44,8 @@ public:
                    int timeoutMs = 1000, int retries = 2);
     // The same for one packet of a multi-packet exchange; the answer must carry the same index.
     Frame transactPacket(std::uint8_t cmd, std::uint8_t sub, std::uint8_t packetCount, std::uint8_t packetIndex,
-                         std::span<const std::uint8_t> payload = {}, int timeoutMs = 1000, int retries = 2);
+                         std::span<const std::uint8_t> payload = {}, int timeoutMs = 1000, int retries = 2,
+                         std::uint8_t arg = 0);
 
     int profile();       // 0-based active profile (90 00)
     int profileCount();  // from 82 0f; 3 when the answer is missing or implausible
@@ -75,7 +77,26 @@ public:
     // after writing if the read-back differs.
     std::vector<KeyTravel> setTravel(TravelPart part, std::span<const KeyTravel> keys);
 
+    // Advanced keys of the active profile. advancedKeyList: 92 00 with no key, the IDs of the
+    // keys that have one (both keys of a SOCD pair). readAdvanced: 92 00 with one key; type
+    // None when it has none. readAdvancedKeys: both, like the vendor app, one record per
+    // advanced key (a SOCD pair once), in list order.
+    std::vector<std::uint16_t> advancedKeyList();
+    AdvancedKey readAdvanced(std::uint16_t key);
+    std::vector<AdvancedKey> readAdvancedKeys();
+    // Clears what the record's keys hold now (12 00 type 00, as the vendor app does before every
+    // save; a SOCD pair is cleared on both keys), writes it, reads it back and returns the
+    // board's advanced keys. Throws before sending anything if advancedProblem() objects, and
+    // after writing if the read-back differs.
+    std::vector<AdvancedKey> setAdvanced(const AdvancedKey &a);
+    // Removes the key's advanced key (both keys of a SOCD pair). Returns the board's advanced keys.
+    std::vector<AdvancedKey> clearAdvanced(std::uint16_t key);
+
 private:
+    // Sends 12 00 type 00 for each key that has an advanced key, and for the other key of a
+    // SOCD pair it is part of.
+    void clearKeys(std::span<const std::uint16_t> keys, const std::vector<AdvancedKey> &current);
+
     // Sends a per-key request (key IDs, or full entries) in packets of perPacket keys and
     // hands each answer entry for a key of that packet to onEntry(frame, offset).
     void perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entryLen, std::span<const std::uint16_t> keys,

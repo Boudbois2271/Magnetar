@@ -15,10 +15,10 @@ Frame Keyboard::transact(std::uint8_t cmd, std::uint8_t sub, std::span<const std
 
 Frame Keyboard::transactPacket(std::uint8_t cmd, std::uint8_t sub, std::uint8_t packetCount,
                                std::uint8_t packetIndex, std::span<const std::uint8_t> payload, int timeoutMs,
-                               int retries)
+                               int retries, std::uint8_t arg)
 {
     using clock = std::chrono::steady_clock;
-    const Frame frame = buildFrame(cmd, sub, payload, packetCount, packetIndex);
+    const Frame frame = buildFrame(cmd, sub, payload, packetCount, packetIndex, arg);
     std::array<std::uint8_t, kReportLen> report{};
     report[0] = kReportId;
     std::copy(frame.begin(), frame.end(), report.begin() + 1);
@@ -296,6 +296,115 @@ std::string formatFirmware(std::uint16_t version)
     char buf[16];
     std::snprintf(buf, sizeof buf, "v%x.%02x", version >> 8, version & 0xFF);
     return buf;
+}
+
+// ---- advanced keys --------------------------------------------------------
+
+namespace {
+
+bool covers(const AdvancedKey &a, std::uint16_t key)
+{
+    const auto ids = advancedKeyIds(a);
+    return std::find(ids.begin(), ids.end(), key) != ids.end();
+}
+
+bool onBoard(std::uint16_t id)
+{
+    const auto keys = layout();
+    return std::any_of(keys.begin(), keys.end(), [&](const KeyPosition &k) { return k.id == id; });
+}
+
+}  // namespace
+
+std::vector<std::uint16_t> Keyboard::advancedKeyList()
+{
+    std::vector<std::uint16_t> ids;
+    auto collect = [&](const Frame &r) {
+        const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
+        for (std::size_t at = kPayloadOffset; at + 2 <= kPayloadOffset + len; at += 2) {
+            const std::uint16_t id = be16(r, at);
+            // 0 and IDs that aren't keys are skipped: the oldest capture answered this read
+            // with the layout table, padded with zeros.
+            if (onBoard(id) && std::find(ids.begin(), ids.end(), id) == ids.end())
+                ids.push_back(id);
+        }
+    };
+    const Frame first = transact(0x92, 0x00);
+    collect(first);
+    // More packets than one: ask for the rest, as the vendor app does (92 00 00 nn ii).
+    for (std::uint8_t p = 1; p < first[3]; ++p)
+        collect(transactPacket(0x92, 0x00, first[3], p));
+    return ids;
+}
+
+AdvancedKey Keyboard::readAdvanced(std::uint16_t key)
+{
+    const std::uint8_t p[] = {static_cast<std::uint8_t>(key >> 8), static_cast<std::uint8_t>(key & 0xFF)};
+    const Frame r = transact(0x92, 0x00, p);
+    const std::uint8_t type = r[2];
+    if (type == 0)
+        return makeAdvanced(AdvancedType::None, key);
+    const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
+    const auto a = decodeAdvanced(type, std::span(r).subspan(kPayloadOffset, len));
+    if (!a)
+        throw Error("unreadable advanced key on key " + std::to_string(key));
+    if (!covers(*a, key))
+        throw Error("advanced key read answered for another key");
+    return *a;
+}
+
+std::vector<AdvancedKey> Keyboard::readAdvancedKeys()
+{
+    std::vector<AdvancedKey> out;
+    for (auto id : advancedKeyList()) {
+        if (std::any_of(out.begin(), out.end(), [&](const AdvancedKey &a) { return covers(a, id); }))
+            continue;  // the other key of a SOCD pair already read
+        AdvancedKey a = readAdvanced(id);
+        if (a.type != AdvancedType::None)
+            out.push_back(std::move(a));
+    }
+    return out;
+}
+
+void Keyboard::clearKeys(std::span<const std::uint16_t> keys, const std::vector<AdvancedKey> &current)
+{
+    std::vector<std::uint16_t> cleared;
+    for (auto key : keys) {
+        const auto held = std::find_if(current.begin(), current.end(), [&](const AdvancedKey &a) { return covers(a, key); });
+        if (held == current.end())
+            continue;
+        for (auto id : advancedKeyIds(*held)) {
+            if (std::find(cleared.begin(), cleared.end(), id) != cleared.end())
+                continue;
+            const auto payload = encodeAdvanced(makeAdvanced(AdvancedType::None, id));
+            transactPacket(0x12, 0x00, 1, 0, payload, 1000, 2, 0x00);
+            cleared.push_back(id);
+        }
+    }
+}
+
+std::vector<AdvancedKey> Keyboard::setAdvanced(const AdvancedKey &a)
+{
+    if (const auto problem = advancedProblem(a); !problem.empty())
+        throw Error(problem);
+    const auto ids = advancedKeyIds(a);
+    clearKeys(ids, readAdvancedKeys());
+    transactPacket(0x12, 0x00, 1, 0, encodeAdvanced(a), 1000, 2, static_cast<std::uint8_t>(a.type));
+    auto after = readAdvancedKeys();
+    const auto back = std::find_if(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, a.key); });
+    if (back == after.end() || *back != a)
+        throw Error("the keyboard kept another advanced key on key " + std::to_string(a.key));
+    return after;
+}
+
+std::vector<AdvancedKey> Keyboard::clearAdvanced(std::uint16_t key)
+{
+    const std::uint16_t keys[] = {key};
+    clearKeys(keys, readAdvancedKeys());
+    auto after = readAdvancedKeys();
+    if (std::any_of(after.begin(), after.end(), [&](const AdvancedKey &b) { return covers(b, key); }))
+        throw Error("the keyboard kept the advanced key on key " + std::to_string(key));
+    return after;
 }
 
 }  // namespace akko

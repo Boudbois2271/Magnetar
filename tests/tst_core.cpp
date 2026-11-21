@@ -62,6 +62,33 @@ std::vector<Bytes> travelFrames(const std::string &name)
     return frames;
 }
 
+// The frames under "## name" in vendor-advanced.txt; only the 12 00 writes when writesOnly.
+std::vector<Bytes> advancedFrames(const std::string &name, bool writesOnly = false)
+{
+    std::ifstream in(FIXTURES_DIR "/vendor-advanced.txt");
+    std::vector<Bytes> frames;
+    bool inside = false;
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind("## ", 0) == 0)
+            inside = line.substr(3) == name;
+        else if (inside && !line.empty() && line[0] != '#') {
+            Bytes f = parseHex(line);
+            if (!writesOnly || f[0] == 0x12)
+                frames.push_back(f);
+        }
+    }
+    return frames;
+}
+
+// The record a captured 12 00 frame carries.
+AdvancedKey advancedOf(const Bytes &frame)
+{
+    const auto a = decodeAdvanced(frame[2], std::span(frame).subspan(6, frame[5]));
+    if (!a)
+        throw Error("fixture frame does not decode");
+    return *a;
+}
+
 // The i-th frame written, without the report ID.
 Bytes sent(const FakeTransport &t, std::size_t i)
 {
@@ -513,6 +540,212 @@ private slots:
         KeyTravel k = kb.readTravel(f12)[0];
         k.actuation = 84;
         QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::Actuation, std::span(&k, 1)));
+    }
+
+    // ---- advanced keys ----------------------------------------------------
+    void advancedFramesMatchVendorApp()
+    {
+        int checked = 0;
+        for (const char *name : {"mpt-a", "mpt-abc", "socd-ad-last", "socd-qe-key1", "socd-zc-key2", "socd-fg-neutral",
+                                 "dks-space", "mt-p", "tgl-j", "end-4", "dks-insert-hold-1", "dks-insert-hold-all",
+                                 "dks-insert-b-c"})
+            for (const auto &f : advancedFrames(name, true)) {
+                if (f[2] == 0x00)
+                    continue;  // clears are checked below
+                const AdvancedKey a = advancedOf(f);
+                QVERIFY2(advancedProblem(a).empty(), name);
+                const auto payload = encodeAdvanced(a);
+                const Frame built = buildFrame(0x12, 0x00, payload, 1, 0, f[2]);
+                QCOMPARE(Bytes(built.begin(), built.end()), f);
+                ++checked;
+            }
+        QCOMPARE(checked, 13);
+
+        const AdvancedKey mt = advancedOf(advancedFrames("mt-p", true)[0]);
+        QCOMPARE(mt.type, AdvancedType::ModTap);
+        QCOMPARE(mt.key, std::uint16_t(0x26));  // P
+        QVERIFY(mt.action == keyAction(0x15) && mt.tap == keyAction(0x17));  // hold R, tap T
+        QCOMPARE(mt.holdMs, std::uint16_t(322));
+
+        const AdvancedKey tgl = advancedOf(advancedFrames("tgl-j", true)[0]);
+        QVERIFY(tgl.type == AdvancedType::Toggle && tgl.key == 0x31 && tgl.action == keyAction(0x0e));
+        QCOMPARE(tgl.holdMs, std::uint16_t(965));
+
+        const AdvancedKey end = advancedOf(advancedFrames("end-4", true)[0]);
+        QVERIFY(end.type == AdvancedType::Release && end.key == 0x12 && end.action == keyAction(0x22));
+
+        const AdvancedKey socd = advancedOf(advancedFrames("socd-zc-key2", true)[0]);
+        QVERIFY(socd.key == 0x38 && socd.key2 == 0x3a && socd.mode == SocdMode::Key2);
+        QVERIFY(advancedKeyIds(socd) == std::vector<std::uint16_t>({0x38, 0x3a}));
+
+        const AdvancedKey mpt = advancedOf(advancedFrames("mpt-abc", true)[1]);
+        QCOMPARE(mpt.points.size(), kMultiPointSlots);
+        QVERIFY(mpt.points[0] == (PointSlot{keyAction(0x04), 0x7f}));   // A at 0.635 mm
+        QVERIFY(mpt.points[2] == (PointSlot{keyAction(0x06), 0x27f}));  // C at 3.195 mm
+
+        const AdvancedKey dks = advancedOf(advancedFrames("dks-insert-b-c", true)[0]);
+        QVERIFY(dks.depths == (std::array<std::uint16_t, 4>{200, 600, 600, 200}));
+        QVERIFY(dksStroke(dks.rows[0].stages) == (DksStroke{1, 2}));  // B held bottom → release from bottom
+        QVERIFY(dksStroke(dks.rows[1].stages) == (DksStroke{3, 3}));  // C once at full release
+        QVERIFY(dksStroke(dks.rows[2].stages) == DksStroke{});
+    }
+
+    void dksStrokes()
+    {
+        using S = std::array<std::uint8_t, 4>;
+        QVERIFY(dksStages({0, 1}) == (S{0x0e, 0, 0, 0}));
+        QVERIFY(dksStages({0, 3}) == (S{0x06, 0x04, 0x0c, 0}));
+        QVERIFY(dksStages({1, 2}) == (S{0, 0x0e, 0, 0}));
+        QVERIFY(dksStages({2, 2}) == (S{0, 0, 0x0a, 0}));
+        QVERIFY(dksStages({}) == S{});
+        QVERIFY(dksStages({2, 1}) == S{});  // backwards: nothing
+        for (int from = 0; from < 4; ++from)
+            for (int to = from; to < 4; ++to)
+                QVERIFY(dksStroke(dksStages({from, to})) == (DksStroke{from, to}));
+        QVERIFY(!dksStroke(S{0x02, 0, 0, 0}).has_value());     // never captured: not ours to name
+        QVERIFY(!dksStroke(S{0x0a, 0, 0x0a, 0}).has_value());
+    }
+
+    void decodeRejectsShortPayloads()
+    {
+        const Bytes mt{0x00, 0x26, 0, 0, 0, 0x15};
+        QVERIFY(!decodeAdvanced(0x02, mt).has_value());
+        QVERIFY(!decodeAdvanced(0x07, Bytes{0x00, 0x26}).has_value());  // unknown type
+        const Bytes mpt{0x00, 0x38, 0x03, 0, 0, 0, 0x04, 0x00, 0x7f};  // says 3, holds 1
+        QVERIFY(!decodeAdvanced(0x05, mpt).has_value());
+    }
+
+    void setAdvancedLikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const auto frames = advancedFrames("mt-p");
+        const AdvancedKey mt = advancedOf(frames[0]);
+        const auto after = kb.setAdvanced(mt);
+        // First a look at what the board has (an empty list), then the write and the vendor's
+        // read-back: the list, then the key.
+        QCOMPARE(t.written.size(), std::size_t(1 + 3));
+        QCOMPARE(sent(t, 0), frames[1]);
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, 1 + i), frames[i]);
+        QCOMPARE(after.size(), std::size_t(1));
+        QVERIFY(after[0] == mt);
+        QVERIFY(kb.readAdvancedKeys() == after);
+    }
+
+    void savingOverAnAdvancedKeyClearsItFirst()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        kb.setAdvanced(advancedOf(advancedFrames("mpt-a", true)[0]));
+        t.written.clear();
+        const auto writes = advancedFrames("mpt-abc", true);  // clear, then the new record
+        kb.setAdvanced(advancedOf(writes[1]));
+        std::vector<Bytes> ours;
+        for (std::size_t i = 0; i < t.written.size(); ++i)
+            if (sent(t, i)[0] == 0x12)
+                ours.push_back(sent(t, i));
+        QVERIFY(ours == writes);
+        QCOMPARE(board.advanced.at(0x38).second, encodeAdvanced(advancedOf(writes[1])));
+    }
+
+    void socdClearsBothKeys()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const auto after = kb.setAdvanced(advancedOf(advancedFrames("socd-ad-last", true)[0]));
+        QCOMPARE(after.size(), std::size_t(1));  // one record for the pair
+        QCOMPARE(board.advanced.size(), std::size_t(2));
+        t.written.clear();
+        QVERIFY(kb.clearAdvanced(0x2d).empty());  // either key removes the pair
+        std::vector<Bytes> ours;
+        for (std::size_t i = 0; i < t.written.size(); ++i)
+            if (sent(t, i)[0] == 0x12)
+                ours.push_back(sent(t, i));
+        QVERIFY(ours == advancedFrames("socd-ad-restore", true));
+        QVERIFY(board.advanced.empty());
+
+        // A new record on one key of a pair takes the whole pair away first.
+        kb.setAdvanced(advancedOf(advancedFrames("socd-ad-last", true)[0]));
+        AdvancedKey end = makeAdvanced(AdvancedType::Release, 0x2d);
+        end.action = keyAction(0x22);
+        const auto now = kb.setAdvanced(end);
+        QCOMPARE(now.size(), std::size_t(1));
+        QVERIFY(now[0] == end);
+        QVERIFY(!board.advanced.contains(0x2b));
+    }
+
+    void setAdvancedRefusesBadRecords()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        AdvancedKey tgl = makeAdvanced(AdvancedType::Toggle, 0x31);
+        tgl.action = keyAction(0x0e);
+        tgl.holdMs = 50;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(tgl));
+        tgl.holdMs = 965;
+        tgl.key = 0x50;  // not a key on this board
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(tgl));
+
+        AdvancedKey dks = advancedOf(advancedFrames("dks-space", true)[0]);
+        std::swap(dks.depths[0], dks.depths[1]);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(dks));
+        dks = advancedOf(advancedFrames("dks-space", true)[0]);
+        dks.rows[0].action = kNoAction;  // stages without an action
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(dks));
+
+        AdvancedKey socd = advancedOf(advancedFrames("socd-fg-neutral", true)[0]);
+        socd.key2 = socd.key;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(socd));
+        AdvancedKey mpt = advancedOf(advancedFrames("mpt-a", true)[0]);
+        mpt.points.pop_back();
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(mpt));
+        QVERIFY(t.written.empty());
+    }
+
+    void setAdvancedFailsWhenTheBoardKeepsTheOldRecord()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreAdvancedWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(advancedOf(advancedFrames("end-4", true)[0])));
+    }
+
+    void advancedListFollowsExtraPackets()
+    {
+        // The oldest capture answered the list read with 4 packets; we ask for the rest and
+        // skip what isn't a key.
+        FakeTransport t;
+        t.respond = [](const Bytes &w) -> std::vector<Bytes> {
+            Bytes r(kReportLen, 0);
+            std::copy_n(w.begin(), 6, r.begin());
+            if (w[6] != 0) {
+                r[6] = 2;
+                r[7] = w[7];
+                r[8] = w[8];  // no advanced key
+                return {r};
+            }
+            r[4] = 0x02;
+            r[6] = 6;
+            const std::uint8_t first[] = {0x00, 0x01, 0x00, 0x00, 0x00, 0x50}, second[] = {0x00, 0x0e, 0x00, 0x01, 0x00, 0x00};
+            std::copy_n(w[5] == 0 ? first : second, 6, r.begin() + 7);
+            return {r};
+        };
+        Keyboard kb(t);
+        QVERIFY(kb.advancedKeyList() == std::vector<std::uint16_t>({0x01, 0x0e}));
+        QCOMPARE(t.written.size(), std::size_t(2));
+        QCOMPARE(sent(t, 1)[3], std::uint8_t(0x02));
+        QCOMPARE(sent(t, 1)[4], std::uint8_t(0x01));
+        QVERIFY(kb.readAdvancedKeys().empty());
     }
 
     // ---- device discovery and lock ---------------------------------------
