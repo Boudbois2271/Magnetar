@@ -167,8 +167,8 @@ All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole 
 
 | cmd/sub | Status | Meaning |
 |---|---|---|
-| `05 00` | SEEN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
-| `85 00` | SEEN | read: bytes 1–2 (sub + arg) = byte offset, u16 BE (`00 00`, `00 38`, … `01 18`, `akko-capture11.txt`), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
+| `05 00` | KNOWN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
+| `85 00` | KNOWN | read: bytes 1–2 (sub + arg) = byte offset, u16 BE (`00 00`, `00 38`, … `01 18`, `akko-capture11.txt`), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
 
 Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
@@ -182,6 +182,11 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app
   refuses to delete a macro that is bound, or to bind a key that already has one (both client-side:
   no traffic). What the firmware does with a key whose index points past the last macro is unknown.
+- Sent by Magnetar 2026-11-21: one macro written, read back, bound to Insert (`03 01 01 00`), ran on
+  the board; then the empty blob written and Insert restored.
+- **Per profile**: after that write, profile 2 read as empty storage.
+- Modifiers in steps: HID `e1` (LShift) is **ignored** (Shift↓ a↓ a↑ Shift↑ b↓ b↑ typed "ab", same
+  test). How the vendor app records a modifier is not captured.
 - Bind = plain `03 00` keymap write with action `03 …` (above), then `83 00` read of that key.
   Marks "drag the macro ab icon onto the Insert key", "10b", "12", "12b".
 
@@ -215,6 +220,7 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
+- Macros: recording a modifier (Shift+a) in the vendor macro editor, to see how a modifier step is stored.
 - Profile Management: applying an inactive profile (reboots, overwrites a profile). Skipped on purpose.
 - Device Info: Factory Reset. Skipped on purpose.
 - `11 00` on the Fn and Fn1 layers, to pin down its payload.
