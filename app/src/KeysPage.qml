@@ -30,6 +30,13 @@ Item {
             page.selection = [id]
         }
     }
+    // A box selects the keys in it; with Ctrl or Shift it adds them.
+    function box(ids, modifiers) {
+        if (modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+            page.selection = page.selection.concat(ids.filter(id => page.selection.indexOf(id) < 0))
+        else
+            page.selection = ids.slice()
+    }
     function select(ids) {
         page.selection = ids.slice()
     }
@@ -103,6 +110,7 @@ Item {
                     markedFor: page.current.markedFor
                     selectedKeys: page.selection
                     onKeyClicked: (id, modifiers) => page.click(id, modifiers)
+                    onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
                 }
 
                 Flow {

@@ -20,7 +20,7 @@ ColumnLayout {
 
     readonly property string drawingTitle: tab.activeLayer === 0 ? qsTr("What each key does")
         : qsTr("What each key does while %1 is held").arg(tab.activeLayer === 1 ? "Fn" : "Fn1")
-    readonly property string drawingHelp: qsTr("Click a key to select it; Ctrl+click or Shift+click to select several. A dot means the key differs from the factory setting.")
+    readonly property string drawingHelp: qsTr("Click a key to select it; drag a box or Ctrl+click to select several. A dot means the key differs from the factory setting.")
 
     readonly property var layerMap: backend.keymapReady && backend.keymap.length > tab.activeLayer
                                     ? backend.keymap[tab.activeLayer] : ({})

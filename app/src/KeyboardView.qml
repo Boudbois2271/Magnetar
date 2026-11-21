@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // The keyboard drawn from backend.layout (quarter key widths), scaled to the item's width.
 // The page decides what each key says and which keys are selected. A click reports the
-// keyboard modifiers held (Ctrl/Shift add to the selection).
+// keyboard modifiers held (Ctrl/Shift add to the selection). Dragging draws a box and reports
+// every key it touches, with the modifiers held at the end of the drag.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -14,6 +15,15 @@ Item {
     property var markedFor: function (id) { return false }  // small dot: differs from factory
     property var selectedKeys: []
     signal keyClicked(int id, int modifiers)
+    signal boxSelected(var ids, int modifiers)
+
+    // While a box is drawn, the keys shown as selected: the box, plus the selection when
+    // Ctrl or Shift will add to it.
+    property var boxKeys: []
+    property bool boxAdds: false
+    readonly property bool boxing: mouse.boxing
+    readonly property var shownKeys: boxing ? (boxAdds ? selectedKeys.concat(boxKeys) : boxKeys) : selectedKeys
+    property int hoveredKey: -1
 
     readonly property int columns: 66  // 16.5 keys
     readonly property int rows: 26     // 6 rows and the gaps
@@ -32,7 +42,7 @@ Item {
             id: cap
             required property var modelData
             readonly property int keyId: modelData.id
-            readonly property bool selected: view.selectedKeys.indexOf(keyId) >= 0
+            readonly property bool selected: view.shownKeys.indexOf(keyId) >= 0
 
             objectName: "key_" + keyId
             x: modelData.x * view.unit + view.gap / 2
@@ -40,7 +50,7 @@ Item {
             width: modelData.w * view.unit - view.gap
             height: 4 * view.unit - view.gap
             radius: Math.min(theme.radius, 6)
-            color: selected ? theme.accent : (mouse.containsMouse ? "#2a2a31" : "#202026")
+            color: selected ? theme.accent : (view.hoveredKey === keyId ? "#2a2a31" : "#202026")
             border.width: 1
             border.color: selected ? theme.accent : "#2e2e36"
 
@@ -71,14 +81,86 @@ Item {
                 radius: 3
                 color: cap.selected ? "#0e0e10" : theme.accent
             }
+        }
+    }
 
-            MouseArea {
-                id: mouse
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onClicked: (m) => view.keyClicked(cap.keyId, m.modifiers)
+    // Key rectangles in the view's coordinates, the same as the drawn caps.
+    function keyRect(k) {
+        return Qt.rect(k.x * unit + gap / 2, k.y * unit + gap / 2, k.w * unit - gap, 4 * unit - gap)
+    }
+    function keyAt(px, py) {
+        for (const k of keys) {
+            const r = keyRect(k)
+            if (px >= r.x && px < r.x + r.width && py >= r.y && py < r.y + r.height)
+                return k.id
+        }
+        return -1
+    }
+    function keysIn(box) {
+        return keys.filter(k => {
+            const r = keyRect(k)
+            return r.x < box.x + box.width && box.x < r.x + r.width
+                && r.y < box.y + box.height && box.y < r.y + r.height
+        }).map(k => k.id)
+    }
+
+    Rectangle {
+        objectName: "selectionBox"
+        visible: mouse.boxing
+        x: mouse.box.x
+        y: mouse.box.y
+        width: mouse.box.width
+        height: mouse.box.height
+        color: Qt.alpha(theme.accent, 0.15)
+        border.width: 1
+        border.color: theme.accent
+    }
+
+    // One area over the whole drawing, so a drag can start on a key or between keys.
+    MouseArea {
+        id: mouse
+        anchors.fill: parent
+        hoverEnabled: true
+        preventStealing: true  // the page scrolls; a drag here draws the box instead
+        cursorShape: view.hoveredKey >= 0 && !boxing ? Qt.PointingHandCursor : Qt.ArrowCursor
+
+        property point start
+        property bool boxing: false
+        property rect box
+        readonly property real threshold: 5
+
+        function boxTo(px, py) {
+            const x = Math.max(0, Math.min(px, view.width))
+            const y = Math.max(0, Math.min(py, view.height))
+            box = Qt.rect(Math.min(start.x, x), Math.min(start.y, y), Math.abs(x - start.x), Math.abs(y - start.y))
+            view.boxKeys = view.keysIn(box)
+        }
+
+        onPressed: (m) => { start = Qt.point(m.x, m.y); boxing = false }
+        onPositionChanged: (m) => {
+            view.hoveredKey = view.keyAt(m.x, m.y)
+            if (!pressed)
+                return
+            if (!boxing && Math.hypot(m.x - start.x, m.y - start.y) >= threshold)
+                boxing = true
+            if (boxing) {
+                view.boxAdds = (m.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) !== 0
+                boxTo(m.x, m.y)
             }
         }
+        onReleased: (m) => {
+            if (boxing) {
+                boxTo(m.x, m.y)
+                boxing = false
+                view.boxSelected(view.boxKeys, m.modifiers)
+                view.boxKeys = []
+            } else {
+                const id = view.keyAt(m.x, m.y)
+                if (id >= 0)
+                    view.keyClicked(id, m.modifiers)
+            }
+        }
+        onCanceled: { boxing = false; view.boxKeys = [] }
+        onExited: view.hoveredKey = -1
     }
 }

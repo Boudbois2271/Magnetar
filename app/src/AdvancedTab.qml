@@ -106,7 +106,7 @@ ColumnLayout {
     readonly property bool multi: page.selection.length > 1 && !(page.saved !== null && page.saved.type === "socd")
 
     readonly property string drawingTitle: qsTr("Advanced function of each key")
-    readonly property string drawingHelp: qsTr("Keys with an advanced function show its short name. Ctrl+click or Shift+click to select several keys: each gets the same function. SOCD takes exactly two keys.")
+    readonly property string drawingHelp: qsTr("Keys with an advanced function show its short name. Drag a box or Ctrl+click to select several keys: each gets the same function. SOCD takes exactly two keys.")
     function labelFor(id) {
         const r = page.recordFor(id)
         return r !== null ? page.typeTag(r.type) : page.keyName(id)

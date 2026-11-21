@@ -56,7 +56,7 @@ ColumnLayout {
     }
 
     readonly property string drawingTitle: qsTr("Actuation point of each key")
-    readonly property string drawingHelp: qsTr("Each key shows its actuation point in mm; a dot means Rapid Trigger or dead zones are on. Ctrl+click or Shift+click to select several keys.")
+    readonly property string drawingHelp: qsTr("Each key shows its actuation point in mm; a dot means Rapid Trigger or dead zones are on. Drag a box or Ctrl+click to select several keys.")
     readonly property var labelFor: page.capLabel
     readonly property var markedFor: page.hasExtras
 

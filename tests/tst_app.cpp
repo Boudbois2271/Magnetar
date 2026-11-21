@@ -730,6 +730,75 @@ private slots:
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
+
+    void keysPageSelectsWithABox()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        w.window->resize(1200, 1000);
+        w.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(w.window));
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        QTRY_COMPARE(w.cap(0x01), QString("Esc"));
+
+        auto keyRect = [&](int id) {
+            auto *k = findItem(w.view, "key_" + QByteArray::number(id));
+            return k->mapRectToScene(QRectF(0, 0, k->width(), k->height()));
+        };
+        auto centre = [&](int id) { return keyRect(id).center().toPoint(); };
+        auto selection = [&] {
+            QSet<int> s;
+            for (const auto &v : w.page->property("selection").toList())
+                s.insert(v.toInt());
+            return s;
+        };
+        // Every key the box from one point to another touches, from the drawn caps.
+        auto touched = [&](QPoint a, QPoint b) {
+            const QRectF box = QRectF(a, b).normalized();
+            QSet<int> s;
+            for (const auto &k : w.backend.layout()) {
+                const int id = k.toMap().value("id").toInt();
+                const QRectF r = keyRect(id);  // a flat box still touches (QRectF::intersects says no)
+                if (r.left() < box.right() && box.left() < r.right() && r.top() < box.bottom() && box.top() < r.bottom())
+                    s.insert(id);
+            }
+            return s;
+        };
+        auto drag = [&](QPoint a, QPoint b, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QTest::mousePress(w.window, Qt::LeftButton, mods, a);
+            QTest::mouseMove(w.window, (a + b) / 2);
+            QTest::mouseMove(w.window, b);
+            QTest::mouseRelease(w.window, Qt::LeftButton, mods, b);
+        };
+
+        // Esc to F12: the whole top row, and only it.
+        const QSet<int> topRow = touched(centre(0x01), centre(0x0d));
+        QVERIFY(topRow.size() >= 13 && topRow.contains(0x01) && topRow.contains(0x0d));
+        drag(centre(0x01), centre(0x0d));
+        QCOMPARE(selection(), topRow);
+        QVERIFY(!findItem(w.window->contentItem(), "selectionBox")->isVisible());
+
+        // A plain box replaces the selection; Ctrl+drag adds to it.
+        const QPoint a = centre(0x01) + QPoint(0, int(keyRect(0x01).height() * 1.8));  // a row down
+        const QPoint b = a + QPoint(int(keyRect(0x01).width() * 2.5), 0);
+        const QSet<int> second = touched(a, b);
+        QVERIFY(!second.isEmpty() && !second.intersects(topRow));
+        drag(a, b);
+        QCOMPARE(selection(), second);
+        drag(centre(0x01), centre(0x0d), Qt::ControlModifier);
+        QCOMPARE(selection(), second | topRow);
+
+        // A press that barely moves is still a click: only that key.
+        QTest::mousePress(w.window, Qt::LeftButton, Qt::NoModifier, centre(0x0d));
+        QTest::mouseMove(w.window, centre(0x0d) + QPoint(2, 1));
+        QTest::mouseRelease(w.window, Qt::LeftButton, Qt::NoModifier, centre(0x0d) + QPoint(2, 1));
+        QCOMPARE(selection(), QSet<int>{0x0d});
+        // Ctrl+click still adds one key.
+        QTest::mouseClick(w.window, Qt::LeftButton, Qt::ControlModifier, centre(0x01));
+        QCOMPARE(selection(), (QSet<int>{0x0d, 0x01}));
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
 };
 
 int runAppTests(int argc, char **argv)
