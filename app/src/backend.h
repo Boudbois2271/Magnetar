@@ -40,6 +40,10 @@ class Backend : public QObject {
     Q_PROPERTY(QVariantMap travel READ travel NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap travelLimits READ travelLimits CONSTANT)
     Q_PROPERTY(bool canUndoTravel READ canUndoTravel NOTIFY stateChanged)
+    // Advanced keys page: one record per advanced key (see advancedKeys()), and the editors' limits.
+    Q_PROPERTY(bool advancedReady READ advancedReady NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList advancedKeys READ advancedKeys NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap advancedLimits READ advancedLimits CONSTANT)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -75,6 +79,17 @@ public:
     QVariantMap travelLimits() const;  // min/max in mm for the page's sliders, and the step
     bool canUndoTravel() const { return m_state.travelUndo.has_value(); }
 
+    // Advanced keys of the active profile, as read from the board. Each record: {type: "toggle" |
+    // "modTap" | "dks" | "socd" | "multiPoint" | "release", key, and by type: action (Toggle,
+    // Release, Mod-Tap hold), tap, holdMs; depths [4 × mm] and rows [4 × {action, from, to,
+    // stages}] (DKS; from/to are stage indexes, -1 when the row is unused or its stages aren't a
+    // single press or hold, stages = the bytes as hex); key2 and mode ("neutral" | "lastInput" |
+    // "key1" | "key2") for SOCD; points [3 × {action, depth}] for Multi-Point. Actions are codes
+    // as in actionInfo, "" for an empty slot.
+    bool advancedReady() const { return m_state.advancedProfile >= 0; }
+    QVariantList advancedKeys() const { return m_advanced; }
+    QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults
+
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
@@ -104,6 +119,13 @@ public:
     Q_INVOKABLE bool changeTravel(const QVariantList &keys, const QVariantMap &change);
     Q_INVOKABLE void undoTravel();  // puts back what the last change replaced
 
+    // True when the record (same shape as advancedKeys) can be saved.
+    Q_INVOKABLE bool advancedValid(const QVariantMap &record) const;
+    // Saves it: whatever its keys hold now is cleared first (both keys of a SOCD pair), then the
+    // page shows the board's read-back. False, and nothing sent, if it isn't valid.
+    Q_INVOKABLE bool saveAdvanced(const QVariantMap &record);
+    Q_INVOKABLE bool removeAdvanced(int key);  // the key's advanced key, or its whole SOCD pair
+
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
     Q_INVOKABLE bool setColor(const QString &color);  // false (and nothing sent) if it isn't a colour
@@ -128,6 +150,7 @@ private:
     Snapshot m_state;
     QVariantList m_keymap;
     QVariantMap m_travel;
+    QVariantList m_advanced;
     bool m_connected = false;
     bool m_ready = false;
     QString m_errorKind;

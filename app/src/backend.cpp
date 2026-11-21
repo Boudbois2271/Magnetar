@@ -343,6 +343,247 @@ void Backend::undoTravel()
     });
 }
 
+// ---- advanced keys ---------------------------------------------------------
+
+namespace {
+
+using akko::AdvancedType;
+
+const std::pair<AdvancedType, const char *> kTypeNames[] = {
+    {AdvancedType::Toggle, "toggle"}, {AdvancedType::ModTap, "modTap"},         {AdvancedType::Dks, "dks"},
+    {AdvancedType::Socd, "socd"},     {AdvancedType::MultiPoint, "multiPoint"}, {AdvancedType::Release, "release"},
+};
+const std::pair<akko::SocdMode, const char *> kModeNames[] = {
+    {akko::SocdMode::Neutral, "neutral"}, {akko::SocdMode::LastInput, "lastInput"},
+    {akko::SocdMode::Key1, "key1"},       {akko::SocdMode::Key2, "key2"},
+};
+
+QString slotCode(const akko::Action &a)
+{
+    return a == akko::kNoAction ? QString() : code(a);
+}
+
+QVariantMap toVariant(const akko::AdvancedKey &a)
+{
+    QVariantMap m{{"key", a.key}};
+    for (const auto &[t, name] : kTypeNames)
+        if (t == a.type)
+            m["type"] = name;
+    switch (a.type) {
+    case AdvancedType::Toggle:
+        m["action"] = code(a.action);
+        m["holdMs"] = a.holdMs;
+        break;
+    case AdvancedType::Release:
+        m["action"] = code(a.action);
+        break;
+    case AdvancedType::ModTap:
+        m["action"] = code(a.action);
+        m["tap"] = code(a.tap);
+        m["holdMs"] = a.holdMs;
+        break;
+    case AdvancedType::Dks: {
+        QVariantList depths, rows;
+        for (auto d : a.depths)
+            depths.append(mm(d));
+        for (const auto &r : a.rows) {
+            const auto stroke = akko::dksStroke(r.stages);
+            const akko::Action stages{r.stages[0], r.stages[1], r.stages[2], r.stages[3]};
+            rows.append(QVariantMap{{"action", slotCode(r.action)},
+                                    {"from", stroke ? stroke->from : -1},
+                                    {"to", stroke ? stroke->to : -1},
+                                    {"stages", code(stages)}});
+        }
+        m["depths"] = depths;
+        m["rows"] = rows;
+        break;
+    }
+    case AdvancedType::Socd:
+        m["key2"] = a.key2;
+        m["mode"] = QString();
+        for (const auto &[mode, name] : kModeNames)
+            if (mode == a.mode)
+                m["mode"] = name;
+        break;
+    case AdvancedType::MultiPoint: {
+        QVariantList points;
+        for (const auto &p : a.points)
+            points.append(QVariantMap{{"action", slotCode(p.action)}, {"depth", mm(p.depth)}});
+        m["points"] = points;
+        break;
+    }
+    default:
+        break;
+    }
+    return m;
+}
+
+std::optional<std::uint16_t> units(const QVariant &v)
+{
+    bool ok = false;
+    const double d = v.toDouble(&ok);
+    if (!ok || d < 0 || d > 10)
+        return std::nullopt;
+    return static_cast<std::uint16_t>(std::lround(d / akko::kMmPerUnit));
+}
+
+// "" is an empty slot; anything else must be a code.
+std::optional<akko::Action> slotAction(const QVariant &v)
+{
+    const QString c = v.toString();
+    if (c.isEmpty())
+        return akko::kNoAction;
+    return akko::parseAction(c.toStdString());
+}
+
+// The record QML sends, or nullopt if a field is missing or malformed. Range checks are
+// advancedProblem()'s.
+std::optional<akko::AdvancedKey> fromVariant(const QVariantMap &m)
+{
+    std::optional<AdvancedType> type;
+    for (const auto &[t, name] : kTypeNames)
+        if (m.value("type").toString() == name)
+            type = t;
+    const int key = m.value("key", -1).toInt();
+    if (!type || key < 0 || key > 0xffff)
+        return std::nullopt;
+    akko::AdvancedKey a = akko::makeAdvanced(*type, static_cast<std::uint16_t>(key));
+    auto action = [&](const char *field, akko::Action &out) {
+        const auto act = slotAction(m.value(field));
+        if (act)
+            out = *act;
+        return act.has_value();
+    };
+    auto hold = [&] {
+        const int ms = m.value("holdMs", -1).toInt();
+        a.holdMs = static_cast<std::uint16_t>(std::clamp(ms, 0, 0xffff));
+        return ms >= 0;
+    };
+    switch (*type) {
+    case AdvancedType::Toggle:
+        if (!action("action", a.action) || !hold())
+            return std::nullopt;
+        break;
+    case AdvancedType::Release:
+        if (!action("action", a.action))
+            return std::nullopt;
+        break;
+    case AdvancedType::ModTap:
+        if (!action("action", a.action) || !action("tap", a.tap) || !hold())
+            return std::nullopt;
+        break;
+    case AdvancedType::Dks: {
+        const auto depths = m.value("depths").toList();
+        const auto rows = m.value("rows").toList();
+        if (depths.size() != 4 || rows.size() != int(akko::kDksRows))
+            return std::nullopt;
+        for (int i = 0; i < 4; ++i) {
+            const auto u = units(depths[i]);
+            if (!u)
+                return std::nullopt;
+            a.depths[i] = *u;
+        }
+        for (int i = 0; i < rows.size(); ++i) {
+            const auto r = rows[i].toMap();
+            const auto act = slotAction(r.value("action"));
+            if (!act)
+                return std::nullopt;
+            a.rows[i].action = *act;
+            const int from = r.value("from", -1).toInt(), to = r.value("to", -1).toInt();
+            if (from >= 0) {
+                if (to < from || to >= int(akko::kDksStages))
+                    return std::nullopt;
+                a.rows[i].stages = akko::dksStages({from, to});
+            } else if (*act != akko::kNoAction) {
+                // A pattern the editor can't draw: kept as read.
+                const auto kept = akko::parseAction(r.value("stages").toString().toStdString());
+                if (!kept)
+                    return std::nullopt;
+                std::copy(kept->begin(), kept->end(), a.rows[i].stages.begin());
+            }
+        }
+        break;
+    }
+    case AdvancedType::Socd: {
+        const int key2 = m.value("key2", -1).toInt();
+        std::optional<akko::SocdMode> mode;
+        for (const auto &[md, name] : kModeNames)
+            if (m.value("mode").toString() == name)
+                mode = md;
+        if (key2 < 0 || key2 > 0xffff || !mode)
+            return std::nullopt;
+        a.key2 = static_cast<std::uint16_t>(key2);
+        a.mode = *mode;
+        break;
+    }
+    case AdvancedType::MultiPoint:
+        for (const auto &v : m.value("points").toList()) {
+            const auto p = v.toMap();
+            const auto act = slotAction(p.value("action"));
+            const auto depth = units(p.value("depth"));
+            if (!act || !depth)
+                return std::nullopt;
+            a.points.push_back({*act, *depth});
+        }
+        break;
+    default:
+        return std::nullopt;
+    }
+    return a;
+}
+
+// Puts the board's read-back in the snapshot.
+void storeAdvanced(Snapshot &s, std::vector<akko::AdvancedKey> after, int profile)
+{
+    s.advanced = std::move(after);
+    s.advancedProfile = profile;
+}
+
+}  // namespace
+
+QVariantMap Backend::advancedLimits() const
+{
+    return {{"minHoldMs", akko::kMinHoldMs},
+            {"maxHoldMs", akko::kMaxHoldMs},
+            {"defaultHoldMs", 200},
+            {"minDepth", mm(akko::kMinActuation)},
+            {"maxDepth", mm(akko::kMaxActuation)},
+            {"step", akko::kMmPerUnit},
+            {"dksDepths", QVariantList{1.0, 3.0, 3.0, 1.0}},
+            {"pointDepths", QVariantList{0.5, 1.0, 1.5}}};
+}
+
+bool Backend::advancedValid(const QVariantMap &record) const
+{
+    const auto a = fromVariant(record);
+    return a && akko::advancedProblem(*a).empty();
+}
+
+bool Backend::saveAdvanced(const QVariantMap &record)
+{
+    const auto a = fromVariant(record);
+    if (!a || !akko::advancedProblem(*a).empty() || !advancedReady())
+        return false;
+    // Keyed per key: only the last save of a key waiting in the queue is sent.
+    post("advanced " + std::to_string(a->key), [a = *a](akko::Keyboard &kb, Snapshot &s) {
+        const int profile = kb.profile();
+        storeAdvanced(s, kb.setAdvanced(a), profile);
+    });
+    return true;
+}
+
+bool Backend::removeAdvanced(int key)
+{
+    if (!knownKey(key) || !advancedReady())
+        return false;
+    const auto id = static_cast<std::uint16_t>(key);
+    post("advanced " + std::to_string(key), [id](akko::Keyboard &kb, Snapshot &s) {
+        const int profile = kb.profile();
+        storeAdvanced(s, kb.clearAdvanced(id), profile);
+    });
+    return true;
+}
+
 void Backend::setProfile(int profile)
 {
     if (profile < 1 || (m_state.profileCount && profile > m_state.profileCount))
@@ -431,6 +672,10 @@ void Backend::applyState(const Snapshot &s)
                                         {"press", mm(t.press)}, {"release", mm(t.release)},
                                         {"deadZones", t.deadZones}, {"deadTop", mm(t.deadTop)},
                                         {"deadBottom", mm(t.deadBottom)}});
+    m_advanced.clear();
+    if (s.advancedProfile >= 0)
+        for (const auto &a : s.advanced)
+            m_advanced.append(toVariant(a));
     m_ready = true;
     m_retry.stop();
     if (!m_connected || !m_errorKind.isEmpty()) {

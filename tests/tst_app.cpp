@@ -325,6 +325,77 @@ private slots:
         QVERIFY(!b.changeTravel({0x0d}, {{"colour", 1.0}}));
     }
 
+    void advancedKeysAreSavedAndRemoved()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.advancedReady());
+        QVERIFY(b.advancedKeys().isEmpty());
+        QCOMPARE(b.advancedLimits().value("maxHoldMs").toInt(), 1000);
+
+        // Mod-Tap on P: hold R, tap T, 322 ms, as in akko-capture2.txt.
+        const QVariantMap mt{{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"},
+                             {"tap", "00 00 00 17"}, {"holdMs", 322}};
+        QVERIFY(b.advancedValid(mt));
+        QVERIFY(b.saveAdvanced(mt));
+        QTRY_COMPARE(b.advancedKeys().size(), 1);
+        QCOMPARE(b.advancedKeys()[0].toMap(), mt);
+        {
+            std::lock_guard lock(board.mutex);
+            QCOMPARE(board.keyboard.advanced.at(0x26).first, std::uint8_t(0x02));
+        }
+
+        // DKS on Space: depths in mm, rows by stage; an unused row is empty.
+        const QVariantList rows{QVariantMap{{"action", "00 00 00 05"}, {"from", 1}, {"to", 2}},
+                                QVariantMap{{"action", "00 00 00 06"}, {"from", 3}, {"to", 3}},
+                                QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}},
+                                QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}}};
+        const QVariantMap dks{{"type", "dks"}, {"key", 0x46}, {"depths", QVariantList{1.0, 3.0, 3.0, 1.0}}, {"rows", rows}};
+        QVERIFY(b.saveAdvanced(dks));
+        QTRY_COMPARE(b.advancedKeys().size(), 2);
+        QVariantMap read;
+        for (const auto &v : b.advancedKeys())
+            if (v.toMap().value("key").toInt() == 0x46)
+                read = v.toMap();
+        QCOMPARE(read.value("depths").toList().at(1).toDouble(), 3.0);
+        const auto row0 = read.value("rows").toList().at(0).toMap();
+        QCOMPARE(row0.value("from").toInt(), 1);
+        QCOMPARE(row0.value("stages").toString(), QString("00 0e 00 00"));
+        QCOMPARE(read.value("rows").toList().at(2).toMap().value("action").toString(), QString());
+
+        // SOCD A + D, then Release on D: the pair goes, D gets the new key.
+        QVERIFY(b.saveAdvanced({{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}));
+        QTRY_COMPARE(b.advancedKeys().size(), 3);
+        QVERIFY(b.saveAdvanced({{"type", "release"}, {"key", 0x2d}, {"action", "00 00 00 22"}}));
+        QTRY_VERIFY([&] {
+            for (const auto &v : b.advancedKeys())
+                if (v.toMap().value("type") == "release")
+                    return true;
+            return false;
+        }());
+        QCOMPARE(b.advancedKeys().size(), 3);
+
+        // Removing clears the key on the board.
+        QVERIFY(b.removeAdvanced(0x26));
+        QTRY_COMPARE(b.advancedKeys().size(), 2);
+        {
+            std::lock_guard lock(board.mutex);
+            QVERIFY(!board.keyboard.advanced.contains(0x26));
+        }
+
+        // Bad records send nothing.
+        const int writes = board.writesOf(0x12, 0x00);
+        QVERIFY(!b.saveAdvanced({{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"}, {"tap", ""}, {"holdMs", 322}}));
+        QVERIFY(!b.saveAdvanced({{"type", "toggle"}, {"key", 0x31}, {"action", "00 00 00 0e"}, {"holdMs", 5000}}));
+        QVERIFY(!b.saveAdvanced({{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2b}, {"mode", "neutral"}}));
+        QVERIFY(!b.saveAdvanced({{"type", "teleport"}, {"key", 0x26}}));
+        QVERIFY(!b.saveAdvanced({{"type", "release"}, {"key", 0x7f}, {"action", "00 00 00 22"}}));
+        QVERIFY(!b.removeAdvanced(0x7f));
+        QTest::qWait(50);
+        QCOMPARE(board.writesOf(0x12, 0x00), writes);
+    }
+
     void actionInfoDescribesEveryKind()
     {
         FakeBoard board;
