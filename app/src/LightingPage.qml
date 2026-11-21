@@ -145,6 +145,15 @@ Item {
                     font.pixelSize: 12
                     text: qsTr("Each effect keeps its own colour and speed on the keyboard, so switching effect brings back that effect's settings.")
                 }
+                Label {
+                    objectName: "customEffectHint"
+                    Layout.fillWidth: true
+                    visible: backend.effect === backend.customEffect
+                    wrapMode: Text.WordWrap
+                    font.pixelSize: 12
+                    color: theme.accent
+                    text: qsTr("Custom shows a colour of your choice on each key: set them on the Keys page, Colour tab.")
+                }
             }
 
             // ---- colour ----------------------------------------------------------
@@ -222,11 +231,12 @@ Item {
                         }
                     }
                     Label {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
                         opacity: 0.55
                         font.pixelSize: 12
                         text: qsTr("Press Enter to apply")
                     }
-                    Item { Layout.fillWidth: true }
                 }
 
                 RowLayout {

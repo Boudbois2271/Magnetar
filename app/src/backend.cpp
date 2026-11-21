@@ -639,6 +639,39 @@ bool Backend::setColor(const QString &color)
     return true;
 }
 
+bool Backend::setKeyColors(const QVariantList &keys, const QString &color)
+{
+    std::array<std::uint8_t, 3> rgb;
+    try {
+        rgb = akko::parseColor(color.toStdString());
+    } catch (const std::exception &) {
+        return false;
+    }
+    if (keys.isEmpty() || !colorsReady())
+        return false;
+    std::vector<std::uint16_t> ids;
+    for (const auto &k : keys) {
+        const int id = k.toInt();
+        if (!knownKey(id))
+            return false;
+        if (std::find(ids.begin(), ids.end(), id) == ids.end())
+            ids.push_back(static_cast<std::uint16_t>(id));
+    }
+    // Not keyed: two colours on different keys must both be sent.
+    post({}, [ids, rgb](akko::Keyboard &kb, Snapshot &s) {
+        std::vector<akko::KeyColor> wanted;
+        for (const auto id : akko::keyReadOrder())  // like the vendor app
+            if (std::find(ids.begin(), ids.end(), id) != ids.end())
+                wanted.push_back({id, rgb});
+        const auto back = kb.setColors(wanted);
+        for (auto &c : s.colors)
+            for (const auto &b : back)
+                if (c.key == b.key)
+                    c = b;
+    });
+    return true;
+}
+
 void Backend::setRainbow(bool on)
 {
     post("rainbow", [on](akko::Keyboard &kb, Snapshot &) { akko::setRainbow(kb, on); });
@@ -705,6 +738,11 @@ void Backend::applyState(const Snapshot &s)
     if (s.advancedProfile >= 0)
         for (const auto &a : s.advanced)
             m_advanced.append(toVariant(a));
+    m_colors.clear();
+    if (s.colorsProfile >= 0)
+        for (const auto &c : s.colors)
+            m_colors.insert(QString::number(c.key),
+                            QString::asprintf("#%02x%02x%02x", c.rgb[0], c.rgb[1], c.rgb[2]));
     m_ready = true;
     m_retry.stop();
     if (!m_connected || !m_errorKind.isEmpty()) {

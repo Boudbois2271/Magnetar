@@ -35,7 +35,7 @@ SessionFactory hidrawSessions();
 using LayerMap = std::vector<std::pair<std::uint16_t, akko::Action>>;
 
 // What the app shows, read from the keyboard after every batch. The keymap (30 frames), the
-// travel (32 frames) and the advanced keys (1 + one per key) are only read again when the profile changed, after an error, or when
+// travel (32 frames), the advanced keys (1 + one per key) and the per-key colours (8 frames) are only read again when the profile changed, after an error, or when
 // asked; writes update them from their read-back.
 struct Snapshot {
     int profile = 0;  // 0-based
@@ -58,6 +58,9 @@ struct Snapshot {
 
     int advancedProfile = -1;                // same, for the advanced keys below
     std::vector<akko::AdvancedKey> advanced;  // in the board's list order
+
+    int colorsProfile = -1;              // same, for the per-key colours below
+    std::vector<akko::KeyColor> colors;  // Custom effect colours, all 83 keys in keyReadOrder()
 };
 
 class DeviceWorker {

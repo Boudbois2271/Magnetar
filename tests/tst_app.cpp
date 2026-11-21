@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QColor>
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
@@ -326,6 +327,38 @@ private slots:
         QVERIFY(!b.setKeyAction(0, 0x62, "nonsense"));
         QCOMPARE(b.comboCode(0, {0x04, 0x05}), QString());
         QCOMPARE(b.mouseCode(4), QString());
+    }
+
+    void keyColorsAreSetAndReadBack()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.colorsReady());
+        QCOMPARE(b.keyColors().size(), kKeyCount);
+        QCOMPARE(b.keyColors().value("13").toString(), QString("#000000"));
+        QCOMPARE(board.writesOf(0x86, 0x00), 8);
+
+        // Nine keys, one colour: two 06 00 frames (8 keys at most each), then the read-back shows.
+        const QVariantList keys{0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08, 0x07, 0x06, 0x05};
+        QVERIFY(b.setKeyColors(keys, "#0080ff"));
+        QTRY_COMPARE(b.keyColors().value("13").toString(), QString("#0080ff"));
+        QCOMPARE(board.writesOf(0x06, 0x00), 2);
+        QCOMPARE(b.keyColors().value("5").toString(), QString("#0080ff"));
+        QCOMPARE(b.keyColors().value("1").toString(), QString("#000000"));
+        {
+            std::lock_guard lock(board.mutex);
+            QVERIFY((board.keyboard.colors[0x0d] == std::array<std::uint8_t, 3>{0x00, 0x80, 0xff}));
+        }
+        QCOMPARE(board.writesOf(0x04, 0x01), 0);  // the effect is left alone
+
+        // Bad input sends nothing.
+        const int writes = int(board.written.size());
+        QVERIFY(!b.setKeyColors({0x0d}, "blue"));
+        QVERIFY(!b.setKeyColors({0x7f}, "#ffffff"));
+        QVERIFY(!b.setKeyColors({}, "#ffffff"));
+        QCOMPARE(int(board.written.size()), writes);
+        QCOMPARE(b.customEffect(), 0x13);
     }
 
     void travelIsChangedAndUndone()
@@ -685,6 +718,42 @@ private slots:
         QMetaObject::invokeMethod(remove, "clicked");
         QTRY_COMPARE(w.backend.advancedKeys().size(), 2);
         QCOMPARE(w.cap(0x38), QString("MT"));
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    void keysPageColoursKeys()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.colorsReady());
+        w.page->setProperty("tab", 3);
+        auto *tab = w.item("colorTab");
+        QVERIFY(tab);
+        auto *f12 = findItem(w.view, "key_13");
+        QTRY_COMPARE(f12->property("color").value<QColor>(), QColor("#000000"));
+        QCOMPARE(w.cap(0x0d), QString("F12"));
+
+        // The effect isn't Custom: the page says so and offers to switch.
+        auto *hint = w.item("customHint");
+        QVERIFY(hint && hint->isVisible());
+
+        // F12 and Esc blue: the drawing shows the board's read-back.
+        w.click(0x0d);
+        w.click(0x01, Qt::ControlModifier);
+        QMetaObject::invokeMethod(tab, "apply", Q_ARG(QVariant, "#0000ff"));
+        QTRY_COMPARE(f12->property("color").value<QColor>(), QColor("#0000ff"));
+        QCOMPARE(findItem(w.view, "key_1")->property("color").value<QColor>(), QColor("#0000ff"));
+        QCOMPARE(tab->property("shared").toString(), QString("#0000ff"));
+        w.click(0x02, Qt::ControlModifier);
+        QCOMPARE(tab->property("shared").toString(), QString());  // mixed
+
+        // Switch to Custom: one 04 02 with 13, and the hint goes.
+        auto *button = w.item("switchToCustom");
+        QVERIFY(button);
+        QMetaObject::invokeMethod(button, "clicked");
+        QTRY_COMPARE(w.backend.effect(), 0x13);
+        QTRY_VERIFY(!hint->isVisible());
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }

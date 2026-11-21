@@ -8,9 +8,9 @@ int runAppTests(int argc, char **argv);
 
 int main(int argc, char **argv)
 {
-    // The app suite loads the real window: draw it offscreen, never on the desktop.
-    if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM"))
-        qputenv("QT_QPA_PLATFORM", "offscreen");
+    // The app suite loads the real window: draw it offscreen, never on the desktop. Always, even
+    // when the desktop sets QT_QPA_PLATFORM (Omarchy sets "wayland;xcb").
+    qputenv("QT_QPA_PLATFORM", "offscreen");
     QGuiApplication app(argc, argv);
     int failed = 0;
     failed += runCoreTests(argc, argv) != 0;

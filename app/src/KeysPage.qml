@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Keys: one drawing, one selection, and tabs for what to change on the selected keys (action,
-// travel, advanced function). The active tab decides what each key on the drawing says. Any
+// travel, advanced function, colour). The active tab decides what each key on the drawing says. Any
 // selection can be edited in every tab: the user decides what makes sense.
 import QtQuick
 import QtQuick.Controls
@@ -12,7 +12,7 @@ Item {
 
     property var selection: []  // key IDs, in the order they were picked
     property int tab: 0
-    readonly property var tabs: [actionTab, travelTab, advancedTab]
+    readonly property var tabs: [actionTab, travelTab, advancedTab, colorTab]
     readonly property var current: page.tabs[page.tab]
 
     // ---- selection --------------------------------------------------------
@@ -55,6 +55,7 @@ Item {
             width: parent.width
             // Nothing to show until the keyboard has been read: no made-up values.
             visible: backend.ready && backend.keymapReady && backend.travelReady && backend.advancedReady
+                     && backend.colorsReady
             enabled: backend.connected
             spacing: 20
 
@@ -76,6 +77,7 @@ Item {
                 TabButton { text: qsTr("Action"); width: implicitWidth }
                 TabButton { text: qsTr("Travel"); width: implicitWidth }
                 TabButton { text: qsTr("Advanced"); width: implicitWidth }
+                TabButton { text: qsTr("Colour"); width: implicitWidth }
             }
 
             Card {
@@ -108,6 +110,7 @@ Item {
                     Layout.alignment: Qt.AlignHCenter
                     labelFor: page.current.labelFor
                     markedFor: page.current.markedFor
+                    colorFor: page.current.colorFor || function (id) { return "" }
                     selectedKeys: page.selection
                     onKeyClicked: (id, modifiers) => page.click(id, modifiers)
                     onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
@@ -152,6 +155,13 @@ Item {
                 visible: page.tab === 2
                 selection: page.selection
                 onSelectKeys: (ids) => page.select(ids)
+            }
+            ColorTab {
+                id: colorTab
+                objectName: "colorTab"
+                Layout.fillWidth: true
+                visible: page.tab === 3
+                selection: page.selection
             }
 
             Item { implicitHeight: 12 }

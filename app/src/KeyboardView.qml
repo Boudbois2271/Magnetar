@@ -13,6 +13,7 @@ Item {
     property var keys: backend.layout
     property var labelFor: function (id) { return "" }  // text on a key
     property var markedFor: function (id) { return false }  // small dot: differs from factory
+    property var colorFor: function (id) { return "" }  // fills the key with a colour when not ""
     property var selectedKeys: []
     signal keyClicked(int id, int modifiers)
     signal boxSelected(var ids, int modifiers)
@@ -43,6 +44,9 @@ Item {
             required property var modelData
             readonly property int keyId: modelData.id
             readonly property bool selected: view.shownKeys.indexOf(keyId) >= 0
+            readonly property string fill: view.colorFor(keyId)
+            // Light colours get dark text, dark ones light text.
+            readonly property bool lightFill: fill !== "" && (0.299 * Qt.color(fill).r + 0.587 * Qt.color(fill).g + 0.114 * Qt.color(fill).b) > 0.55
 
             objectName: "key_" + keyId
             x: modelData.x * view.unit + view.gap / 2
@@ -50,15 +54,17 @@ Item {
             width: modelData.w * view.unit - view.gap
             height: 4 * view.unit - view.gap
             radius: Math.min(theme.radius, 6)
-            color: selected ? theme.accent : (view.hoveredKey === keyId ? "#2a2a31" : "#202026")
-            border.width: 1
-            border.color: selected ? theme.accent : "#2e2e36"
+            // A filled key keeps its colour when selected; a thick accent ring marks it instead.
+            color: fill !== "" ? fill : selected ? theme.accent : (view.hoveredKey === keyId ? "#2a2a31" : "#202026")
+            border.width: fill !== "" && selected ? 3 : 1
+            border.color: selected ? theme.accent : fill !== "" && view.hoveredKey === keyId ? "#ffffff" : "#2e2e36"
+
 
             Label {
                 anchors.fill: parent
                 anchors.margins: view.unit < 10 ? 1 : 3
                 text: view.labelFor(cap.keyId)
-                color: cap.selected ? "#0e0e10" : Material.foreground
+                color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0") : cap.selected ? "#0e0e10" : Material.foreground
                 // Sized from the key, so every label starts at the same size; only long names
                 // shrink on their own, before they are cut.
                 font.pixelSize: Math.max(8, Math.min(13, Math.round(view.unit * 1.5)))
@@ -80,6 +86,16 @@ Item {
                 height: 6
                 radius: 3
                 color: cap.selected ? "#0e0e10" : theme.accent
+            }
+
+            Rectangle {  // keeps the ring visible on a key the accent's own colour
+                visible: cap.fill !== "" && cap.selected
+                anchors.fill: parent
+                anchors.margins: 3
+                radius: Math.max(0, parent.radius - 3)
+                color: "transparent"
+                border.width: 1
+                border.color: "#0e0e10"
             }
         }
     }

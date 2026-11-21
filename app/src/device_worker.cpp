@@ -81,7 +81,7 @@ void DeviceWorker::loop()
             const auto session = sessions_();
             akko::Keyboard kb(session->transport());
             if (keymapStale)
-                s.keymapProfile = s.travelProfile = s.advancedProfile = -1;
+                s.keymapProfile = s.travelProfile = s.advancedProfile = s.colorsProfile = -1;
             for (auto &item : batch)
                 item.action(kb, s);
             s.lighting = kb.lighting();
@@ -102,13 +102,17 @@ void DeviceWorker::loop()
                 s.advanced = kb.readAdvancedKeys();
                 s.advancedProfile = s.profile;
             }
+            if (s.colorsProfile != s.profile) {
+                s.colors = kb.readColors();
+                s.colorsProfile = s.profile;
+            }
             if (s.travelUndo && s.travelUndo->profile != s.profile)
                 s.travelUndo.reset();
             onState_(s);
         } catch (const std::exception &e) {
             // A failed batch is dropped: the user sees the error and the real state on retry,
             // keymap and travel included.
-            s.keymapProfile = s.travelProfile = s.advancedProfile = -1;
+            s.keymapProfile = s.travelProfile = s.advancedProfile = s.colorsProfile = -1;
             onError_(e.what());
         }
     }

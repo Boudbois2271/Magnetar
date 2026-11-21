@@ -44,6 +44,10 @@ class Backend : public QObject {
     Q_PROPERTY(bool advancedReady READ advancedReady NOTIFY stateChanged)
     Q_PROPERTY(QVariantList advancedKeys READ advancedKeys NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap advancedLimits READ advancedLimits CONSTANT)
+    // Colour tab: key ID (string) → "#rrggbb", the colours the Custom effect shows.
+    Q_PROPERTY(bool colorsReady READ colorsReady NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap keyColors READ keyColors NOTIFY stateChanged)
+    Q_PROPERTY(int customEffect READ customEffect CONSTANT)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -88,6 +92,9 @@ public:
     // as in actionInfo, "" for an empty slot.
     bool advancedReady() const { return m_state.advancedProfile >= 0; }
     QVariantList advancedKeys() const { return m_advanced; }
+    bool colorsReady() const { return m_state.colorsProfile >= 0; }
+    QVariantMap keyColors() const { return m_colors; }
+    int customEffect() const { return akko::kEffectCustom; }
     QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults
 
     Q_INVOKABLE void refresh();
@@ -130,6 +137,10 @@ public:
     // Removes these keys' advanced keys (a SOCD pair whole, from either key).
     Q_INVOKABLE bool removeAdvanced(const QVariantList &keys);
 
+    // Gives these keys one colour for the Custom effect (kept whatever effect is on), then the
+    // page shows the board's read-back. False, and nothing sent, for a bad key or colour.
+    Q_INVOKABLE bool setKeyColors(const QVariantList &keys, const QString &color);
+
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
     Q_INVOKABLE bool setColor(const QString &color);  // false (and nothing sent) if it isn't a colour
@@ -155,6 +166,7 @@ private:
     QVariantList m_keymap;
     QVariantMap m_travel;
     QVariantList m_advanced;
+    QVariantMap m_colors;
     bool m_connected = false;
     bool m_ready = false;
     QString m_errorKind;
