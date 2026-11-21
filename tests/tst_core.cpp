@@ -90,6 +90,20 @@ AdvancedKey advancedOf(const Bytes &frame)
 }
 
 // The i-th frame written, without the report ID.
+std::vector<Bytes> colorFrames(const std::string &name)
+{
+    std::ifstream in(FIXTURES_DIR "/vendor-colors.txt");
+    std::vector<Bytes> frames;
+    bool inside = false;
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind("## ", 0) == 0)
+            inside = line.substr(3) == name;
+        else if (inside && !line.empty() && line[0] != '#')
+            frames.push_back(parseHex(line));
+    }
+    return frames;
+}
+
 Bytes sent(const FakeTransport &t, std::size_t i)
 {
     return Bytes(t.written.at(i).begin() + 1, t.written.at(i).end());
@@ -505,6 +519,90 @@ private slots:
             QCOMPARE(t.written[i][6], std::uint8_t(8));  // one entry
         }
         QVERIFY(board.travel[0x02].deadZones);
+    }
+
+    // ---- per-key colours ------------------------------------------------
+    void readColorsLikeTheVendorApp()
+    {
+        // Replays the board's own answers from akko-capture2.txt.
+        const auto answers = colorFrames("read-all-answers");
+        QCOMPARE(answers.size(), std::size_t(8));
+        FakeTransport t;
+        std::size_t n = 0;
+        t.respond = [&](const Bytes &) {
+            Bytes r{0x09};
+            r.insert(r.end(), answers[n].begin(), answers[n].end());
+            ++n;
+            return std::vector<Bytes>{r};
+        };
+        Keyboard kb(t);
+        const auto colors = kb.readColors();
+        const auto frames = colorFrames("read-all");
+        QCOMPARE(t.written.size(), frames.size());
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(colors.size(), std::size_t(kKeyCount));
+        const std::array<std::uint8_t, 3> blue{0x00, 0x00, 0xff}, black{};
+        QCOMPARE(colors[0].key, std::uint16_t(0x01));
+        QVERIFY(colors[0].rgb == blue);
+        QVERIFY(colors[1].rgb == black);
+        const auto last = colors.back();
+        QCOMPARE(last.key, std::uint16_t(0x65));
+        QVERIFY(last.rgb == black);
+    }
+
+    void setColorsOnTheFRowLikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::array<std::uint8_t, 3> red{0xff, 0x00, 0x00};
+        // The vendor app's batches as the selection grew: Esc, F1-F4, F5-F12, then two more keys.
+        const std::vector<std::vector<std::uint16_t>> batches{
+            {0x01}, {0x02, 0x03, 0x04, 0x05}, {0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d}, {0x63}, {0x62}};
+        for (const auto &ids : batches) {
+            std::vector<KeyColor> keys;
+            for (auto id : ids)
+                keys.push_back({id, red});
+            QVERIFY(kb.setColors(keys) == keys);
+        }
+        const auto frames = colorFrames("f-row");
+        QCOMPARE(t.written.size(), frames.size());
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QVERIFY(board.colors[0x0d] == red);
+    }
+
+    void setColorsSplitsIntoFramesOfEightKeys()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        std::vector<KeyColor> keys;
+        for (auto id : keyReadOrder())
+            keys.push_back({id, {0x12, 0x34, 0x56}});
+        QVERIFY(kb.setColors(keys) == keys);
+        QCOMPARE(t.written.size(), std::size_t(2 * 11));  // 11 frames of up to 8 keys, each read back
+        for (std::size_t i = 0; i < t.written.size(); i += 2) {
+            QCOMPARE(t.written[i][1], std::uint8_t(0x06));
+            QCOMPARE(t.written[i][4], std::uint8_t(1));  // a single packet
+            QVERIFY(t.written[i][6] <= 8 * 5);
+            QCOMPARE(t.written[i + 1][1], std::uint8_t(0x86));
+        }
+        QVERIFY(board.colors[0x65] == (std::array<std::uint8_t, 3>{0x12, 0x34, 0x56}));
+    }
+
+    void setColorsFailsWhenTheBoardKeepsTheOldColour()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreColorWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const KeyColor k{0x0d, {0xff, 0x00, 0x00}};
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setColors(std::span(&k, 1)));
     }
 
     void setTravelRefusesOutOfRangeValues()

@@ -75,6 +75,8 @@ struct FakeKeyboard {
     bool ignoreKeyWrites = false;                          // echoes 03 LL but keeps the old action
     std::map<std::uint16_t, KeyTravel> travel;  // starts as read in akko-capture2.txt
     bool ignoreTravelWrites = false;            // echoes 13/16/19 but keeps the old values
+    std::map<std::uint16_t, std::array<std::uint8_t, 3>> colors;  // Custom effect, all black at first
+    bool ignoreColorWrites = false;                               // echoes 06 00 but keeps the old colours
     // Advanced keys: key → (type, payload as written). A SOCD pair is stored on both keys.
     std::map<std::uint16_t, std::pair<std::uint8_t, Bytes>> advanced;
     bool ignoreAdvancedWrites = false;  // echoes 12 00 but keeps the old records
@@ -216,6 +218,23 @@ struct FakeKeyboard {
         }
         if ((cmd == 0x93 || cmd == 0x96 || cmd == 0x99) && sub == 0x00)
             return {travelRead(w)};
+        if (cmd == 0x86 && sub == 0x00) {
+            // Answers each key ID of the request with key, R, G, B, packet header kept.
+            Bytes r(kReportLen, 0);
+            std::copy_n(w.begin(), 6, r.begin());
+            std::size_t at = 7;
+            for (std::size_t i = 7; i + 1 < std::size_t(7) + w[6]; i += 2) {
+                r[at++] = w[i];
+                r[at++] = w[i + 1];
+                for (auto b : colors[static_cast<std::uint16_t>(w[i] << 8 | w[i + 1])])
+                    r[at++] = b;
+            }
+            r[6] = static_cast<std::uint8_t>(at - 7);
+            return {r};
+        }
+        if (cmd == 0x06 && sub == 0x00 && !ignoreColorWrites)
+            for (std::size_t i = 7; i + 5 <= std::size_t(7) + w[6]; i += 5)
+                std::copy_n(w.begin() + i + 2, 3, colors[static_cast<std::uint16_t>(w[i] << 8 | w[i + 1])].begin());
         if ((cmd == 0x13 || cmd == 0x16 || cmd == 0x19) && sub == 0x00 && !ignoreTravelWrites)
             travelWrite(w);
         if (cmd == 0x03 && sub < kLayerCount && !ignoreKeyWrites)

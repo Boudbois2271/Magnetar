@@ -31,6 +31,14 @@ struct Lighting {
     bool rainbow() const { return bytes[ColorMode] >= 7; }
 };
 
+// One key's colour for the Custom effect (13): entries of 06 00 / 86 00.
+struct KeyColor {
+    std::uint16_t key = 0;
+    std::array<std::uint8_t, 3> rgb{};
+
+    bool operator==(const KeyColor &) const = default;
+};
+
 // "v1.08" for 0x0108, as the vendor app's Device Info page writes it.
 std::string formatFirmware(std::uint16_t version);
 
@@ -76,6 +84,14 @@ public:
     // only form ever captured. Throws before sending anything if a value is out of range, and
     // after writing if the read-back differs.
     std::vector<KeyTravel> setTravel(TravelPart part, std::span<const KeyTravel> keys);
+
+    // Custom-effect colours of these keys (all 83 by default, in keyReadOrder() like the vendor
+    // app): 86 00 in packets of 11 keys.
+    std::vector<KeyColor> readColors(std::span<const std::uint16_t> keys = keyReadOrder());
+    // 06 00 as captured: each frame a single packet of up to 8 keys, followed by a read-back of
+    // those keys. Returns what the board has; throws if a read-back differs. The colours show
+    // under the Custom effect (13), the only effect they were captured with.
+    std::vector<KeyColor> setColors(std::span<const KeyColor> keys);
 
     // Advanced keys of the active profile. advancedKeyList: 92 00 with no key, the IDs of the
     // keys that have one (both keys of a SOCD pair). readAdvanced: 92 00 with one key; type

@@ -291,6 +291,55 @@ std::vector<KeyTravel> Keyboard::setTravel(TravelPart part, std::span<const KeyT
     return back;
 }
 
+namespace {
+constexpr std::size_t kColorReadPerPacket = 11, kColorWritePerFrame = 8, kColorEntry = 5;  // key, R, G, B
+}  // namespace
+
+std::vector<KeyColor> Keyboard::readColors(std::span<const std::uint16_t> keys)
+{
+    std::vector<KeyColor> out(keys.size());
+    std::vector<bool> seen(keys.size(), false);
+    perKey(0x86, kColorReadPerPacket, kColorEntry, keys,
+           [](std::vector<std::uint8_t> &req, std::uint16_t id) { put16(req, id); },
+           [&](const Frame &f, std::size_t at) {
+               const auto i = static_cast<std::size_t>(std::find(keys.begin(), keys.end(), be16(f, at)) - keys.begin());
+               out[i].rgb = {f[at + 2], f[at + 3], f[at + 4]};
+               seen[i] = true;
+           });
+    for (std::size_t i = 0; i < keys.size(); ++i) {
+        if (!seen[i])
+            throw Error("incomplete colour read");
+        out[i].key = keys[i];
+    }
+    return out;
+}
+
+std::vector<KeyColor> Keyboard::setColors(std::span<const KeyColor> keys)
+{
+    std::vector<KeyColor> back;
+    for (std::size_t first = 0; first < keys.size(); first += kColorWritePerFrame) {
+        const auto chunk = keys.subspan(first, std::min(kColorWritePerFrame, keys.size() - first));
+        std::vector<std::uint16_t> ids;
+        for (const auto &c : chunk)
+            ids.push_back(c.key);
+        std::size_t next = 0;
+        perKey(0x06, kColorWritePerFrame, kColorEntry, ids,
+               [&](std::vector<std::uint8_t> &out, std::uint16_t id) {
+                   put16(out, id);
+                   for (auto b : chunk[next++].rgb)
+                       out.push_back(b);
+               },
+               [](const Frame &, std::size_t) {});
+        const auto got = readColors(ids);
+        for (std::size_t i = 0; i < got.size(); ++i) {
+            if (got[i] != chunk[i])
+                throw Error("the keyboard kept another colour on key " + std::to_string(got[i].key));
+            back.push_back(got[i]);
+        }
+    }
+    return back;
+}
+
 std::string formatFirmware(std::uint16_t version)
 {
     char buf[16];
