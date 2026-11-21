@@ -47,6 +47,27 @@ std::vector<FrameCase> loadFrames(const QString &name)
     return cases;
 }
 
+// The frames under "## name" in vendor-travel.txt.
+std::vector<Bytes> travelFrames(const std::string &name)
+{
+    std::ifstream in(FIXTURES_DIR "/vendor-travel.txt");
+    std::vector<Bytes> frames;
+    bool inside = false;
+    for (std::string line; std::getline(in, line);) {
+        if (line.rfind("## ", 0) == 0)
+            inside = line.substr(3) == name;
+        else if (inside && !line.empty() && line[0] != '#')
+            frames.push_back(parseHex(line));
+    }
+    return frames;
+}
+
+// The i-th frame written, without the report ID.
+Bytes sent(const FakeTransport &t, std::size_t i)
+{
+    return Bytes(t.written.at(i).begin() + 1, t.written.at(i).end());
+}
+
 void writeFile(const QString &path, const QByteArray &data)
 {
     QFile f(path);
@@ -358,6 +379,140 @@ private slots:
         t.respond = std::ref(board);
         Keyboard kb(t);
         QVERIFY_THROWS_EXCEPTION(Error, kb.setKey(0, 0x62, keyAction(0x04)));
+    }
+
+    // ---- per-key travel --------------------------------------------------
+    void readTravelLikeTheVendorApp()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        const auto keys = kb.readTravel();
+        QCOMPARE(keys.size(), std::size_t(kKeyCount));
+
+        std::vector<Bytes> frames = travelFrames("read-actuation");
+        for (const char *name : {"read-deadzones", "read-rt"})
+            for (auto &f : travelFrames(name))
+                frames.push_back(f);
+        QCOMPARE(frames.size(), std::size_t(8 + 12 + 12));
+        QCOMPARE(t.written.size(), frames.size());
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(keys[0].key, std::uint16_t(0x01));
+        QCOMPARE(keys[0].actuation, std::uint16_t(0x78));
+        QCOMPARE(keys[0].deadTop, std::uint16_t(0x1a));
+        QVERIFY(!keys[0].rapidTrigger && !keys[0].deadZones);
+    }
+
+    void setActuationOnAllKeysLikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        auto keys = kb.readTravel();
+        t.written.clear();
+        for (auto &k : keys)
+            k.actuation = 274;  // 1.37 mm
+        const auto back = kb.setTravel(TravelPart::Actuation, keys);
+        const auto frames = travelFrames("write-actuation-all-1.37");
+        QCOMPARE(frames.size(), std::size_t(8));
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(t.written.size(), std::size_t(8 + 32));  // then reads everything back
+        QVERIFY(back == keys);
+        QCOMPARE(board.travel[0x65].actuation, std::uint16_t(274));
+    }
+
+    void setTravelOnF12LikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::uint16_t f12[] = {0x0d};
+        KeyTravel k = kb.readTravel(f12)[0];
+
+        auto check = [&](TravelPart part, const char *fixture) {
+            t.written.clear();
+            const auto back = kb.setTravel(part, std::span(&k, 1));
+            QCOMPARE(sent(t, 0), travelFrames(fixture)[0]);
+            QCOMPARE(t.written.size(), std::size_t(4));  // the write, then 93 96 99 for F12
+            QVERIFY(back[0] == k);
+        };
+        k.actuation = 84;  // 0.42 mm
+        check(TravelPart::Actuation, "write-actuation-f12-0.42");
+        QCOMPARE(sent(t, 1), travelFrames("read-actuation-f12")[0]);
+        QCOMPARE(sent(t, 3), travelFrames("read-rt-f12")[0]);
+        k.rapidTrigger = true;
+        k.press = k.release = 1;
+        check(TravelPart::RapidTrigger, "write-rt-f12-on");
+        k.press = 0x22;
+        k.release = 0x39;
+        check(TravelPart::RapidTrigger, "write-rt-f12-0.17-0.29");
+        k.rapidTrigger = false;
+        check(TravelPart::RapidTrigger, "write-rt-f12-off");
+        k.deadZones = true;
+        check(TravelPart::DeadZones, "write-dz-f12-on");
+        k.deadZones = false;
+        k.deadTop = 0x25;
+        k.deadBottom = 0x2e;
+        check(TravelPart::DeadZones, "write-dz-f12-off");
+    }
+
+    void deadZonesGoOneKeyPerFrame()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::uint16_t ids[] = {0x01, 0x02, 0x0d};
+        auto keys = kb.readTravel(ids);
+        t.written.clear();
+        for (auto &k : keys)
+            k.deadZones = true;
+        kb.setTravel(TravelPart::DeadZones, keys);
+        for (std::size_t i = 0; i < 3; ++i) {
+            QCOMPARE(t.written[i][1], std::uint8_t(0x16));
+            QCOMPARE(t.written[i][4], std::uint8_t(1));  // packet count
+            QCOMPARE(t.written[i][6], std::uint8_t(8));  // one entry
+        }
+        QVERIFY(board.travel[0x02].deadZones);
+    }
+
+    void setTravelRefusesOutOfRangeValues()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        KeyTravel k;
+        k.key = 0x0d;
+        k.actuation = 120;
+        QVERIFY(travelProblem(k, TravelPart::RapidTrigger).empty());  // off with 0 / 0, as shipped
+        for (auto bad : {std::uint16_t(19), std::uint16_t(701)}) {
+            k.actuation = bad;
+            QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::Actuation, std::span(&k, 1)));
+        }
+        k.rapidTrigger = true;  // on needs at least 0.005 mm
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::RapidTrigger, std::span(&k, 1)));
+        k.press = k.release = 201;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::RapidTrigger, std::span(&k, 1)));
+        k.deadBottom = 101;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::DeadZones, std::span(&k, 1)));
+        QVERIFY(t.written.empty());
+    }
+
+    void setTravelFailsWhenTheBoardKeepsTheOldValues()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreTravelWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::uint16_t f12[] = {0x0d};
+        KeyTravel k = kb.readTravel(f12)[0];
+        k.actuation = 84;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::Actuation, std::span(&k, 1)));
     }
 
     // ---- device discovery and lock ---------------------------------------

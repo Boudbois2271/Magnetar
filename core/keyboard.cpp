@@ -162,6 +162,135 @@ Action Keyboard::setKey(int layer, std::uint16_t key, const Action &action)
     return back;
 }
 
+// ---- per-key travel -------------------------------------------------------
+
+namespace {
+
+void put16(std::vector<std::uint8_t> &out, std::uint16_t v)
+{
+    out.push_back(static_cast<std::uint8_t>(v >> 8));
+    out.push_back(static_cast<std::uint8_t>(v & 0xFF));
+}
+
+constexpr std::size_t kActuationPerPacket = 11, kActuationEntry = 5;  // key, actuation, tail
+constexpr std::size_t kWidePerPacket = 7, kWideEntry = 8;             // RT and dead zone entries
+
+}  // namespace
+
+void Keyboard::perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entryLen,
+                      std::span<const std::uint16_t> keys,
+                      const std::function<void(std::vector<std::uint8_t> &, std::uint16_t)> &encode,
+                      const std::function<void(const Frame &, std::size_t)> &onEntry)
+{
+    const auto packets = static_cast<std::uint8_t>((keys.size() + perPacket - 1) / perPacket);
+    for (std::uint8_t p = 0; p < packets; ++p) {
+        const auto chunk = keys.subspan(p * perPacket, std::min(perPacket, keys.size() - p * perPacket));
+        std::vector<std::uint8_t> request;
+        for (auto id : chunk)
+            encode(request, id);
+        const Frame r = transactPacket(cmd, 0x00, packets, p, request);
+        const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
+        for (std::size_t at = kPayloadOffset; at + entryLen <= kPayloadOffset + len; at += entryLen)
+            if (std::find(chunk.begin(), chunk.end(), be16(r, at)) != chunk.end())
+                onEntry(r, at);
+    }
+}
+
+std::vector<KeyTravel> Keyboard::readTravel(std::span<const std::uint16_t> keys)
+{
+    std::vector<KeyTravel> out(keys.size());
+    std::vector<int> seen(keys.size(), 0);  // one bit per table
+    auto slot = [&](std::uint16_t id) -> std::size_t {
+        return static_cast<std::size_t>(std::find(keys.begin(), keys.end(), id) - keys.begin());
+    };
+    const auto ids = [](std::vector<std::uint8_t> &req, std::uint16_t id) { put16(req, id); };
+
+    perKey(0x93, kActuationPerPacket, kActuationEntry, keys, ids, [&](const Frame &f, std::size_t at) {
+        const auto i = slot(be16(f, at));
+        out[i].actuation = be16(f, at + 2);
+        out[i].actuationTail = f[at + 4];
+        seen[i] |= 1;
+    });
+    perKey(0x96, kWidePerPacket, kWideEntry, keys, ids, [&](const Frame &f, std::size_t at) {
+        const auto i = slot(be16(f, at));
+        out[i].deadTop = be16(f, at + 2);
+        out[i].deadBottom = be16(f, at + 4);
+        out[i].deadZones = be16(f, at + 6) != 0;
+        seen[i] |= 2;
+    });
+    perKey(0x99, kWidePerPacket, kWideEntry, keys, ids, [&](const Frame &f, std::size_t at) {
+        const auto i = slot(be16(f, at));
+        out[i].rapidTrigger = f[at + 2] != 0;
+        out[i].press = be16(f, at + 3);
+        out[i].release = be16(f, at + 5);
+        out[i].rapidTail = f[at + 7];
+        seen[i] |= 4;
+    });
+    for (std::size_t i = 0; i < keys.size(); ++i) {
+        if (seen[i] != 7)
+            throw Error("incomplete travel read");
+        out[i].key = keys[i];
+    }
+    return out;
+}
+
+std::vector<KeyTravel> Keyboard::setTravel(TravelPart part, std::span<const KeyTravel> keys)
+{
+    std::vector<std::uint16_t> ids;
+    for (const auto &t : keys) {
+        if (const auto problem = travelProblem(t, part); !problem.empty())
+            throw Error(problem);
+        ids.push_back(t.key);
+    }
+    auto entry = [&](std::uint16_t id) -> const KeyTravel & {
+        return *std::find_if(keys.begin(), keys.end(), [&](const KeyTravel &t) { return t.key == id; });
+    };
+    const auto ignore = [](const Frame &, std::size_t) {};
+
+    switch (part) {
+    case TravelPart::Actuation:
+        perKey(0x13, kActuationPerPacket, kActuationEntry, ids,
+               [&](std::vector<std::uint8_t> &out, std::uint16_t id) {
+                   const auto &t = entry(id);
+                   put16(out, id);
+                   put16(out, t.actuation);
+                   out.push_back(t.actuationTail);
+               },
+               ignore);
+        break;
+    case TravelPart::RapidTrigger:
+        perKey(0x19, kWidePerPacket, kWideEntry, ids,
+               [&](std::vector<std::uint8_t> &out, std::uint16_t id) {
+                   const auto &t = entry(id);
+                   put16(out, id);
+                   out.push_back(t.rapidTrigger ? 1 : 0);
+                   put16(out, t.press);
+                   put16(out, t.release);
+                   out.push_back(t.rapidTail);
+               },
+               ignore);
+        break;
+    case TravelPart::DeadZones:
+        for (std::size_t i = 0; i < ids.size(); ++i)
+            perKey(0x16, kWidePerPacket, kWideEntry, std::span(ids).subspan(i, 1),
+                   [&](std::vector<std::uint8_t> &out, std::uint16_t id) {
+                       const auto &t = entry(id);
+                       put16(out, id);
+                       put16(out, t.deadTop);
+                       put16(out, t.deadBottom);
+                       put16(out, t.deadZones ? 1 : 0);
+                   },
+                   ignore);
+        break;
+    }
+
+    auto back = readTravel(ids);
+    for (std::size_t i = 0; i < back.size(); ++i)
+        if (!samePart(back[i], keys[i], part))
+            throw Error("the keyboard kept other travel values on key " + std::to_string(back[i].key));
+    return back;
+}
+
 std::string formatFirmware(std::uint16_t version)
 {
     char buf[16];

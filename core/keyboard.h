@@ -5,10 +5,12 @@
 
 #include "frame.h"
 #include "keymap.h"
+#include "travel.h"
 #include "transport.h"
 
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <span>
 #include <string>
 #include <utility>
@@ -64,7 +66,22 @@ public:
     // Throws if the read-back differs from what was sent.
     Action setKey(int layer, std::uint16_t key, const Action &action);
 
+    // Travel of these keys (all 83 by default, in keyReadOrder() like the vendor app): 93 00 in
+    // packets of 11 keys, 96 00 and 99 00 in packets of 7.
+    std::vector<KeyTravel> readTravel(std::span<const std::uint16_t> keys = keyReadOrder());
+    // Writes one part for these keys, then reads them back and returns what the board has. 13 00
+    // goes in packets of 11 and 19 00 in packets of 7, as captured; 16 00 one key per frame, the
+    // only form ever captured. Throws before sending anything if a value is out of range, and
+    // after writing if the read-back differs.
+    std::vector<KeyTravel> setTravel(TravelPart part, std::span<const KeyTravel> keys);
+
 private:
+    // Sends a per-key request (key IDs, or full entries) in packets of perPacket keys and
+    // hands each answer entry for a key of that packet to onEntry(frame, offset).
+    void perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entryLen, std::span<const std::uint16_t> keys,
+                const std::function<void(std::vector<std::uint8_t> &, std::uint16_t)> &encode,
+                const std::function<void(const Frame &, std::size_t)> &onEntry);
+
     Transport &t_;
 };
 

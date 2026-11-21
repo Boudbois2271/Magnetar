@@ -4,6 +4,7 @@
 
 #include "frame.h"
 #include "keymap.h"
+#include "travel.h"
 #include "transport.h"
 
 #include <algorithm>
@@ -72,12 +73,77 @@ struct FakeKeyboard {
     std::array<std::uint8_t, 7> lighting{0x02, 0x00, 0x00, 0xff, 0x00, 20, 0x04};
     std::map<std::uint16_t, Action> keymap[kLayerCount];  // starts as the factory keymap
     bool ignoreKeyWrites = false;                          // echoes 03 LL but keeps the old action
+    std::map<std::uint16_t, KeyTravel> travel;  // starts as read in akko-capture2.txt
+    bool ignoreTravelWrites = false;            // echoes 13/16/19 but keeps the old values
 
     FakeKeyboard()
     {
         for (int l = 0; l < kLayerCount; ++l)
             for (const auto &k : layout())
                 keymap[l][k.id] = factoryAction(l, k.id);
+        for (const auto &k : layout()) {
+            KeyTravel t;
+            t.key = k.id;
+            t.actuation = 0x78;  // 0.6 mm
+            t.deadTop = 0x1a;
+            t.deadBottom = 0x19;
+            travel[k.id] = t;
+        }
+    }
+
+    // 93 / 96 / 99: answers each key ID of the request with its entry, packet header kept.
+    Bytes travelRead(const Bytes &w)
+    {
+        Bytes r(kReportLen, 0);
+        std::copy_n(w.begin(), 6, r.begin());
+        std::size_t at = 7;
+        auto put = [&](std::uint16_t v) {
+            r[at++] = static_cast<std::uint8_t>(v >> 8);
+            r[at++] = static_cast<std::uint8_t>(v & 0xFF);
+        };
+        for (std::size_t i = 7; i + 1 < std::size_t(7) + w[6]; i += 2) {
+            const std::uint16_t id = static_cast<std::uint16_t>(w[i] << 8 | w[i + 1]);
+            const KeyTravel &t = travel[id];
+            put(id);
+            if (w[1] == 0x93) {
+                put(t.actuation);
+                r[at++] = t.actuationTail;
+            } else if (w[1] == 0x96) {
+                put(t.deadTop);
+                put(t.deadBottom);
+                put(t.deadZones ? 1 : 0);
+            } else {
+                r[at++] = t.rapidTrigger ? 1 : 0;
+                put(t.press);
+                put(t.release);
+                r[at++] = t.rapidTail;
+            }
+        }
+        r[6] = static_cast<std::uint8_t>(at - 7);
+        return r;
+    }
+
+    // 13 / 16 / 19: stores every entry of the packet.
+    void travelWrite(const Bytes &w)
+    {
+        const std::size_t entry = w[1] == 0x13 ? 5 : 8;
+        auto be = [&](std::size_t i) { return static_cast<std::uint16_t>(w[i] << 8 | w[i + 1]); };
+        for (std::size_t i = 7; i + entry <= std::size_t(7) + w[6]; i += entry) {
+            KeyTravel &t = travel[be(i)];
+            if (w[1] == 0x13) {
+                t.actuation = be(i + 2);
+                t.actuationTail = w[i + 4];
+            } else if (w[1] == 0x16) {
+                t.deadTop = be(i + 2);
+                t.deadBottom = be(i + 4);
+                t.deadZones = be(i + 6) != 0;
+            } else {
+                t.rapidTrigger = w[i + 2] != 0;
+                t.press = be(i + 3);
+                t.release = be(i + 5);
+                t.rapidTail = w[i + 7];
+            }
+        }
     }
 
     std::vector<Bytes> operator()(const Bytes &w)
@@ -99,6 +165,10 @@ struct FakeKeyboard {
             r[6] = static_cast<std::uint8_t>(at - 7);
             return {r};
         }
+        if ((cmd == 0x93 || cmd == 0x96 || cmd == 0x99) && sub == 0x00)
+            return {travelRead(w)};
+        if ((cmd == 0x13 || cmd == 0x16 || cmd == 0x19) && sub == 0x00 && !ignoreTravelWrites)
+            travelWrite(w);
         if (cmd == 0x03 && sub < kLayerCount && !ignoreKeyWrites)
             std::copy_n(w.begin() + 9, 4, keymap[sub][static_cast<std::uint16_t>(w[7] << 8 | w[8])].begin());
         if (cmd == 0x90 && sub == 0x00)
