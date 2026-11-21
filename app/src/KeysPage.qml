@@ -141,6 +141,8 @@ Item {
                 KeyboardView {
                     objectName: "keyboardView"
                     Layout.fillWidth: true
+                    Layout.maximumWidth: implicitWidth
+                    Layout.alignment: Qt.AlignHCenter
                     labelFor: page.labelFor
                     markedFor: page.differsFromFactory
                     selectedKey: page.selectedKey

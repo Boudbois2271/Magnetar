@@ -19,6 +19,10 @@ Item {
     readonly property real unit: width / columns
     readonly property real gap: Math.max(2, unit * 0.35)
 
+    // Keys grow with the window up to this size (one key width, in pixels), then the drawing
+    // stays put: on a wide window it would push everything else off screen.
+    property real maxKeySize: 56
+    implicitWidth: columns * maxKeySize / 4
     implicitHeight: rows * unit
 
     Repeater {
