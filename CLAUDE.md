@@ -29,11 +29,10 @@ there: capture logs stay local and are gitignored.
 | `README.md` | Public overview: unofficial disclaimer, install, usage. Keep it in sync when tools change. |
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
 | `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
-| `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool and frames from captures: the reference the C++ code must match. |
+| `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool (removed; it is in git history) and frames from captures: the reference the C++ code must match. |
 | `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
 | `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
 | `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
-| `akkoctl/akkoctl` | The original Python CLI, kept until the C++ one has had some daily use, then removed. |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
 | `udev/70-akko-tac75-he.rules` | Grants the logged-in user access to the keyboard's hidraw nodes. Goes in `/etc/udev/rules.d/`. |
 | `akko-protocol.md` | **Source of truth** for everything decoded. Update it whenever a capture teaches us something. |
