@@ -55,8 +55,9 @@ reflected in `akko-protocol.md`.
 ## Magnetar (desktop app)
 
 - Pages: Lighting, Keys, Travel, Advanced keys and Device.
-- Advanced keys page: **not tried on the board yet**. The `12 00` writes are SEEN (vendor captures)
-  and Magnetar's frames match them byte for byte, but none has been sent by Magnetar to the keyboard.
+- Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
+  board; Toggle, Multi-Point and Release were not (frames match the vendor captures only). The page
+  itself hasn't been used by hand on the board yet.
 - Advanced keys page: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
   app's ranges were never captured (seen: 200 default, 322, 965 ms).
 - Advanced keys page: whether an advanced key applies on every layer, and how it combines with the

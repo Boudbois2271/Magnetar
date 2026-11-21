@@ -114,11 +114,11 @@ the board. The factory keymap of layers 00 and 01 is the first `83` read of `akk
 ### Advanced keys (arg byte = type)
 | type | Status | Payload |
 |---|---|---|
-| 00 | SEEN | clear: `key` (sent before every save, and per key on restore) |
+| 00 | KNOWN | clear: `key` (sent before every save, and per key on restore) |
 | 01 Toggle | SEEN | `key, action(4), hold ms u16` |
-| 02 Mod-Tap | SEEN | `key, hold action(4), tap action(4), hold ms u16` |
-| 03 DKS | SEEN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). In `akko-capture11.txt` marks 29–31: B held bottom → release from bottom = stages `00 0e 00 00`, C fire-once at full release = `00 00 00 0a`; the board did exactly that. Depths there: `00c8 0258 0258 00c8` |
-| 04 SOCD | SEEN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2. The UI offers only these four (screenshot 2026-11-18-29); `02` is unused |
+| 02 Mod-Tap | KNOWN | `key, hold action(4), tap action(4), hold ms u16` |
+| 03 DKS | KNOWN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). In `akko-capture11.txt` marks 29–31: B held bottom → release from bottom = stages `00 0e 00 00`, C fire-once at full release = `00 00 00 0a`; the board did exactly that. Depths there: `00c8 0258 0258 00c8` |
+| 04 SOCD | KNOWN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2. The UI offers only these four (screenshot 2026-11-18-29); `02` is unused |
 | 05 Multipoint | SEEN | `key, count, count × [action(4), depth u16]` |
 | 06 Release (END) | SEEN | `key, action(4)` fired on release |
 
@@ -133,11 +133,16 @@ Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Det
 - Saving over a key that has an advanced key: the vendor app sends the type `00` clear first; it
   doesn't clear a key that has none. Removing a SOCD pair clears both keys, one frame each.
 - After each write the app reads the list, then each listed key.
+- Sent by Magnetar and checked on the board 2026-11-21: Mod-Tap on Insert (hold R, tap T, 322 ms),
+  DKS on End (depths 200/600/600/200, B held bottom → release from bottom, C once at full release),
+  SOCD PgUp + PgDn (last input). Each read back identical (list and per key), then cleared with type
+  `00`; the list was empty and the layer-0 actions unchanged afterwards. Toggle, Multi-Point and
+  Release were not sent (still SEEN).
 
 Read: `92 00` with no key (`pkt_count 1`, len 0) → the IDs (u16) of the keys that have an advanced key,
 both keys of a SOCD pair; empty when none (captures 2, 10, 11). `92 00` with `key` → the type in the arg
 byte and the same payload as the write; a key with none answers arg `00` and just its key. Magnetar
-reads both like that (`core/`, tested against the fake keyboard only).
+reads both like that (`core/`; checked on the board 2026-11-21, see above).
 In `akko-capture.txt` (the oldest, 2026-10-03) the list read answered 4 packets (216 B) of what looks
 like the physical layout: column-major, 6 rows × 18 cols, 0 = no key. Later captures never did;
 Magnetar asks for any extra packets and skips IDs that aren't keys.
