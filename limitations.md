@@ -101,7 +101,8 @@ reflected in `akko-protocol.md`.
   arrives. Any tool must serialise access; the web app and our code can't run together.
 - Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 - Per-key colours (`06 00`): writes go in frames of at most 8 keys, the most ever captured in one
-  frame (11 would fit). Not yet sent to the board; whether they stick while another effect is on is unknown.
+  frame (11 would fit). Verified on the board under Custom only; whether writes stick while another
+  effect is on is untested.
 
 ## Repo / docs
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked

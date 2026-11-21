@@ -20,6 +20,7 @@
 namespace akko {
 
 constexpr int kMaxBrightness = 20;
+constexpr int kEffectCustom = 0x13;  // per-key colours from 06 00 (effect IDs are hex in akko-protocol.md)
 
 // The 7-byte lighting block of 04 01 / 84 01.
 struct Lighting {
@@ -31,7 +32,7 @@ struct Lighting {
     bool rainbow() const { return bytes[ColorMode] >= 7; }
 };
 
-// One key's colour for the Custom effect (13): entries of 06 00 / 86 00.
+// One key's colour for the Custom effect (kEffectCustom): entries of 06 00 / 86 00.
 struct KeyColor {
     std::uint16_t key = 0;
     std::array<std::uint8_t, 3> rgb{};
@@ -90,7 +91,7 @@ public:
     std::vector<KeyColor> readColors(std::span<const std::uint16_t> keys = keyReadOrder());
     // 06 00 as captured: each frame a single packet of up to 8 keys, followed by a read-back of
     // those keys. Returns what the board has; throws if a read-back differs. The colours show
-    // under the Custom effect (13), the only effect they were captured with.
+    // under the Custom effect (kEffectCustom), the only effect they were captured with.
     std::vector<KeyColor> setColors(std::span<const KeyColor> keys);
 
     // Advanced keys of the active profile. advancedKeyList: 92 00 with no key, the IDs of the
