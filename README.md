@@ -14,7 +14,7 @@ tool for scripts and status bars.
 
 | Path | What it does |
 |---|---|
-| `app/` | **Magnetar**, the desktop app: profile switching, lighting, the keymap (all three layers), per-key travel (actuation, Rapid Trigger, dead zones) and advanced keys (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD) so far, more pages to come. English and French. |
+| `app/` | **Magnetar**, the desktop app (see below). English and French. |
 | `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
 | `core/` | The C++ library that talks to the keyboard, shared by the CLI and Magnetar. |
 | `tests/` | Automated tests (no keyboard needed). |
@@ -23,6 +23,17 @@ tool for scripts and status bars.
 | `akko-protocol.md` | The decoded HID protocol, with how confident we are in each part. |
 | `akko-capture.js` | Browser console logger used to record the official web app's traffic. |
 | `limitations.md` | What isn't decoded or supported yet. |
+| `docs/` | Longer references, e.g. `docs/capture.md` (how traffic is recorded). |
+
+## Magnetar pages
+
+| Page | What you can do |
+|---|---|
+| **Keys** | Click keys on the drawing (or drag a box, Ctrl+drag to add) and edit them together in four tabs: **Action** (what the key sends, on all three layers), **Travel** (actuation point, Rapid Trigger, dead zones), **Advanced** (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD) and **Colour** (per-key colours for the Custom lighting effect). |
+| **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow. |
+| **Device** | Model, firmware, connection status. |
+
+The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3.
 
 Magnetar grows one page at a time; macros are next (the protocol for them is already decoded in
 `akko-protocol.md`).
@@ -71,7 +82,7 @@ replug fixes it). `akkoctl` locks the device so two copies of itself can't colli
 
 Protocol gaps are listed in `limitations.md` and under "Still to capture" in `akko-protocol.md`.
 To help, record the official web app's traffic with `akko-capture.js` (instructions in
-`CLAUDE.md`, "Capture workflow") while changing one setting at a time. Please don't decompile or
+`docs/capture.md`) while changing one setting at a time. Please don't decompile or
 copy the vendor's code or firmware: only observed traffic.
 
 ## License

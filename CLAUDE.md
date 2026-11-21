@@ -14,7 +14,7 @@ One protocol library (`core/`) is shared by the CLI and the app.
 
 What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
 global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
-and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced tabs on one shared selection, Lighting and Device). Next pages: Macros, Settings, Mural, Calibration.
+and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced / Colour tabs on one shared selection, Lighting and Device). Next pages: Macros, Settings, Mural, Calibration.
 
 Names: the project, repo and desktop app are **Magnetar**. `akkoctl` is the CLI inside it, and keeps
 that name everywhere it appears (command, `akkoctl.lock`, `~/.local/state/akkoctl/`, log).
@@ -30,7 +30,7 @@ there: capture logs stay local and are gitignored.
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
 | `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
 | `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool (removed; it is in git history) and frames from captures: the reference the C++ code must match. |
-| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
+| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; QML: `Main.qml` (sidebar), one `*Page.qml` per page, `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab`/`ColorTab` around a shared `KeyboardView`; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
 | `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
 | `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
@@ -68,39 +68,10 @@ action encoding and the command tables are in `akko-protocol.md`.
 
 ## Capture workflow
 
-New knowledge comes from capturing what the vendor web app sends:
-
-1. Open the vendor configurator in a Chromium-based browser (WebHID), connect the keyboard.
-2. Paste `akko-capture.js` into the DevTools console.
-3. Before **each** UI action, call `akko.mark('what I am about to do')`. One action per mark. Write
-   down in a mark what you saw on the keyboard afterwards (marks are free text and often carry the
-   only description of an effect).
-4. When done, `akko.save('akko-captureN')` downloads the log. Move it into the repo folder as a
-   new file (it stays untracked). Never append to or edit an old capture. Cite captures by
-   filename and mark in `akko-protocol.md`, since readers of the public repo won't have them.
-
-When asking for a capture, always hand over ready-to-paste commands: the
-`flock "$XDG_RUNTIME_DIR/akkoctl.lock" sleep infinity` line first, then the full numbered list of
-`akko.mark('…')` calls, then `akko.save('akko-captureN')`. Each mark is a plain instruction using the
-buttons' exact labels (check `screenshots/` first; if a page isn't in there, ask what it shows).
-Ask for an observation only when the capture can't show it, as a precise question in its **own mark
-right after the action** (marks are pasted before the action, so a mark can't report its own result):
-e.g. `akko.mark('result: did F12 light up? yes/no: ___')`.
-
-Log line format: `t_ms<TAB>DIR<TAB>vid:pid<TAB>id=N<TAB>hex bytes`, where DIR is `OUT`, `IN`,
-`FEAT_SET`, `FEAT_GET`, and `### label` lines are the marks.
-
-Useful one-liners:
-
-```sh
-grep -n '^###' akko-capture2.txt                                  # list the marks
-awk -F'\t' '$2=="OUT"{split($5,b," ");print b[1],b[2]}' akko-capture2.txt | sort | uniq -c | sort -rn  # command histogram
-sed -n '/^### setting A/,/^###/p' akko-capture2.txt               # one marked section
-```
-
-When decoding, diff the frame before/after a single change, then cross-check against a second,
-independent change. Ask the user for a targeted capture rather than guessing; list what's needed
-under "Still to capture" in `akko-protocol.md`.
+New knowledge comes from capturing what the vendor web app sends, one `akko.mark()` per UI action.
+Full procedure, how to ask for a capture (ready-to-paste commands), log format and one-liners:
+**`docs/capture.md`**, read it before asking for or decoding a capture. Never edit an old capture;
+cite captures by filename and mark in `akko-protocol.md`.
 
 ## Status labels (used in `akko-protocol.md`)
 
@@ -140,6 +111,8 @@ The keyboard under test is a daily-use keyboard. Rules:
 - App: every visible string is `qsTr()` with a French entry in `app/src/i18n/fr.json` (a test fails
   otherwise); the app shows only values read back from the board; pages appear when they work,
   never as placeholders. Check layout with offscreen screenshots in English and French.
+- App: the user knows what they're doing. Never grey out, warn about or ask to confirm a choice
+  that merely looks odd; block only what can't work on the board.
 - Nothing personal in tracked files: no home paths, usernames, machine names. That goes in
   `CLAUDE.local.md`.
 
