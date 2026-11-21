@@ -127,13 +127,17 @@ The first `92 00` read (no key, 4 packets, 216 B) is the physical layout: column
 
 ### Per-key travel (Parameter Settings → Actuation Settings)
 Source: `akko-capture3.txt` (2026-11-18). Test key F12 = `0d`. Writes are echoed, then the web app
-reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 0.
+reads the same keys back. Multi-packet: `pkt_count`/`pkt_index` as usual, `arg` 0. Reads list the key IDs
+wanted (any subset works); a full read is `93` 8 × 11 keys, `96`/`99` 12 × 7 keys, in the keymap read order.
+`13`/`16`/`19` and their reads are KNOWN: `core/` sent each one on F12 and read back exactly what it wrote, and
+`13` to all 83 keys at once (8 packets) also read back. `16` was only ever sent one key per frame (vendor and
+ours). Out of the box (`akko-capture2.txt`): actuation 0.6 mm, RT off at 0 / 0, dead zones off at 0.13 / 0.125.
 
 | cmd/sub | Status | Per key | Notes |
 |---|---|---|---|
-| `13 00` / `93 00` | SEEN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
-| `19 00` / `99 00` | SEEN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
-| `16 00` / `96 00` | SEEN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
+| `13 00` / `93 00` | KNOWN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
+| `19 00` / `99 00` | KNOWN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
+| `16 00` / `96 00` | KNOWN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
 | `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Ultra Mag Pro+ `1f`, Star Magnetic `27`, Xingyao `43`, Star Gravity `44`, Luminous `45` (stock); all five SEEN (`akko-capture11.txt` marks 19–21). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
 
 ### Macros (`akko-capture7.txt`)

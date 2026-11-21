@@ -31,10 +31,10 @@ reflected in `akko-protocol.md`.
 ### Units
 - Travel is 0.005 mm per unit, confirmed against the UI by actuation, RT and dead-zone writes
   (`akko-capture3.txt`).
-- The UI showed 0.6 mm on every key, but `akko-capture2.txt` read actuation 200 (1.00 mm). No `93 00`
-  read happened before the first write in `akko-capture3.txt`, so the true starting value is unknown.
-- Actuation/RT/dead-zone writes are SEEN only: akkoctl doesn't send them yet. Trailing `00` byte in
-  `13`/`19` entries: meaning unknown.
+- Trailing byte of the `13`/`19` entries: always `00`, meaning unknown. Magnetar writes back what it read.
+- Factory travel values: `akko-capture2.txt` reads 0.6 mm (matching the UI); `akko-capture.txt` read
+  1.00 mm on 83 keys (and `0028` on another read). Where 1.00 came from isn't known; the board under test
+  had 1.00 mm on every key on 2026-11-21.
 
 ## Existing tooling (`akkoctl`, widget)
 
@@ -55,7 +55,15 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Lighting, Keys and Device.
+- Pages: Lighting, Keys, Travel and Device.
+- Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
+  vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
+  their slider is locked.
+- Travel page: assumed per profile (read again on a profile switch), not checked on the board.
+- Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
+  covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
+- Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
+- Travel page: at 760 px wide the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
 - Keys page: macros, system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
   actions are shown but can't be assigned; the Fn layer's factory ones show as "System function" /
   "Lighting control" because their meaning is a guess. Mouse buttons 4/5 and media keys other than

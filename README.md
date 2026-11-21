@@ -14,9 +14,9 @@ tool for scripts and status bars.
 
 | Path | What it does |
 |---|---|
-| `app/` | **Magnetar**, the desktop app: profile switching, lighting and the keymap (all three layers) so far, more pages to come. English and French. |
+| `app/` | **Magnetar**, the desktop app: profile switching, lighting, the keymap (all three layers) and per-key travel (actuation, Rapid Trigger, dead zones) so far, more pages to come. English and French. |
 | `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
-| `core/` | The C++ library that talks to the keyboard, shared by the CLI and the future desktop app. |
+| `core/` | The C++ library that talks to the keyboard, shared by the CLI and Magnetar. |
 | `tests/` | Automated tests (no keyboard needed). |
 | `omarchy-widget/boudbois.akko/` | Bar widget for [Omarchy](https://omarchy.org) built on `akkoctl`. |
 | `udev/70-akko-tac75-he.rules` | udev rule giving your user access to the keyboard. |
@@ -24,7 +24,7 @@ tool for scripts and status bars.
 | `akko-capture.js` | Browser console logger used to record the official web app's traffic. |
 | `limitations.md` | What isn't decoded or supported yet. |
 
-Magnetar grows one page at a time; per-key travel and rapid trigger, advanced keys and
+Magnetar grows one page at a time; advanced keys and
 macros are next (the protocol for them is already decoded in `akko-protocol.md`).
 
 ## Install
