@@ -6,6 +6,7 @@
 #include "advanced.h"
 #include "frame.h"
 #include "keymap.h"
+#include "macro.h"
 #include "travel.h"
 #include "transport.h"
 
@@ -113,6 +114,29 @@ public:
     // Removes the key's advanced key (both keys of a SOCD pair). Returns the board's advanced keys.
     std::vector<AdvancedKey> clearAdvanced(std::uint16_t key);
     std::vector<AdvancedKey> clearAdvanced(std::span<const std::uint16_t> keys);
+
+    // Macros, in blob order (85 00 as the vendor app reads them: 2 bytes for the directory
+    // size, the directory, then the blob in packets of 56). Not tied to a profile as far as is
+    // known (see limitations.md).
+    std::vector<Macro> readMacros();
+    // Rewrites the whole blob (05 00 in packets of 56; no macros = one empty packet), last
+    // step's delay set to 1 ms as the vendor app does, then reads it back and returns what the
+    // board has. Throws before sending anything if macrosProblem() objects, and after writing
+    // if the read-back differs. Keys bound to macros keep their index.
+    std::vector<Macro> writeMacros(std::span<const Macro> macros);
+    // Removes macro `index` without leaving a key on the wrong macro: keys bound to it are
+    // unbound first (all layers), then the blob is written without it, then keys bound to later
+    // macros get their index lowered by one. keys = every keymap change, as read back.
+    struct MacroDeletion {
+        std::vector<Macro> macros;
+        struct KeyChange {
+            int layer;
+            std::uint16_t key;
+            Action action;
+        };
+        std::vector<KeyChange> keys;
+    };
+    MacroDeletion deleteMacro(int index);
 
 private:
     // Sends 12 00 type 00 for each key that has an advanced key, and for the other key of a

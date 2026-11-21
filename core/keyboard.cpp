@@ -478,4 +478,111 @@ std::vector<AdvancedKey> Keyboard::clearAdvanced(std::span<const std::uint16_t> 
     return after;
 }
 
+// ---- macros ---------------------------------------------------------------
+
+namespace {
+
+std::vector<std::uint8_t> payloadOf(const Frame &f)
+{
+    const std::size_t len = std::min<std::size_t>(f[5], kMaxPayload);
+    return {f.begin() + kPayloadOffset, f.begin() + kPayloadOffset + static_cast<std::ptrdiff_t>(len)};
+}
+
+}  // namespace
+
+std::vector<Macro> Keyboard::readMacros()
+{
+    // 85 00: the byte offset rides in sub (high) and arg (low); len = bytes wanted, sent as
+    // that many zero payload bytes, which gives the captured frame.
+    auto readAt = [&](std::size_t offset, std::size_t len, std::uint8_t count, std::uint8_t index) {
+        const std::vector<std::uint8_t> want(len, 0);
+        const Frame r = transactPacket(0x85, static_cast<std::uint8_t>(offset >> 8), count, index, want, 1000, 2,
+                                       static_cast<std::uint8_t>(offset & 0xFF));
+        auto got = payloadOf(r);
+        if (got.size() < len)
+            throw Error("short macro read");
+        got.resize(len);
+        return got;
+    };
+    const auto head = readAt(0, 2, 1, 0);
+    if (head[0] == 0xff && head[1] == 0xff)
+        return {};
+    const std::size_t dirSize = static_cast<std::size_t>(head[0] | head[1] << 8);
+    if (dirSize == 0 || dirSize % 4 != 0 || dirSize > kMacroStorage)
+        throw Error("bad macro directory size");
+    // One read as captured; a directory over 56 bytes (15+ macros, never captured) is read in
+    // packets like the blob.
+    std::vector<std::uint8_t> dir;
+    const auto dirPackets = static_cast<std::uint8_t>((dirSize + kMacroPacket - 1) / kMacroPacket);
+    for (std::uint8_t p = 0; p < dirPackets; ++p) {
+        const std::size_t at = p * kMacroPacket;
+        const auto part = readAt(at, std::min(kMacroPacket, dirSize - at), dirPackets, p);
+        dir.insert(dir.end(), part.begin(), part.end());
+    }
+    std::size_t total = dirSize;
+    for (std::size_t e = 0; e < dirSize; e += 4)
+        total = std::max<std::size_t>(total, (dir[e] | dir[e + 1] << 8) + (dir[e + 2] | dir[e + 3] << 8));
+    if (total > kMacroStorage)
+        throw Error("bad macro directory");
+    const auto packets = static_cast<std::uint8_t>((total + kMacroPacket - 1) / kMacroPacket);
+    std::vector<std::uint8_t> blob;
+    for (std::uint8_t p = 0; p < packets; ++p) {
+        const std::size_t at = p * kMacroPacket;
+        const auto part = readAt(at, std::min(kMacroPacket, total - at), packets, p);
+        blob.insert(blob.end(), part.begin(), part.end());
+    }
+    return parseMacroBlob(blob);
+}
+
+std::vector<Macro> Keyboard::writeMacros(std::span<const Macro> macros)
+{
+    std::vector<Macro> want;
+    for (const auto &m : macros)
+        want.push_back(normalizedMacro(m));
+    const auto blob = macroBlob(want);  // throws before anything is sent
+    const auto packets = static_cast<std::uint8_t>(std::max<std::size_t>(1, (blob.size() + kMacroPacket - 1) / kMacroPacket));
+    for (std::uint8_t p = 0; p < packets; ++p) {
+        const std::size_t at = p * kMacroPacket;
+        const std::span<const std::uint8_t> part(blob.data() + std::min(at, blob.size()),
+                                                 std::min(kMacroPacket, blob.size() - std::min(at, blob.size())));
+        transactPacket(0x05, 0x00, packets, p, part);
+    }
+    auto back = readMacros();
+    if (back != want)
+        throw Error("the keyboard kept other macros than the ones sent");
+    return back;
+}
+
+Keyboard::MacroDeletion Keyboard::deleteMacro(int index)
+{
+    auto macros = readMacros();
+    if (index < 0 || index >= static_cast<int>(macros.size()))
+        throw Error("no such macro: " + std::to_string(index + 1));
+    std::array<std::vector<std::pair<std::uint16_t, Action>>, kLayerCount> layers;
+    for (int l = 0; l < kLayerCount; ++l)
+        layers[l] = readLayer(l);
+
+    MacroDeletion out;
+    auto rebind = [&](bool removed) {
+        for (int l = 0; l < kLayerCount; ++l)
+            for (const auto &[key, action] : layers[l]) {
+                const auto b = macroBinding(action);
+                if (!b || (removed ? b->index != index : b->index <= index))
+                    continue;
+                Action next = kUnbound;
+                if (!removed) {
+                    auto lowered = *b;
+                    --lowered.index;
+                    next = macroAction(lowered);
+                }
+                out.keys.push_back({l, key, setKey(l, key, next)});
+            }
+    };
+    rebind(true);
+    macros.erase(macros.begin() + index);
+    out.macros = writeMacros(macros);
+    rebind(false);
+    return out;
+}
+
 }  // namespace akko

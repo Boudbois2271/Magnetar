@@ -80,6 +80,9 @@ struct FakeKeyboard {
     // Advanced keys: key → (type, payload as written). A SOCD pair is stored on both keys.
     std::map<std::uint16_t, std::pair<std::uint8_t, Bytes>> advanced;
     bool ignoreAdvancedWrites = false;  // echoes 12 00 but keeps the old records
+    Bytes macros;                       // the macro blob, empty = no macros (reads ff ff)
+    bool ignoreMacroWrites = false;     // echoes 05 00 but keeps the old blob
+    Bytes macroIncoming;                // 05 00 packets gathered until the last one
 
     FakeKeyboard()
     {
@@ -193,9 +196,40 @@ struct FakeKeyboard {
             advanced[be(0)] = {type, payload};
     }
 
+    // 85 00: offset in sub (high) and arg (low), len = bytes wanted, packet header kept.
+    Bytes macroRead(const Bytes &w)
+    {
+        Bytes r(kReportLen, 0);
+        std::copy_n(w.begin(), 6, r.begin());
+        const std::size_t offset = static_cast<std::size_t>(w[2] << 8 | w[3]), len = w[6];
+        r[6] = static_cast<std::uint8_t>(len);
+        if (macros.empty()) {
+            r[7] = r[8] = 0xff;
+            return r;
+        }
+        for (std::size_t i = 0; i < len && offset + i < macros.size(); ++i)
+            r[7 + i] = macros[offset + i];
+        return r;
+    }
+
+    // 05 00: packet i holds blob bytes i × 56 …; the blob is replaced on the last packet.
+    void macroWrite(const Bytes &w)
+    {
+        const std::size_t count = w[4], index = w[5], len = w[6];
+        if (index == 0)
+            macroIncoming.clear();
+        macroIncoming.insert(macroIncoming.end(), w.begin() + 7, w.begin() + 7 + static_cast<std::ptrdiff_t>(len));
+        if (index + 1 == count && !ignoreMacroWrites)
+            macros = macroIncoming;
+    }
+
     std::vector<Bytes> operator()(const Bytes &w)
     {
         const std::uint8_t cmd = w[1], sub = w[2];
+        if (cmd == 0x85)
+            return {macroRead(w)};
+        if (cmd == 0x05 && sub == 0x00)
+            macroWrite(w);
         if (cmd == 0x92 && sub == 0x00)
             return {advancedRead(w)};
         if (cmd == 0x12 && sub == 0x00 && !ignoreAdvancedWrites)

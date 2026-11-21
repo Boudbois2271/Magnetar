@@ -89,10 +89,10 @@ AdvancedKey advancedOf(const Bytes &frame)
     return *a;
 }
 
-// The i-th frame written, without the report ID.
-std::vector<Bytes> colorFrames(const std::string &name)
+// The frames of one "## name" section of a fixture file.
+std::vector<Bytes> fixtureSection(const std::string &file, const std::string &name)
 {
-    std::ifstream in(FIXTURES_DIR "/vendor-colors.txt");
+    std::ifstream in(FIXTURES_DIR "/" + file);
     std::vector<Bytes> frames;
     bool inside = false;
     for (std::string line; std::getline(in, line);) {
@@ -102,6 +102,27 @@ std::vector<Bytes> colorFrames(const std::string &name)
             frames.push_back(parseHex(line));
     }
     return frames;
+}
+
+std::vector<Bytes> colorFrames(const std::string &name)
+{
+    return fixtureSection("vendor-colors.txt", name);
+}
+
+std::vector<Bytes> macroFrames(const std::string &name)
+{
+    return fixtureSection("vendor-macros.txt", name);
+}
+
+// A transport that answers the n-th write with the n-th frame given (report ID added).
+void replay(FakeTransport &t, std::vector<Bytes> answers)
+{
+    t.respond = [answers = std::move(answers), n = std::size_t(0)](const Bytes &) mutable {
+        Bytes r{0x09};
+        r.insert(r.end(), answers.at(n).begin(), answers.at(n).end());
+        ++n;
+        return std::vector<Bytes>{r};
+    };
 }
 
 Bytes sent(const FakeTransport &t, std::size_t i)
@@ -519,6 +540,199 @@ private slots:
             QCOMPARE(t.written[i][6], std::uint8_t(8));  // one entry
         }
         QVERIFY(board.travel[0x02].deadZones);
+    }
+
+    // ---- macros -----------------------------------------------------------
+    void readMacrosLikeTheVendorApp_data()
+    {
+        QTest::addColumn<QString>("set");
+        QTest::addColumn<int>("count");
+        QTest::addColumn<int>("bytes");
+        QTest::newRow("one") << "one" << 1 << 127;
+        QTest::newRow("three") << "three" << 3 << 165;
+        QTest::newRow("long") << "long" << 1 << 609;
+        QTest::newRow("empty") << "empty" << 0 << 0;
+    }
+    void readMacrosLikeTheVendorApp()
+    {
+        QFETCH(QString, set);
+        QFETCH(int, count);
+        QFETCH(int, bytes);
+        const std::string s = set.toStdString();
+        FakeTransport t;
+        replay(t, macroFrames(s + "-read-answers"));
+        Keyboard kb(t);
+        const auto macros = kb.readMacros();
+        const auto frames = macroFrames(s + "-read");
+        QCOMPARE(t.written.size(), frames.size());
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(int(macros.size()), count);
+        QCOMPARE(int(macroStorageUsed(macros)), bytes);
+    }
+
+    void macroBlobMatchesTheVendorApp_data()
+    {
+        QTest::addColumn<QString>("set");
+        QTest::newRow("one") << "one";
+        QTest::newRow("three") << "three";
+        QTest::newRow("long") << "long";
+    }
+    void macroBlobMatchesTheVendorApp()
+    {
+        // Parse what the board answered, write it again: the frames must be the app's.
+        QFETCH(QString, set);
+        const std::string s = set.toStdString();
+        FakeTransport rt;
+        replay(rt, macroFrames(s + "-read-answers"));
+        const auto macros = Keyboard(rt).readMacros();
+
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY(kb.writeMacros(macros) == macros);
+        const auto frames = macroFrames(s + "-write");
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(sent(t, frames.size())[0], std::uint8_t(0x85));  // then read back
+    }
+
+    void macroContentsAsDecoded()
+    {
+        FakeTransport t;
+        replay(t, macroFrames("three-read-answers"));
+        const auto m = Keyboard(t).readMacros();
+        QCOMPARE(m.size(), std::size_t(3));
+        QCOMPARE(m[1].name, std::string("ab"));
+        const std::vector<MacroStep> ab{{true, 50, 0x04}, {false, 50, 0x04}, {true, 50, 0x05}, {false, 1, 0x05}};
+        QVERIFY(m[1].steps == ab);
+        QCOMPARE(m[2].name, std::string("cc"));
+        const std::vector<MacroStep> cc{{true, 137, 0x06}, {false, 1, 0x06}};
+        QVERIFY(m[2].steps == cc);
+    }
+
+    void writeNoMacrosSendsOneEmptyPacket()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.macros = {0x04, 0x00, 0x03, 0x00, 0x02, 0x61, 0x62};
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY(kb.writeMacros({}).empty());
+        QCOMPARE(sent(t, 0), macroFrames("empty-write")[0]);
+        QCOMPARE(sent(t, 1), macroFrames("empty-read")[0]);
+        QVERIFY(board.macros.empty());
+    }
+
+    void writeMacrosSetsTheLastDelayToOne()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const Macro m{"xy", {{true, 50, 0x1b}, {false, 300, 0x1b}}};
+        const auto back = kb.writeMacros(std::span(&m, 1));
+        QCOMPARE(back.at(0).steps.back().delayMs, std::uint16_t(1));
+        QCOMPARE(back.at(0).steps.front().delayMs, std::uint16_t(50));
+    }
+
+    void writeMacrosRefusesBeforeSending_data()
+    {
+        QTest::addColumn<QString>("name");
+        QTest::addColumn<int>("steps");
+        QTest::addColumn<int>("usage");
+        QTest::newRow("short name") << "a" << 2 << 4;
+        QTest::newRow("non-ascii name") << QString::fromUtf8("é!") << 2 << 4;
+        QTest::newRow("no steps") << "ab" << 0 << 4;
+        QTest::newRow("no key") << "ab" << 2 << 0;
+        QTest::newRow("too big") << "ab" << 1100 << 4;
+    }
+    void writeMacrosRefusesBeforeSending()
+    {
+        QFETCH(QString, name);
+        QFETCH(int, steps);
+        QFETCH(int, usage);
+        Macro m{name.toStdString(), {}};
+        for (int i = 0; i < steps; ++i)
+            m.steps.push_back({i % 2 == 0, 50, std::uint8_t(usage)});
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.writeMacros(std::span(&m, 1)));
+        QVERIFY(t.written.empty());
+    }
+
+    void writeMacrosFailsWhenTheBoardKeepsTheOldBlob()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreMacroWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const Macro m{"ab", {{true, 50, 4}, {false, 1, 4}}};
+        QVERIFY_THROWS_EXCEPTION(Error, kb.writeMacros(std::span(&m, 1)));
+    }
+
+    void manyMacrosRoundTrip()
+    {
+        // 20 macros: a directory of 80 bytes, read in packets (never captured).
+        std::vector<Macro> ms;
+        for (int i = 0; i < 20; ++i)
+            ms.push_back({"m" + std::to_string(10 + i), {{true, 50, std::uint8_t(4 + i)}, {false, 1, std::uint8_t(4 + i)}}});
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY(kb.writeMacros(ms) == ms);
+        QVERIFY(kb.readMacros() == ms);
+    }
+
+    void macroActionEncoding()
+    {
+        // akko-capture7b.txt and akko-capture9.txt
+        QCOMPARE(actionHex(macroAction({1, MacroLoop::Times, 1})), std::string("03 01 01 01"));
+        QCOMPARE(actionHex(macroAction({0, MacroLoop::Times, 4})), std::string("03 01 04 00"));
+        QCOMPARE(actionHex(macroAction({2, MacroLoop::UntilKeyPressed, 9})), std::string("03 02 00 02"));
+        QCOMPARE(actionHex(macroAction({0, MacroLoop::WhileHeld, 0})), std::string("03 04 00 00"));
+        QVERIFY_THROWS_EXCEPTION(Error, macroAction({0, MacroLoop::Times, 0}));
+        QVERIFY_THROWS_EXCEPTION(Error, macroAction({256, MacroLoop::Times, 1}));
+        QVERIFY((macroBinding({0x03, 0x01, 0x04, 0x02}) == MacroBinding{2, MacroLoop::Times, 4}));
+        QVERIFY(!macroBinding({0x03, 0x03, 0x00, 0x00}));
+        QVERIFY(!macroBinding(keyAction(4)));
+    }
+
+    void deleteMacroFixesTheBindings()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::vector<Macro> ms{{"aa", {{true, 50, 4}, {false, 1, 4}}},
+                                    {"bb", {{true, 50, 5}, {false, 1, 5}}},
+                                    {"cc", {{true, 50, 6}, {false, 1, 6}}}};
+        kb.writeMacros(ms);
+        board.keymap[0][0x62] = macroAction({1, MacroLoop::Times, 3});      // Insert → bb
+        board.keymap[2][0x01] = macroAction({1, MacroLoop::WhileHeld, 0});  // Fn1 Esc → bb
+        board.keymap[0][0x63] = macroAction({2, MacroLoop::Times, 2});      // Delete → cc
+        board.keymap[1][0x64] = macroAction({0, MacroLoop::Times, 1});      // Fn Home → aa
+        const auto del = kb.deleteMacro(1);
+        QCOMPARE(del.macros.size(), std::size_t(2));
+        QCOMPARE(del.macros[1].name, std::string("cc"));
+        QCOMPARE(del.keys.size(), std::size_t(3));
+        QVERIFY(board.keymap[0][0x62] == kUnbound);
+        QVERIFY(board.keymap[2][0x01] == kUnbound);
+        QVERIFY(board.keymap[0][0x63] == macroAction({1, MacroLoop::Times, 2}));
+        QVERIFY(board.keymap[1][0x64] == macroAction({0, MacroLoop::Times, 1}));
+        // Order: unbind first, then the blob, then renumber.
+        std::vector<std::uint8_t> writes;
+        for (const auto &w : t.written)
+            if (w[1] == 0x03 || w[1] == 0x05)
+                writes.push_back(w[1]);
+        const std::vector<std::uint8_t> sentOrder{0x05, 0x03, 0x03, 0x05, 0x03};  // first 05: the setup
+        QVERIFY(writes == sentOrder);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.deleteMacro(2));
     }
 
     // ---- per-key colours ------------------------------------------------
