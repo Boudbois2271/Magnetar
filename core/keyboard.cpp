@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
+#include <iterator>
 
 namespace akko {
 
@@ -91,6 +92,46 @@ std::uint16_t Keyboard::firmwareVersion()
     // The two bytes read 08 01 for v1.08: low byte first, unlike the rest of the protocol.
     const Frame r = transact(0x82, 0x02);
     return static_cast<std::uint16_t>(r[kPayloadOffset] | (r[kPayloadOffset + 1] << 8));
+}
+
+namespace {
+constexpr int kPollingRates[] = {1000, 500, 250, 125, 8000, 4000, 2000};  // index = code
+}
+
+int pollingRateHz(int code)
+{
+    return (code >= 0 && code < int(std::size(kPollingRates))) ? kPollingRates[code] : 0;
+}
+
+int pollingRateCode(int hz)
+{
+    const auto it = std::find(std::begin(kPollingRates), std::end(kPollingRates), hz);
+    return it == std::end(kPollingRates) ? -1 : int(it - std::begin(kPollingRates));
+}
+
+BaseFunctions Keyboard::baseFunctions()
+{
+    const auto read = [this](BaseSetting s) { return transact(0x84, std::uint8_t(s))[kPayloadOffset]; };
+    BaseFunctions b;
+    b.winKeyLock = read(BaseSetting::WinKeyLock) != 0;
+    b.pollingRate = read(BaseSetting::PollingRate);
+    b.comboOptimization = read(BaseSetting::ComboOptimization) != 0;
+    b.adaptiveCalibration = read(BaseSetting::AdaptiveCalibration) != 0;
+    return b;
+}
+
+std::uint8_t Keyboard::setBaseSetting(BaseSetting setting, std::uint8_t value)
+{
+    const auto sub = std::uint8_t(setting);
+    const int max = setting == BaseSetting::PollingRate ? int(std::size(kPollingRates)) - 1 : 1;
+    if (value > max)
+        throw Error("value " + std::to_string(value) + " out of range for " + commandName(0x04, sub));
+    const std::uint8_t p[] = {value};
+    transact(0x04, sub, p);
+    const std::uint8_t back = transact(0x84, sub)[kPayloadOffset];
+    if (back != value)
+        throw Error("the keyboard kept " + std::to_string(back) + " after " + commandName(0x04, sub));
+    return back;
 }
 
 namespace {

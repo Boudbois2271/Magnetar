@@ -41,6 +41,28 @@ struct KeyColor {
     bool operator==(const KeyColor &) const = default;
 };
 
+// Base Functions settings: one byte each, 04 xx write / 84 xx read (sub = the enum value).
+enum class BaseSetting : std::uint8_t {
+    WinKeyLock = 0x15,           // 01 on: the Win key does nothing
+    PollingRate = 0x17,          // a polling-rate code (below); the keyboard restarts after a change
+    ComboOptimization = 0x18,    // 01 on (stock)
+    AdaptiveCalibration = 0x19,  // 01 on (stock)
+};
+
+struct BaseFunctions {
+    bool winKeyLock = false;
+    std::uint8_t pollingRate = 0;  // code, see pollingRateHz()
+    bool comboOptimization = true;
+    bool adaptiveCalibration = true;
+
+    bool operator==(const BaseFunctions &) const = default;
+};
+
+// Polling-rate codes 0-6 <-> Hz: 00 1000 (stock), 01 500, 02 250, 03 125, 04 8000, 05 4000, 06 2000.
+// pollingRateHz() is 0 and pollingRateCode() -1 for anything else.
+int pollingRateHz(int code);
+int pollingRateCode(int hz);
+
 // "v1.08" for 0x0108, as the vendor app's Device Info page writes it.
 std::string formatFirmware(std::uint16_t version);
 
@@ -69,6 +91,13 @@ public:
 
     // 82 02: firmware version, e.g. 0x0108 for the v1.08 the vendor app shows.
     std::uint16_t firmwareVersion();
+
+    // Base Functions: the four 84 xx reads the vendor app's page makes.
+    BaseFunctions baseFunctions();
+    // 04 xx, then 84 xx read back; returns the board's value. Throws before sending anything for a
+    // value out of range (0-1, polling-rate codes 0-6), and after writing if the read-back differs.
+    // A polling-rate change restarts the keyboard right after the read-back.
+    std::uint8_t setBaseSetting(BaseSetting setting, std::uint8_t value);
 
     // Keymap of the active profile. Layer 0 Default, 1 Fn, 2 Fn1.
     // readLayer: 10 × 83 LL, 9 keys per packet, in keyReadOrder(), like the vendor app.

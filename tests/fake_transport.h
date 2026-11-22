@@ -72,6 +72,8 @@ struct FakeKeyboard {
     bool silentProfileCount = false;  // never answers 82 0f
     std::array<std::uint8_t, 7> lighting{0x02, 0x00, 0x00, 0xff, 0x00, 20, 0x04};
     std::map<std::uint16_t, Action> keymap[kLayerCount];  // starts as the factory keymap
+    std::map<std::uint8_t, std::uint8_t> base{{0x15, 0}, {0x17, 0}, {0x18, 1}, {0x19, 1}};  // 04/84 xx, stock
+    bool ignoreBaseWrites = false;  // echoes 04 xx but keeps the old value
     bool ignoreKeyWrites = false;                          // echoes 03 LL but keeps the old action
     std::map<std::uint16_t, KeyTravel> travel;  // starts as read in akko-capture2.txt
     bool ignoreTravelWrites = false;            // echoes 13/16/19 but keeps the old values
@@ -286,6 +288,10 @@ struct FakeKeyboard {
             const auto &l = lighting;
             return {reply(cmd, sub, {l[0], l[1], l[2], l[3], l[4], l[5], l[6]})};
         }
+        if (cmd == 0x84 && base.count(sub))
+            return {reply(cmd, sub, {base[sub]})};
+        if (cmd == 0x04 && base.count(sub) && !ignoreBaseWrites)
+            base[sub] = w[7];
         if (cmd == 0x10 && sub == 0x00)
             profile = w[7];
         else if (cmd == 0x04 && sub == 0x01)

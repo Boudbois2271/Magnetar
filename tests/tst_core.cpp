@@ -168,7 +168,7 @@ private slots:
     void framesMatchVendorApp()
     {
         const auto cases = loadFrames("vendor-frames.txt");
-        QCOMPARE(cases.size(), std::size_t(8));
+        QCOMPARE(cases.size(), std::size_t(12));
         for (const auto &c : cases) {
             const Frame f = buildFrame(c.cmd, c.sub, c.payload);
             QCOMPARE(Bytes(f.begin(), f.end()), c.frame);
@@ -441,6 +441,78 @@ private slots:
         t.respond = std::ref(board);
         Keyboard kb(t);
         QVERIFY_THROWS_EXCEPTION(Error, kb.setKey(0, 0x62, keyAction(0x04)));
+    }
+
+    // ---- Base Functions --------------------------------------------------
+    void baseFunctionsLikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.base[0x15] = 1;
+        board.base[0x17] = 3;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const BaseFunctions b = kb.baseFunctions();
+        QVERIFY(b.winKeyLock);
+        QCOMPARE(b.pollingRate, std::uint8_t(3));
+        QVERIFY(b.comboOptimization);
+        QVERIFY(b.adaptiveCalibration);
+        QCOMPARE(t.written.size(), std::size_t(4));
+        const auto vendor = loadFrames("vendor-frames.txt");
+        QCOMPARE(Bytes(t.written[0].begin() + 1, t.written[0].end()), vendor[9].frame);   // 84 15
+        QCOMPARE(Bytes(t.written[1].begin() + 1, t.written[1].end()), vendor[11].frame);  // 84 17
+    }
+
+    void setBaseSettingWritesThenReadsBack()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const auto vendor = loadFrames("vendor-frames.txt");
+
+        QCOMPARE(kb.setBaseSetting(BaseSetting::WinKeyLock, 1), std::uint8_t(1));
+        QCOMPARE(t.written.size(), std::size_t(2));
+        QCOMPARE(Bytes(t.written[0].begin() + 1, t.written[0].end()), vendor[8].frame);  // 04 15 01
+        QCOMPARE(Bytes(t.written[1].begin() + 1, t.written[1].end()), vendor[9].frame);  // 84 15
+
+        QCOMPARE(kb.setBaseSetting(BaseSetting::PollingRate, 3), std::uint8_t(3));
+        QCOMPARE(Bytes(t.written[2].begin() + 1, t.written[2].end()), vendor[10].frame);  // 04 17 03
+        QCOMPARE(kb.setBaseSetting(BaseSetting::AdaptiveCalibration, 0), std::uint8_t(0));
+        QCOMPARE(kb.setBaseSetting(BaseSetting::ComboOptimization, 0), std::uint8_t(0));
+        QVERIFY((board.base == std::map<std::uint8_t, std::uint8_t>{{0x15, 1}, {0x17, 3}, {0x18, 0}, {0x19, 0}}));
+    }
+
+    void setBaseSettingRefusesOutOfRange()
+    {
+        FakeTransport t;
+        t.respond = FakeKeyboard{};
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setBaseSetting(BaseSetting::WinKeyLock, 2));
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setBaseSetting(BaseSetting::PollingRate, 7));
+        QVERIFY(t.written.empty());
+    }
+
+    void setBaseSettingFailsWhenTheBoardKeepsTheOldValue()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.ignoreBaseWrites = true;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setBaseSetting(BaseSetting::ComboOptimization, 0));
+    }
+
+    void pollingRateTable()
+    {
+        const int hz[] = {1000, 500, 250, 125, 8000, 4000, 2000};
+        for (int code = 0; code < 7; ++code) {
+            QCOMPARE(pollingRateHz(code), hz[code]);
+            QCOMPARE(pollingRateCode(hz[code]), code);
+        }
+        QCOMPARE(pollingRateHz(7), 0);
+        QCOMPARE(pollingRateHz(-1), 0);
+        QCOMPARE(pollingRateCode(300), -1);
     }
 
     // ---- per-key travel --------------------------------------------------
