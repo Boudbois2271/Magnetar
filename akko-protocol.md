@@ -212,14 +212,16 @@ Source: `akko-capture4.txt` (2026-11-18).
 | `98 00` | SEEN | Visual Feedback on: sent at start, then every 1 s as keep-alive (echoed) |
 | `98 01` | DECODED | unsolicited IN every 50 ms while on: `key u16, depth u16, ad u16` for the last key moved. depth in 0.005 mm (0 → ~700 = 3.5 mm at bottom). ad bit 15 = pressed (UI "Action"), bits 0–14 = raw sensor, **falls** as the key goes down (F12 ~11300 rest → ~2270 bottom) |
 | `98 02` | SEEN | Visual Feedback off |
-| `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743) = the **stored** calibration. Sent on Start Calibration |
-| `94 00` | SEEN | calibration keep-alive, every 1 s while calibrating. Keys don't type in this mode |
+| `94 05` | KNOWN | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743) = the **stored** calibration. Sent on Start Calibration |
+| `94 00` | KNOWN | calibration keep-alive, every 1 s while calibrating (echoed). Keys don't type in this mode. No `94 02` report comes while no key moves (live run 2026-11-22: 5 s, none) |
 | `94 02` | DECODED | unsolicited IN every 50 ms while calibrating: `len / 6` × `key u16, cur u16, min u16` (1–9 entries, the keys moved most recently; bytes past `len` are stale). cur bits 0–14 = raw sensor; min = lowest value seen this session. cur bit 15: set almost always, untouched keys included; clear for one report as a key comes back up after a full press (capture5, 125 of 6600 entries). Meaning unknown, not used |
-| `94 04` | SEEN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below. Leaving calibration without Finish sends it too (marks "leave … WITHOUT Save", "leave calibration without Save") |
+| `94 04` | KNOWN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below. Leaving calibration without Finish sends it too (marks "leave … WITHOUT Save", "leave calibration without Save") |
 
 Calibration semantics, from `akko-capture5.txt` (each Start Calibration reads all 83 keys, so each
 session shows the result of the previous one):
 
+- Live run (2026-11-22, our code): read, 5 s session with no key touched, Finish, read: no bottom
+  changed, 2 rests moved by ≤ 3; the board answered normally after.
 - Finish (`94 04`) stores, **for each key moved during the session**, the lowest raw value it reached
   as its new bottom. Keys not touched keep their bottom (rest drifts by ±3, i.e. re-measured or noise).
   Mark "calibrate every key…": all 83 keys changed. Opening then finishing with no key moved: no change.
