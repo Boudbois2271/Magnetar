@@ -3,6 +3,8 @@
 
 #include "keymap.h"
 #include "lights.h"
+#include "macro.h"
+#include "scancodes.h"
 
 #include <QMetaObject>
 
@@ -78,6 +80,12 @@ QString code(const akko::Action &a)
     return QString::fromStdString(akko::actionHex(a));
 }
 
+const std::pair<akko::MacroLoop, const char *> kLoopNames[] = {
+    {akko::MacroLoop::Times, "times"},
+    {akko::MacroLoop::UntilKeyPressed, "untilKeyPressed"},
+    {akko::MacroLoop::WhileHeld, "whileHeld"},
+};
+
 QVariantMap info(const akko::Action &a)
 {
     static const char *const kinds[] = {"key",    "mouse",   "consumer", "macro",   "system",
@@ -97,6 +105,16 @@ QVariantMap info(const akko::Action &a)
     case akko::ActionKind::Consumer: m["value"] = int(a[2] << 8 | a[3]); break;
     case akko::ActionKind::Layer: m["value"] = int(a[1]); break;
     case akko::ActionKind::Macro:
+        m["value"] = int(a[3]);
+        m["loop"] = QString();
+        m["count"] = 0;
+        if (const auto b = akko::macroBinding(a)) {
+            for (const auto &[loop, name] : kLoopNames)
+                if (loop == b->loop)
+                    m["loop"] = name;
+            m["count"] = b->count;
+        }
+        break;
     case akko::ActionKind::System:
     case akko::ActionKind::Profile: m["value"] = int(a[3]); break;
     case akko::ActionKind::Lighting: m["value"] = int(a[1] << 8 | a[2]); break;
@@ -613,6 +631,133 @@ bool Backend::removeAdvanced(const QVariantList &keys)
     return true;
 }
 
+// ---- macros ----------------------------------------------------------------
+
+namespace {
+
+QVariantMap toVariant(const akko::Macro &m)
+{
+    QVariantList steps;
+    for (const auto &st : m.steps)
+        steps.append(QVariantMap{{"press", st.press}, {"usage", int(st.usage)}, {"delay", int(st.delayMs)}});
+    return {{"name", QString::fromStdString(m.name)}, {"size", int(akko::macroSize(m))}, {"steps", steps}};
+}
+
+// The record QML sends, or nullopt if a field is missing or out of range. The rest is
+// macroProblem()'s.
+std::optional<akko::Macro> macroFromVariant(const QVariantMap &r)
+{
+    if (!r.contains("name") || !r.value("steps").canConvert<QVariantList>())
+        return std::nullopt;
+    akko::Macro m;
+    m.name = r.value("name").toString().toStdString();
+    for (const auto &v : r.value("steps").toList()) {
+        const auto st = v.toMap();
+        bool usageOk = false, delayOk = false;
+        const int usage = st.value("usage").toInt(&usageOk);
+        const int delay = st.value("delay", akko::kStandardDelayMs).toInt(&delayOk);
+        if (!st.contains("press") || !usageOk || !delayOk || usage < 0 || usage > 0xff || delay < 0 || delay > 0xffff)
+            return std::nullopt;
+        m.steps.push_back({st.value("press").toBool(), static_cast<std::uint16_t>(delay),
+                           static_cast<std::uint8_t>(usage)});
+    }
+    return m;
+}
+
+// Reads the macros again if the snapshot's are from another profile.
+void freshMacros(akko::Keyboard &kb, Snapshot &s)
+{
+    const int profile = kb.profile();
+    if (s.macrosProfile != profile) {
+        s.macros = kb.readMacros();
+        s.macrosProfile = profile;
+    }
+}
+
+}  // namespace
+
+QVariantMap Backend::macroStorage() const
+{
+    return {{"used", int(akko::macroStorageUsed(m_state.macros))}, {"max", int(akko::kMacroStorage)}};
+}
+
+QVariantMap Backend::macroLimits() const
+{
+    return {{"minName", int(akko::kMinMacroName)}, {"maxName", int(akko::kMaxMacroName)},
+            {"standardDelay", int(akko::kStandardDelayMs)}, {"maxDelay", 0xffff},
+            {"maxRepeat", akko::kMaxMacroRepeat}};
+}
+
+bool Backend::macroValid(const QVariantMap &record) const
+{
+    const auto m = macroFromVariant(record);
+    return m && akko::macroProblem(*m).empty();
+}
+
+bool Backend::saveMacro(int index, const QVariantMap &record)
+{
+    const auto m = macroFromVariant(record);
+    if (!m || !macrosReady() || index < -1 || index >= int(m_state.macros.size()))
+        return false;
+    // Check the list the page shows; the worker builds it again from the board's.
+    auto list = m_state.macros;
+    if (index < 0)
+        list.push_back(*m);
+    else
+        list[index] = *m;
+    if (!akko::macrosProblem(list).empty())
+        return false;
+    post({}, [index, macro = *m](akko::Keyboard &kb, Snapshot &s) {
+        freshMacros(kb, s);
+        auto macros = s.macros;
+        if (index < 0)
+            macros.push_back(macro);
+        else if (index < int(macros.size()))
+            macros[index] = macro;
+        else
+            throw akko::Error("macro " + std::to_string(index + 1) + " is no longer on the keyboard");
+        s.macros = kb.writeMacros(macros);
+    });
+    return true;
+}
+
+bool Backend::deleteMacro(int index)
+{
+    if (!macrosReady() || index < 0 || index >= int(m_state.macros.size()))
+        return false;
+    post({}, [index](akko::Keyboard &kb, Snapshot &s) {
+        freshMacros(kb, s);
+        if (index >= int(s.macros.size()))
+            throw akko::Error("macro " + std::to_string(index + 1) + " is no longer on the keyboard");
+        auto done = kb.deleteMacro(index);
+        s.macros = std::move(done.macros);
+        if (s.keymapProfile == s.macrosProfile)
+            for (const auto &k : done.keys)
+                for (auto &[id, action] : s.keymap[k.layer])
+                    if (id == k.key)
+                        action = k.action;
+    });
+    return true;
+}
+
+QString Backend::macroCode(int index, const QString &loop, int count) const
+{
+    for (const auto &[l, name] : kLoopNames)
+        if (loop == name) {
+            try {
+                return code(akko::macroAction({index, l, l == akko::MacroLoop::Times ? count : 1}));
+            } catch (const akko::Error &) {
+                return {};
+            }
+        }
+    return {};
+}
+
+int Backend::usageForScanCode(int nativeScanCode) const
+{
+    return usageForEvdev(nativeScanCode - kXkbKeycodeOffset);
+}
+
 void Backend::setProfile(int profile)
 {
     if (profile < 1 || (m_state.profileCount && profile > m_state.profileCount))
@@ -743,6 +888,10 @@ void Backend::applyState(const Snapshot &s)
         for (const auto &c : s.colors)
             m_colors.insert(QString::number(c.key),
                             QString::asprintf("#%02x%02x%02x", c.rgb[0], c.rgb[1], c.rgb[2]));
+    m_macros.clear();
+    if (s.macrosProfile >= 0)
+        for (const auto &m : s.macros)
+            m_macros.append(toVariant(m));
     m_ready = true;
     m_retry.stop();
     if (!m_connected || !m_errorKind.isEmpty()) {

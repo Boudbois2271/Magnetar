@@ -498,6 +498,136 @@ private slots:
         QTRY_COMPARE(b.advancedKeys().size(), 3);
     }
 
+    void macrosAreSavedAndDeleted()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.macrosReady());
+        QCOMPARE(b.macros().size(), 0);
+        QCOMPARE(b.macroStorage().value("used").toInt(), 0);
+        QCOMPARE(b.macroStorage().value("max").toInt(), 4096);
+
+        auto step = [](bool press, int usage, int delay) {
+            return QVariantMap{{"press", press}, {"usage", usage}, {"delay", delay}};
+        };
+        auto record = [&](const QString &name, int usage) {
+            return QVariantMap{{"name", name},
+                               {"steps", QVariantList{step(true, 0xe1, 50), step(true, usage, 30),
+                                                      step(false, usage, 20), step(false, 0xe1, 50)}}};
+        };
+
+        // Added one after the other; the board keeps 1 ms on the last step.
+        QVERIFY(b.macroValid(record("ab", 0x04)));
+        QVERIFY(b.saveMacro(-1, record("ab", 0x04)));
+        QTRY_COMPARE(b.macros().size(), 1);
+        QVERIFY(b.saveMacro(-1, record("cd", 0x05)));
+        QVERIFY(b.saveMacro(-1, record("ef", 0x06)));
+        QTRY_COMPARE(b.macros().size(), 3);
+        const auto first = b.macros()[0].toMap();
+        QCOMPARE(first.value("name").toString(), QString("ab"));
+        const auto steps = first.value("steps").toList();
+        QCOMPARE(steps.size(), 4);
+        QCOMPARE(steps[0].toMap().value("usage").toInt(), 0xe1);
+        QCOMPARE(steps[1].toMap().value("delay").toInt(), 30);
+        QCOMPARE(steps[2].toMap().value("press").toBool(), false);
+        QCOMPARE(steps[3].toMap().value("delay").toInt(), 1);
+        Macro ab{"ab", {{true, 50, 0xe1}, {true, 30, 0x04}, {false, 20, 0x04}, {false, 1, 0xe1}}};
+        QCOMPARE(first.value("size").toInt(), int(macroSize(ab)));
+        std::vector<Macro> onBoard;
+        {
+            std::lock_guard lock(board.mutex);
+            onBoard = parseMacroBlob(board.keyboard.macros);
+        }
+        QCOMPARE(onBoard.size(), std::size_t(3));
+        QVERIFY(onBoard[0] == ab);
+        QCOMPARE(b.macroStorage().value("used").toInt(), int(macroStorageUsed(onBoard)));
+
+        // Bound to keys: the code says which macro and how it loops.
+        const QString runEf = b.macroCode(2, "times", 3), holdCd = b.macroCode(1, "whileHeld");
+        QCOMPARE(runEf, QString("03 01 03 02"));
+        QCOMPARE(holdCd, QString("03 04 00 01"));
+        const auto info = b.actionInfo(runEf);
+        QCOMPARE(info.value("kind").toString(), QString("macro"));
+        QCOMPARE(info.value("value").toInt(), 2);
+        QCOMPARE(info.value("loop").toString(), QString("times"));
+        QCOMPARE(info.value("count").toInt(), 3);
+        QVERIFY(b.setKeyAction(0, 0x62, runEf));
+        QVERIFY(b.setKeyAction(1, 0x63, holdCd));
+        auto keyCode = [&](int layer, int key) {
+            return b.keymap()[layer].toMap().value(QString::number(key)).toMap().value("code").toString();
+        };
+        QTRY_COMPARE(keyCode(1, 0x63), holdCd);
+
+        // Deleting "cd" unbinds its key and moves the key on "ef" down to its new index.
+        QVERIFY(b.deleteMacro(1));
+        QTRY_COMPARE(b.macros().size(), 2);
+        QCOMPARE(b.macros()[1].toMap().value("name").toString(), QString("ef"));
+        QTRY_COMPARE(keyCode(0, 0x62), QString("03 01 03 01"));
+        QCOMPARE(keyCode(1, 0x63), b.unboundCode());
+
+        // Editing replaces in place.
+        QVERIFY(b.saveMacro(0, record("gh", 0x07)));
+        QTRY_COMPARE(b.macros()[0].toMap().value("name").toString(), QString("gh"));
+        QCOMPARE(b.macros().size(), 2);
+
+        // Refused, nothing sent: bad records, a missing index, more than the storage.
+        const int writes = board.writesOf(0x05, 0x00);
+        QVERIFY(!b.macroValid(record("a", 0x04)));
+        QVERIFY(!b.saveMacro(-1, record("a", 0x04)));
+        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{}}}));
+        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0, 50)}}}));
+        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0x100, 50)}}}));
+        QVERIFY(!b.saveMacro(2, record("ij", 0x04)));
+        QVERIFY(!b.saveMacro(-2, record("ij", 0x04)));
+        QVariantList many;
+        for (int i = 0; i < 2000; ++i)
+            many.append(step(i % 2 == 0, 0x04, 50));
+        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "big"}, {"steps", many}}));
+        QVERIFY(!b.deleteMacro(2));
+        QVERIFY(!b.deleteMacro(-1));
+        QTest::qWait(50);
+        QCOMPARE(board.writesOf(0x05, 0x00), writes);
+
+        // Bad binding input gives no code.
+        QCOMPARE(b.macroCode(256, "times", 1), QString());
+        QCOMPARE(b.macroCode(0, "times", 0), QString());
+        QCOMPARE(b.macroCode(0, "times", 256), QString());
+        QCOMPARE(b.macroCode(0, "forever"), QString());
+        QCOMPARE(b.macroCode(0, "untilKeyPressed"), QString("03 02 00 00"));
+
+        // Macros are per profile: a switch reads them again.
+        const int reads = board.writesOf(0x85, 0x00);
+        b.setProfile(2);
+        QTRY_VERIFY(board.writesOf(0x85, 0x00) > reads);
+    }
+
+    void scanCodesGiveHidUsages()
+    {
+        Backend b([]() -> std::unique_ptr<Session> { throw Error("keyboard not found"); });
+        auto usage = [&](int evdev) { return b.usageForScanCode(evdev + 8); };
+        QCOMPARE(usage(30), 0x04);   // A
+        QCOMPARE(usage(16), 0x14);   // Q
+        QCOMPARE(usage(50), 0x10);   // M
+        QCOMPARE(usage(2), 0x1e);    // 1
+        QCOMPARE(usage(11), 0x27);   // 0
+        QCOMPARE(usage(1), 0x29);    // Esc
+        QCOMPARE(usage(57), 0x2c);   // Space
+        QCOMPARE(usage(88), 0x45);   // F12
+        QCOMPARE(usage(86), 0x64);   // ISO key
+        QCOMPARE(usage(111), 0x4c);  // Delete
+        QCOMPARE(usage(103), 0x52);  // Up
+        QCOMPARE(usage(194), 0x73);  // F24
+        // Modifiers: e0 LCtrl, e1 LShift, e2 LAlt, e3 LGui, e4 RCtrl, e5 RShift, e6 RAlt, e7 RGui.
+        const int mods[] = {29, 42, 56, 125, 97, 54, 100, 126};
+        for (int i = 0; i < 8; ++i)
+            QCOMPARE(usage(mods[i]), 0xe0 + i);
+        QCOMPARE(usage(0), 0);
+        QCOMPARE(usage(84), 0);  // no key
+        QCOMPARE(b.usageForScanCode(0), 0);
+        QCOMPARE(b.usageForScanCode(100000), 0);
+    }
+
     void actionInfoDescribesEveryKind()
     {
         FakeBoard board;

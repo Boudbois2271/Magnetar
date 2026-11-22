@@ -77,6 +77,9 @@ reflected in `akko-protocol.md`.
 - Advanced tab: no Undo (Remove, or saving the old values again). Macros can't be chosen as an
   action (the picker has no macros yet).
 - Advanced tab: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
+- Macros (backend only, no page yet): recording maps a key event's `nativeScanCode()` to a HID
+  usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb; not checked in
+  the running app. Keys outside the evdev table (media keys, ...) record as nothing.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.

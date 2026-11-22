@@ -115,9 +115,8 @@ public:
     std::vector<AdvancedKey> clearAdvanced(std::uint16_t key);
     std::vector<AdvancedKey> clearAdvanced(std::span<const std::uint16_t> keys);
 
-    // Macros, in blob order (85 00 as the vendor app reads them: 2 bytes for the directory
-    // size, the directory, then the blob in packets of 56). Not tied to a profile as far as is
-    // known (see limitations.md).
+    // Macros of the active profile, in blob order (85 00 as the vendor app reads them: 2 bytes
+    // for the directory size, the directory, then the blob in packets of 56).
     std::vector<Macro> readMacros();
     // Rewrites the whole blob (05 00 in packets of 56; no macros = one empty packet), last
     // step's delay set to 1 ms as the vendor app does, then reads it back and returns what the

@@ -48,6 +48,11 @@ class Backend : public QObject {
     Q_PROPERTY(bool colorsReady READ colorsReady NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap keyColors READ keyColors NOTIFY stateChanged)
     Q_PROPERTY(int customEffect READ customEffect CONSTANT)
+    // Macros page: the active profile's macros, in blob order (see macros()), and the storage.
+    Q_PROPERTY(bool macrosReady READ macrosReady NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList macros READ macros NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap macroStorage READ macroStorage NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap macroLimits READ macroLimits CONSTANT)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -97,13 +102,22 @@ public:
     int customEffect() const { return akko::kEffectCustom; }
     QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults
 
+    // Macros of the active profile, as read from the board. Each record: {name, size (bytes in
+    // the blob), steps: [{press, usage, delay}]}; usage = HID keyboard usage, delay in ms after
+    // the step. The board keeps 1 ms on the last step.
+    bool macrosReady() const { return m_state.macrosProfile >= 0; }
+    QVariantList macros() const { return m_macros; }
+    QVariantMap macroStorage() const;  // {used, max} in bytes
+    QVariantMap macroLimits() const;   // name length, standard delay, max delay, max repeat
+
     Q_INVOKABLE void refresh();
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
     // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |
     // "consumer" | "macro" | "system" | "lighting" | "profile" | "layer" | "unbound" | "unknown",
     // modifiers, keys: [usages], value}. value = mouse button, consumer usage, macro index,
-    // layer, profile (0-based) or the last byte for system/lighting.
+    // layer, profile (0-based) or the last byte for system/lighting. A macro also has loop
+    // ("times" | "untilKeyPressed" | "whileHeld", "" if unknown) and count.
     Q_INVOKABLE QVariantMap actionInfo(const QString &code) const;
     Q_INVOKABLE QVariantMap factoryAction(int layer, int key) const;
     // Action codes for the picker; an empty string when the input can't be encoded.
@@ -141,6 +155,22 @@ public:
     // page shows the board's read-back. False, and nothing sent, for a bad key or colour.
     Q_INVOKABLE bool setKeyColors(const QVariantList &keys, const QString &color);
 
+    // True when the record ({name, steps}, as in macros) can be stored on its own.
+    Q_INVOKABLE bool macroValid(const QVariantMap &record) const;
+    // Replaces macro `index`, or adds the record after the others for -1, then the page shows
+    // the board's read-back. Keys bound to macros keep their index. False, and nothing sent, if
+    // the record isn't valid, the index doesn't exist, or the macros wouldn't fit the storage.
+    Q_INVOKABLE bool saveMacro(int index, const QVariantMap &record);
+    // Removes macro `index`: keys bound to it are unbound, keys bound to later macros follow
+    // their macro, and the keymap shows the read-back. False, and nothing sent, for a bad index.
+    Q_INVOKABLE bool deleteMacro(int index);
+    // Action code that runs macro `index`: loop "times" (count 1–255), "untilKeyPressed" or
+    // "whileHeld". Empty when it can't be encoded.
+    Q_INVOKABLE QString macroCode(int index, const QString &loop, int count = 1) const;
+    // HID usage of the physical key behind a key event's nativeScanCode (Linux), 0 if none, so
+    // recording doesn't depend on the keyboard layout.
+    Q_INVOKABLE int usageForScanCode(int nativeScanCode) const;
+
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
     Q_INVOKABLE void setEffect(int effect);
     Q_INVOKABLE bool setColor(const QString &color);  // false (and nothing sent) if it isn't a colour
@@ -167,6 +197,7 @@ private:
     QVariantMap m_travel;
     QVariantList m_advanced;
     QVariantMap m_colors;
+    QVariantList m_macros;
     bool m_connected = false;
     bool m_ready = false;
     QString m_errorKind;

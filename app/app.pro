@@ -10,6 +10,6 @@ INCLUDEPATH += ../core
 LIBS += -L$$OUT_PWD/../core -lakkocore
 PRE_TARGETDEPS += $$OUT_PWD/../core/libakkocore.a
 
-HEADERS = src/backend.h src/device_worker.h src/theme.h src/translator.h
-SOURCES = src/main.cpp src/backend.cpp src/device_worker.cpp src/theme.cpp src/translator.cpp
+HEADERS = src/backend.h src/device_worker.h src/theme.h src/translator.h src/scancodes.h
+SOURCES = src/main.cpp src/backend.cpp src/device_worker.cpp src/theme.cpp src/translator.cpp src/scancodes.cpp
 RESOURCES = src/resources.qrc
