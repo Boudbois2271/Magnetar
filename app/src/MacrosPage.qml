@@ -218,14 +218,6 @@ Item {
                     }
                 }
 
-                Label {
-                    visible: page.macros.length === 0
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    text: qsTr("No macros on this profile yet. Record one below, then bind it to a key on the Keys page.")
-                    opacity: 0.7
-                }
-
                 Flow {
                     Layout.fillWidth: true
                     spacing: 6
@@ -292,14 +284,6 @@ Item {
                     }
                 }
 
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    opacity: 0.7
-                    text: page.recording
-                          ? qsTr("Recording: press and release keys, with the timing you want. Every key is recorded, Esc included; click Stop when done.")
-                          : qsTr("Record replaces the steps below. Delays are the wait after each step; the keyboard always waits 1 ms after the last one.")
-                }
 
                 // One row per step: what happens, then the wait before the next step.
                 Repeater {
