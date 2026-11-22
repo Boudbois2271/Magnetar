@@ -14,7 +14,7 @@ One protocol library (`core/`) is shared by the CLI and the app.
 
 What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
 global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
-and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced / Colour tabs on one shared selection, Macros, Lighting, Settings, Calibration and Device).
+and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced / Colour tabs on one shared selection, Macros, Lighting, and Settings, which also opens Calibration and shows the device info).
 
 Names: the project, repo and desktop app are **Magnetar**. `akkoctl` is the CLI inside it, and keeps
 that name everywhere it appears (command, `akkoctl.lock`, `~/.local/state/akkoctl/`, log).
@@ -30,7 +30,7 @@ there: capture logs stay local and are gitignored.
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
 | `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
 | `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool (removed; it is in git history) and frames from captures: the reference the C++ code must match. |
-| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; QML: `Main.qml` (sidebar), one `*Page.qml` per page, `MacrosPage.qml` records and edits macros; `CalibrationPage.qml` runs a calibration session; `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab`/`ColorTab` around a shared `KeyboardView`; `src/scancodes` = evdev → HID usages for macro recording; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
+| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; QML: `Main.qml` (sidebar), one `*Page.qml` per page, `MacrosPage.qml` records and edits macros; `SettingsPage.qml` pushes `CalibrationPage.qml` (a calibration session) on its own StackView; `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab`/`ColorTab` around a shared `KeyboardView`; `src/scancodes` = evdev → HID usages for macro recording; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
 | `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
 | `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
