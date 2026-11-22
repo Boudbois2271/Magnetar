@@ -86,7 +86,7 @@ reflected in `akko-protocol.md`.
 - Advanced tab: DKS patterns other than "once at a point" or "held from one point to another"
   (e.g. two separate taps in one row) are shown as "another pattern" and kept as read, not editable.
 - Advanced tab: no Undo (Remove, or saving the old values again).
-- Advanced tab: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
+- Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (works on Wayland;
   xcb not tried). Keys outside the evdev table (media keys, ...) record as nothing.
@@ -105,7 +105,7 @@ reflected in `akko-protocol.md`.
 - Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
-- Travel page: at 760 px wide the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
+- Travel page: in a window at its minimum width the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
 - Keys page: system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
   actions are shown but can't be assigned; the Fn layer's factory ones show as "System function" /
   "Lighting control" because their meaning is a guess. Mouse buttons 4/5 and media keys other than
@@ -122,6 +122,14 @@ reflected in `akko-protocol.md`.
 - Firmware version byte order (`82 02` = `08 01` → v1.08, low byte first) rests on one sample.
 - Colour choice is swatches plus a hex field, no free colour picker yet.
 - No Arch package for `akkoctl` or the widget yet: `bin/package` installs Magnetar only.
+- Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
+  interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
+  the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
+- Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
+  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits
+  except Keys → Advanced with a Multi-point or DKS editor and the action picker open: the tab panel
+  scrolls (the drawing stays). At 1920 × 1030 everything fits. A tiled window below the minimum size
+  (three columns on a 1080p screen) cuts pages off instead of scrolling.
 
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command

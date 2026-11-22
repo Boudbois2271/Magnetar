@@ -7,10 +7,11 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: win
-    width: 1000 * ui.unit
-    height: 680 * ui.unit
-    minimumWidth: 760 * ui.unit
-    minimumHeight: 540 * ui.unit
+    // The smallest size where every page fits: the Keys page puts its panel beside the drawing.
+    width: Math.round(1440 * ui.unit)
+    height: Math.round(920 * ui.unit)
+    minimumWidth: Math.round(900 * ui.unit)
+    minimumHeight: Math.round(640 * ui.unit)
     visible: true
     title: "Magnetar"
     color: theme.background
@@ -51,7 +52,7 @@ ApplicationWindow {
             // ---- sidebar -------------------------------------------------------
             Rectangle {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 230 * ui.unit
+                Layout.preferredWidth: 200 * ui.unit
                 color: theme.sidebar
 
                 ColumnLayout {

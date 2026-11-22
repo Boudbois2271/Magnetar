@@ -18,6 +18,7 @@
 #include <QQuickWindow>
 #include <QScreen>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -104,6 +105,36 @@ QQuickItem *findItem(QQuickItem *root, const QString &name)
         if (auto *found = findItem(child, name))
             return found;
     return nullptr;
+}
+
+
+// What spills out of the window, or scrolls, in the shown page: one line per problem. Only the
+// boxes named in `scrolls` may scroll (lists that grow); everything else must fit as it is.
+QStringList overflows(QQuickItem *item, QQuickItem *root, const QStringList &scrolls)
+{
+    QStringList found;
+    if (!item || !item->isVisible() || item->opacity() == 0)
+        return found;
+    const QString cls = item->metaObject()->className();
+    if (cls.contains("Overlay") || cls.contains("Popup") || cls.contains("ElevationEffect"))
+        return found;  // drawn over the page, or a button's (invisible) shadow source
+    if (cls.contains("Flickable")) {
+        const QString box = item->parentItem() ? item->parentItem()->objectName() : QString();
+        if (!scrolls.contains(box) && (item->property("contentHeight").toDouble() > item->height() + 1
+                                       || item->property("contentWidth").toDouble() > item->width() + 1))
+            found << QString("%1 scrolls: content %2 in %3").arg(box.isEmpty() ? cls : box)
+                         .arg(item->property("contentHeight").toDouble()).arg(item->height());
+        return found;  // what is inside scrolls with it
+    }
+    if (item->width() > 0 && item->height() > 0) {
+        const QRectF r = item->mapRectToItem(root, QRectF(0, 0, item->width(), item->height()));
+        if (r.bottom() > root->height() + 1 || r.right() > root->width() + 1)
+            found << QString("%1 '%2' outside the window: %3,%4 %5x%6").arg(cls, item->objectName())
+                         .arg(r.x()).arg(r.y()).arg(r.width()).arg(r.height());
+    }
+    for (auto *child : item->childItems())
+        found << overflows(child, root, scrolls);
+    return found;
 }
 
 }  // namespace
@@ -1396,6 +1427,96 @@ private slots:
         QCOMPARE(page->property("index").toInt(), -1);
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    // ---- fitting the window ----------------------------------------------------
+    void pagesFitTheDefaultWindow_data()
+    {
+        QTest::addColumn<QString>("language");
+        QTest::newRow("en") << "en";
+        QTest::newRow("fr") << "fr";
+    }
+
+    // At the default window size and 12 px text (Omarchy's small text size), every page shows
+    // all of itself without scrolling. Only growing lists scroll, in their own boxes.
+    void pagesFitTheDefaultWindow()
+    {
+        QFETCH(QString, language);
+        KeysWindow w;
+        QFont small("Sans");
+        small.setPixelSize(12);
+        w.ui.setBase(small, 1);
+        {
+            QFile file(w.dir.filePath("language"));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(language.toUtf8());
+        }
+        QTRY_COMPARE(w.translator.language(), language);
+        qGuiApp->installTranslator(&w.translator);
+        auto cleanup = qScopeGuard([&] { qGuiApp->removeTranslator(&w.translator); });
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready() && w.backend.macrosReady() && w.backend.colorsReady());
+        QCOMPARE(w.window->width(), 1234);
+        QCOMPARE(w.window->height(), 789);
+
+        QStringList problems;
+        auto check = [&](const QString &state, const QStringList &scrolls = {}) {
+            QTest::qWait(60);  // layouts settle on the next frame
+            for (const auto &p : overflows(w.window->contentItem(), w.window->contentItem(), scrolls))
+                problems << state + ": " + p;
+        };
+        auto call = [](QObject *o, const char *method, const QVariant &arg) {
+            QVariant r;
+            QMetaObject::invokeMethod(o, method, Q_RETURN_ARG(QVariant, r), Q_ARG(QVariant, arg));
+        };
+        const QStringList picker{"pickerItems"};
+        QVariant keys;
+        QMetaObject::invokeMethod(w.page, "allKeys", Q_RETURN_ARG(QVariant, keys));
+        const auto someKey = keys.toList().value(40);
+
+        // Keys: each tab with nothing selected, then with a key selected.
+        for (int tab = 0; tab < 4; ++tab) {
+            w.page->setProperty("tab", tab);
+            call(w.page, "select", QVariantList{});
+            check(QString("keys tab %1").arg(tab), picker);
+            call(w.page, "select", QVariantList{someKey});
+            check(QString("keys tab %1, one key").arg(tab), picker);
+        }
+        // Advanced: each editor; Mod-Tap and Toggle with the action picker open too.
+        auto *advanced = w.item("advancedTab");
+        w.page->setProperty("tab", 2);
+        for (const char *type : {"modTap", "toggle", "release", "multiPoint", "dks", "socd"}) {
+            call(advanced, "chooseType", QString(type));
+            advanced->setProperty("slot", -1);
+            check(QString("advanced %1").arg(type), picker);
+        }
+        for (const char *type : {"modTap", "toggle"}) {
+            call(advanced, "chooseType", QString(type));
+            advanced->setProperty("slot", 0);
+            check(QString("advanced %1, picker").arg(type), picker);
+        }
+        advanced->setProperty("slot", -1);
+
+        // Macros, with a long macro: its steps scroll in their box.
+        w.window->setProperty("page", 1);
+        check("macros");
+        auto *macros = w.item("macrosPage");
+        call(macros, "select", -1);
+        for (int usage = 4; usage < 20; ++usage)
+            call(macros, "addKey", usage);
+        check("macros, 32 steps", {"macroSteps"});
+
+        w.window->setProperty("page", 2);
+        check("lighting");
+        w.window->setProperty("page", 3);
+        check("settings");
+        QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
+        QTest::qWait(400);  // the push transition
+        w.backend.startCalibration();
+        check("calibration");
+        w.backend.finishCalibration();
+
+        QVERIFY2(problems.isEmpty(), qPrintable(problems.join("\n")));
     }
 };
 
