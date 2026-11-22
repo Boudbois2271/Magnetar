@@ -175,7 +175,8 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
   protocol; confirmed above 256: one 609 B macro = `04 00 5d 02`, size 605, `akko-capture11.txt` mark 35). Directory size = 4 × macros, so the first u16 is also the
   first macro's offset.
 - Macro at `offset`: `name_len u8, name[name_len]` (ASCII; the UI requires ≥ 2 chars), then actions.
-- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release; delay = ms to wait after
+- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release, `10` modifier press, `90` modifier release
+  (bit `80` = release, bit `10` = modifier, HID `e0`–`e7`); delay = ms to wait after
   this action; the last action gets `1`. "Use Standard Delay (50ms)" sets every delay to 50.
   e.g. "ab" = `02 61 62 | 00 00 32 04 | 80 00 32 04 | 00 00 32 05 | 80 00 01 05`;
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
@@ -185,8 +186,11 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Sent by Magnetar 2026-11-21: one macro written, read back, bound to Insert (`03 01 01 00`), ran on
   the board; then the empty blob written and Insert restored.
 - **Per profile**: after that write, profile 2 read as empty storage.
-- Modifiers in steps: HID `e1` (LShift) is **ignored** (Shift↓ a↓ a↑ Shift↑ b↓ b↑ typed "ab", same
-  test). How the vendor app records a modifier is not captured.
+- Modifiers in steps (SEEN, `akko-capture12.txt` marks 2–8): L-Shift↓ A↓ A↑ L-Shift↑ =
+  `02 73 68 | 10 00 32 e1 | 00 00 32 04 | 80 00 32 04 | 90 00 01 e1`; R-Ctrl + C the same with `e4`, `06`.
+  The editor listed them as "L-Shift Down … L-Shift Up". Sent by us with dir `00`/`80` instead, `e1`
+  was **ignored** (typed "ab", not "Ab", 2026-11-21): the `10` bit is what makes it a modifier.
+  Deleting in the other order (`ct` then `sh`, marks 9–10) repacked the same way.
 - Bind = plain `03 00` keymap write with action `03 …` (above), then `83 00` read of that key.
   Marks "drag the macro ab icon onto the Insert key", "10b", "12", "12b".
 
@@ -220,7 +224,6 @@ session shows the result of the previous one):
   +22 while the board was used normally. GUESS: Adaptive Calibration (Base Functions) adjusts them live.
 
 ## Still to capture
-- Macros: recording a modifier (Shift+a) in the vendor macro editor, to see how a modifier step is stored.
 - Profile Management: applying an inactive profile (reboots, overwrites a profile). Skipped on purpose.
 - Device Info: Factory Reset. Skipped on purpose.
 - `11 00` on the Fn and Fn1 layers, to pin down its payload.

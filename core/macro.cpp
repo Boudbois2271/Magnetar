@@ -80,7 +80,7 @@ std::vector<Macro> parseMacroBlob(std::span<const std::uint8_t> blob)
         Macro m;
         m.name.assign(bytes.begin() + 1, bytes.begin() + 1 + static_cast<std::ptrdiff_t>(nameLen));
         for (std::size_t at = 1 + nameLen; at + 4 <= size; at += 4)
-            m.steps.push_back({bytes[at] != 0x80, static_cast<std::uint16_t>(bytes[at + 1] << 8 | bytes[at + 2]),
+            m.steps.push_back({(bytes[at] & kMacroRelease) == 0, static_cast<std::uint16_t>(bytes[at + 1] << 8 | bytes[at + 2]),
                                bytes[at + 3]});
         out.push_back(std::move(m));
     }
@@ -103,7 +103,8 @@ std::vector<std::uint8_t> macroBlob(std::span<const Macro> macros)
         body.push_back(static_cast<std::uint8_t>(m.name.size()));
         body.insert(body.end(), m.name.begin(), m.name.end());
         for (const auto &s : m.steps) {
-            body.push_back(s.press ? 0x00 : 0x80);
+            body.push_back(static_cast<std::uint8_t>((s.press ? 0x00 : kMacroRelease) |
+                                                (isModifierUsage(s.usage) ? kMacroModifier : 0x00)));
             body.push_back(static_cast<std::uint8_t>(s.delayMs >> 8));
             body.push_back(static_cast<std::uint8_t>(s.delayMs & 0xFF));
             body.push_back(s.usage);

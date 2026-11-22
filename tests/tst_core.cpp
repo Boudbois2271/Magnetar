@@ -551,6 +551,7 @@ private slots:
         QTest::newRow("one") << "one" << 1 << 127;
         QTest::newRow("three") << "three" << 3 << 165;
         QTest::newRow("long") << "long" << 1 << 609;
+        QTest::newRow("mods") << "mods" << 2 << 46;
         QTest::newRow("empty") << "empty" << 0 << 0;
     }
     void readMacrosLikeTheVendorApp()
@@ -577,6 +578,7 @@ private slots:
         QTest::newRow("one") << "one";
         QTest::newRow("three") << "three";
         QTest::newRow("long") << "long";
+        QTest::newRow("mods") << "mods";
     }
     void macroBlobMatchesTheVendorApp()
     {
@@ -610,6 +612,21 @@ private slots:
         QCOMPARE(m[2].name, std::string("cc"));
         const std::vector<MacroStep> cc{{true, 137, 0x06}, {false, 1, 0x06}};
         QVERIFY(m[2].steps == cc);
+    }
+
+    void modifierStepsAsDecoded()
+    {
+        // akko-capture12.txt mark 8: a modifier step is dir 10 (down) / 90 (up), plain keys 00 / 80.
+        FakeTransport t;
+        replay(t, macroFrames("mods-read-answers"));
+        const auto m = Keyboard(t).readMacros();
+        QCOMPARE(m.size(), std::size_t(2));
+        QCOMPARE(m[0].name, std::string("sh"));
+        const std::vector<MacroStep> sh{{true, 50, 0xe1}, {true, 50, 0x04}, {false, 50, 0x04}, {false, 1, 0xe1}};
+        QVERIFY(m[0].steps == sh);
+        QCOMPARE(m[1].name, std::string("ct"));
+        const std::vector<MacroStep> ct{{true, 50, 0xe4}, {true, 50, 0x06}, {false, 50, 0x06}, {false, 1, 0xe4}};
+        QVERIFY(m[1].steps == ct);
     }
 
     void writeNoMacrosSendsOneEmptyPacket()

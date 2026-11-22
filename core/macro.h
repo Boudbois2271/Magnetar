@@ -19,7 +19,14 @@ constexpr std::uint16_t kStandardDelayMs = 50;  // "Use Standard Delay (50ms)"
 constexpr std::size_t kMinMacroName = 2;        // the vendor app refuses shorter names
 constexpr std::size_t kMaxMacroName = 255;      // name_len is one byte
 
-// One step: a key goes down or up, then the macro waits delayMs. usage = HID keyboard usage.
+// Step direction byte: bit 80 = release, bit 10 = the usage is a modifier (e0–e7). The board
+// ignores a modifier step without bit 10 (akko-capture12.txt). The codec sets both from the step.
+constexpr std::uint8_t kMacroRelease = 0x80;
+constexpr std::uint8_t kMacroModifier = 0x10;
+constexpr bool isModifierUsage(std::uint8_t usage) { return usage >= 0xe0 && usage <= 0xe7; }
+
+// One step: a key goes down or up, then the macro waits delayMs. usage = HID keyboard usage
+// (modifiers included: e0 LCtrl … e7 RGui).
 struct MacroStep {
     bool press = true;
     std::uint16_t delayMs = kStandardDelayMs;

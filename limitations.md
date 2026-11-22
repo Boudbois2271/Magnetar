@@ -8,7 +8,7 @@ reflected in `akko-protocol.md`.
 ### Partly decoded
 - **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
   Unknown: what a key does if its macro index points past the last macro (the app prevents it);
-  how a modifier step is stored (HID `e1` is ignored on the board). Directories over 56 bytes
+  modifier steps (dir `10`/`90`, `akko-capture12.txt`) are decoded but not yet sent by us. Directories over 56 bytes
   (15+ macros) are read in packets by our code, never captured.
 
 ### Not captured at all
