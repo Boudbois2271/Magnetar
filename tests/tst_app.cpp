@@ -1038,26 +1038,43 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
-    void calibrationPageStartsAndFinishesOnLeave()
+    void calibrationScreenStartsAndFinishesOnLeave()
     {
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 4);
-        QVERIFY(w.item("calibrationPage")->isVisible());
-        auto *button = w.item("calibrationButton");
+        w.window->setProperty("page", 3);
+        auto *stack = w.item("settingsStack");
+        QVERIFY(stack);
+        const auto calibrationScreen = [&] { return qvariant_cast<QQuickItem *>(stack->property("currentItem")); };
+
+        // Settings opens the calibration screen; Back closes it and finishes.
+        QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
+        QTRY_COMPARE(calibrationScreen()->objectName(), QString("calibrationPage"));
+        auto *button = findItem(calibrationScreen(), "calibrationButton");
         QVERIFY(button);
         QMetaObject::invokeMethod(button, "clicked");
         QVERIFY(w.backend.calibrating());
         QTRY_VERIFY(w.board.writesOf(0x94, 0x00) >= 1);
         QCOMPARE(button->property("text").toString(), QString("Finish"));
         QVERIFY(!w.item("profileBox")->isEnabled());
-
-        // Leaving the page finishes, like the vendor app.
-        w.window->setProperty("page", 3);
+        QMetaObject::invokeMethod(findItem(calibrationScreen(), "calibrationBack"), "clicked");
         QVERIFY(!w.backend.calibrating());
         QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 1);
         QTRY_COMPARE(w.backend.calibrationSaved(), 0);
+        QTRY_COMPARE(stack->property("depth").toInt(), 1);
+        QVERIFY(w.item("profileBox")->isEnabled());
+
+        // Leaving Settings from the sidebar finishes too, and Settings comes back without it.
+        QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
+        QTRY_COMPARE(calibrationScreen()->objectName(), QString("calibrationPage"));
+        QMetaObject::invokeMethod(findItem(calibrationScreen(), "calibrationButton"), "clicked");
+        QVERIFY(w.backend.calibrating());
+        QTRY_VERIFY(w.board.writesOf(0x94, 0x00) >= 2);
+        w.window->setProperty("page", 0);
+        QVERIFY(!w.backend.calibrating());
+        QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 2);
+        QCOMPARE(stack->property("depth").toInt(), 1);
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 

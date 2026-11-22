@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Key calibration: Start, press keys all the way down, Finish. While the session runs, each key
 // shows how far down it has been, as a share of the travel the keyboard has stored for it.
-// Leaving the page finishes the session, as the vendor app does (it has no cancel either).
+// Opened from Settings, pushed on its StackView. Leaving it (Back, or another page in the sidebar)
+// finishes the session, as the vendor app does (it has no cancel either).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -12,6 +13,7 @@ Item {
     KeyNames { id: names }
 
     onVisibleChanged: if (!visible) backend.finishCalibration()
+    Component.onDestruction: backend.finishCalibration()
 
     function depth(id) {
         const d = backend.calibrationDepth[String(id)]
@@ -30,11 +32,21 @@ Item {
 
             Item { implicitHeight: 12 }
 
-            Label {
-                Layout.leftMargin: 32
-                text: qsTr("Calibration")
-                font.pixelSize: 26
-                font.bold: true
+            RowLayout {
+                Layout.leftMargin: 20
+                Layout.rightMargin: 32
+                spacing: 8
+                ToolButton {
+                    objectName: "calibrationBack"
+                    text: "←  " + qsTr("Back")
+                    font.pixelSize: 14
+                    onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
+                }
+                Label {
+                    text: qsTr("Calibration")
+                    font.pixelSize: 26
+                    font.bold: true
+                }
             }
 
             Card {

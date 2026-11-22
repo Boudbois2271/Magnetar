@@ -7,7 +7,6 @@
   "%1 of them differ from the factory setting.": "%1 d'entre elles diffèrent du réglage d'usine.",
   "%1: choose an action": "%1 : choisir une action",
   "A tap switches the key to staying pressed, the next tap releases it. Held longer than the hold time, it works as a normal key.": "Une frappe la laisse enfoncée, la frappe suivante la relâche. Maintenue plus longtemps que le temps de maintien, elle fonctionne comme une touche normale.",
-  "About": "À propos",
   "Action": "Action",
   "Action %1": "Action %1",
   "Actuation": "Activation",
@@ -310,5 +309,8 @@
   "Saved: %1 keys got a new bottom.": "Enregistré : %1 touches ont un nouveau fond.",
   "Saved: 1 key got a new bottom.": "Enregistré : 1 touche a un nouveau fond.",
   "Start calibration": "Lancer le calibrage",
-  "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin."
+  "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin.",
+  "Back": "Retour",
+  "Calibrate": "Calibrer",
+  "Teaches the keyboard where each key's travel ends, by pressing the keys all the way down.": "Apprend au clavier où s'arrête la course de chaque touche, en enfonçant les touches à fond."
 }

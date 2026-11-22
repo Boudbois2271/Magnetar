@@ -1,12 +1,17 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Base Functions: Win Key Lock, Combo Optimization, Adaptive Calibration, polling rate.
+// Settings: base functions (Win Key Lock, Combo Optimization, Adaptive Calibration), the way into
+// key calibration, polling rate, and what the app knows about the keyboard.
 // Controls show what the keyboard reported; after a change they go back to that read-back.
+// Calibration opens as its own screen pushed over Settings; leaving Settings closes it.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
 Item {
     id: page
+
+    // Coming back to Settings shows Settings, not a calibration screen left open.
+    onVisibleChanged: if (!visible && stack.depth > 1) stack.pop(null, StackView.Immediate)
 
     // One setting: name and a plain description on the left, a switch on the right.
     component SettingRow: RowLayout {
@@ -42,8 +47,20 @@ Item {
         }
     }
 
-    ScrollView {
+    StackView {
+        id: stack
+        objectName: "settingsStack"
         anchors.fill: parent
+        initialItem: settings
+    }
+
+    Component {
+        id: calibrationScreen
+        CalibrationPage { objectName: "calibrationPage" }
+    }
+
+    ScrollView {
+        id: settings
         contentWidth: availableWidth
 
         ColumnLayout {
@@ -93,6 +110,35 @@ Item {
             Card {
                 Layout.leftMargin: 32
                 Layout.rightMargin: 32
+                title: qsTr("Calibration")
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 16
+
+                    ColumnLayout {
+                        Layout.fillWidth: true
+                        spacing: 2
+                        Label { text: qsTr("Key travel") }
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            opacity: 0.55
+                            font.pixelSize: 12
+                            text: qsTr("Teaches the keyboard where each key's travel ends, by pressing the keys all the way down.")
+                        }
+                    }
+                    Button {
+                        objectName: "openCalibrationButton"
+                        text: qsTr("Calibrate")
+                        onClicked: stack.push(calibrationScreen)
+                    }
+                }
+            }
+
+            Card {
+                Layout.leftMargin: 32
+                Layout.rightMargin: 32
                 title: qsTr("Connection")
 
                 RowLayout {
@@ -134,6 +180,50 @@ Item {
                             currentIndex = Qt.binding(() => backend.pollingRates.indexOf(backend.pollingRate))
                         }
                     }
+                }
+            }
+
+            
+
+            Card {
+                Layout.leftMargin: 32
+                Layout.rightMargin: 32
+                title: qsTr("Device")
+
+                GridLayout {
+                    columns: 2
+                    columnSpacing: 32
+                    rowSpacing: 10
+
+                    Label { text: qsTr("Model"); opacity: 0.6 }
+                    Label { text: "Akko TAC75 HE (38ee:0016)" }
+
+                    Label { text: qsTr("Firmware"); opacity: 0.6 }
+                    Label { objectName: "firmwareLabel"; text: backend.firmware || "—" }
+
+                    Label { text: qsTr("Onboard profiles"); opacity: 0.6 }
+                    Label { text: backend.profileCount }
+
+                    Label { text: qsTr("Device node"); opacity: 0.6 }
+                    Label { text: backend.devicePath || "—"; font.family: "monospace" }
+
+                    Label { text: qsTr("Status"); opacity: 0.6 }
+                    Label { text: backend.connected ? qsTr("Connected") : qsTr("Not connected") }
+                }
+
+                Label {
+                    Layout.fillWidth: true
+                    Layout.topMargin: 8
+                    wrapMode: Text.WordWrap
+                    opacity: 0.7
+                    text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")
+                }
+                Label {
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    opacity: 0.55
+                    font.pixelSize: 12
+                    text: qsTr("License: GPL-3.0-or-later")
                 }
             }
 
