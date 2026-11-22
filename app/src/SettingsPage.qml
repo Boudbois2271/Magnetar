@@ -13,11 +13,10 @@ Item {
     // Coming back to Settings shows Settings, not a calibration screen left open.
     onVisibleChanged: if (!visible && stack.depth > 1) stack.pop(null, StackView.Immediate)
 
-    // One setting: name and a plain description on the left, a switch on the right.
+    // One setting: name on the left, a switch on the right.
     component SettingRow: RowLayout {
         id: row
         property string name
-        property string description
         property bool value
         signal toggled(bool on)
 
@@ -28,13 +27,6 @@ Item {
             Layout.fillWidth: true
             spacing: 2
             Label { text: row.name }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                opacity: 0.55
-                font.pixelSize: 12
-                text: row.description
-            }
         }
         Switch {
             id: toggle
@@ -87,21 +79,18 @@ Item {
                 SettingRow {
                     objectName: "winKeyLock"
                     name: qsTr("Win Key Lock")
-                    description: qsTr("The Windows key does nothing, so it can't open a menu by accident.")
                     value: backend.winKeyLock
                     onToggled: (on) => backend.setWinKeyLock(on)
                 }
                 SettingRow {
                     objectName: "comboOptimization"
                     name: qsTr("Combo Optimization")
-                    description: qsTr("The firmware's handling of key combinations. On out of the box.")
                     value: backend.comboOptimization
                     onToggled: (on) => backend.setComboOptimization(on)
                 }
                 SettingRow {
                     objectName: "adaptiveCalibration"
                     name: qsTr("Adaptive Calibration")
-                    description: qsTr("Adjusts each key's calibration while you type. On out of the box.")
                     value: backend.adaptiveCalibration
                     onToggled: (on) => backend.setAdaptiveCalibration(on)
                 }
@@ -120,13 +109,6 @@ Item {
                         Layout.fillWidth: true
                         spacing: 2
                         Label { text: qsTr("Key travel") }
-                        Label {
-                            Layout.fillWidth: true
-                            wrapMode: Text.WordWrap
-                            opacity: 0.55
-                            font.pixelSize: 12
-                            text: qsTr("Teaches the keyboard where each key's travel ends, by pressing the keys all the way down.")
-                        }
                     }
                     Button {
                         objectName: "openCalibrationButton"
@@ -154,9 +136,8 @@ Item {
                             wrapMode: Text.WordWrap
                             opacity: 0.55
                             font.pixelSize: 12
-                            text: backend.restarting
-                                  ? qsTr("Restarting the keyboard…")
-                                  : qsTr("How often the keyboard reports to the computer. The keyboard restarts when it changes, for about a second.")
+                            visible: backend.restarting
+                            text: qsTr("Restarting the keyboard…")
                         }
                     }
                     ComboBox {
