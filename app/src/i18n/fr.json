@@ -310,15 +310,5 @@
   "Saved: %1 keys got a new bottom.": "Enregistré : %1 touches ont un nouveau fond.",
   "Saved: 1 key got a new bottom.": "Enregistré : 1 touche a un nouveau fond.",
   "Start calibration": "Lancer le calibrage",
-  "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin.",
-  "Mural": "Fresque",
-  "Live picture": "Image en direct",
-  "Paint keys below and show them live on the keyboard. Nothing is saved on the keyboard: its own lighting comes back a moment after you stop or leave this page.": "Peignez les touches ci-dessous et affichez-les en direct sur le clavier. Rien n'est enregistré sur le clavier : son propre éclairage revient un instant après l'arrêt ou quand vous quittez cette page.",
-  "Stop": "Arrêter",
-  "Show on keyboard": "Afficher sur le clavier",
-  "Showing on the keyboard": "Affiché sur le clavier",
-  "Brush": "Pinceau",
-  "Fill all keys": "Remplir toutes les touches",
-  "Picture": "Image",
-  "Click a key or drag a box to paint with the brush.": "Cliquez sur une touche ou tracez un cadre pour peindre avec le pinceau."
+  "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin."
 }

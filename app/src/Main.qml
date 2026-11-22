@@ -21,8 +21,6 @@ ApplicationWindow {
 
     property bool helpVisible: false
     property int page: 0
-    // A session that holds the keyboard: other commands would wait behind it.
-    readonly property bool streaming: backend.calibrating || backend.muralRunning
 
     // On-board Fn shortcuts can change the lighting behind our back: re-read on focus.
     onActiveChanged: if (active) backend.refresh()
@@ -30,11 +28,11 @@ ApplicationWindow {
     Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
     Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
-    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected && !win.streaming; onActivated: backend.toggleLights() }
+    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected; onActivated: backend.toggleLights() }
     Shortcut { sequence: "Ctrl+R"; context: Qt.ApplicationShortcut; onActivated: backend.reload() }
-    Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; enabled: !win.streaming; onActivated: backend.setProfile(1) }
-    Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; enabled: !win.streaming; onActivated: backend.setProfile(2) }
-    Shortcut { sequence: "Ctrl+3"; context: Qt.ApplicationShortcut; enabled: !win.streaming; onActivated: backend.setProfile(3) }
+    Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(1) }
+    Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(2) }
+    Shortcut { sequence: "Ctrl+3"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(3) }
 
     // Right-to-left languages mirror the window; the Translator sets the layout direction.
     Item {
@@ -79,8 +77,8 @@ ApplicationWindow {
                         id: profileBox
                         objectName: "profileBox"
                         Layout.fillWidth: true
-                        // A profile switch would wait behind the calibration or Mural session.
-                        enabled: backend.connected && backend.ready && !win.streaming
+                        // A profile switch would wait behind the calibration session.
+                        enabled: backend.connected && backend.ready && !backend.calibrating
                         model: Math.max(backend.profileCount, 1)
                         currentIndex: backend.profile - 1
                         displayText: qsTr("Profile %1").arg(backend.profile)
@@ -96,7 +94,7 @@ ApplicationWindow {
                     Item { implicitHeight: 18 }
 
                     Repeater {
-                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Mural"), qsTr("Settings"), qsTr("Calibration"), qsTr("Device")]
+                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings"), qsTr("Calibration"), qsTr("Device")]
                         delegate: ItemDelegate {
                             required property int index
                             required property string modelData
@@ -143,7 +141,6 @@ ApplicationWindow {
                     KeysPage { objectName: "keysPage" }
                     MacrosPage { objectName: "macrosPage" }
                     LightingPage {}
-                    MuralPage { objectName: "muralPage" }
                     SettingsPage { objectName: "settingsPage" }
                     CalibrationPage { objectName: "calibrationPage" }
                     DevicePage {}

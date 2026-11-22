@@ -17,7 +17,6 @@
         <file alias="MacrosPage.qml">MacrosPage.qml</file>
         <file alias="SettingsPage.qml">SettingsPage.qml</file>
         <file alias="CalibrationPage.qml">CalibrationPage.qml</file>
-        <file alias="MuralPage.qml">MuralPage.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>

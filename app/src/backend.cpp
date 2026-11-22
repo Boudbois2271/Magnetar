@@ -32,8 +32,6 @@ Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *par
             const QString message = QString::fromStdString(e);
             QMetaObject::invokeMethod(this, [this, message] { applyError(message); }, Qt::QueuedConnection);
         });
-    for (const auto &k : akko::layout())
-        m_muralColors.insert(QString::number(k.id), QStringLiteral("#000000"));
     refresh();
 }
 
@@ -41,8 +39,6 @@ Backend::~Backend()
 {
     if (m_calibrationRun)
         m_calibrationRun->stop = true;  // Finish, so the keyboard types again
-    if (m_muralRun)
-        m_muralRun->stop = true;
     m_worker.reset();  // joins the thread before the members its callbacks use go away
 }
 
@@ -1024,88 +1020,10 @@ void Backend::finishCalibration()
     emit calibrationChanged();
 }
 
-bool Backend::paintMural(const QVariantList &keys, const QString &color)
-{
-    std::array<std::uint8_t, 3> rgb;
-    try {
-        rgb = akko::parseColor(color.toStdString());
-    } catch (const std::exception &) {
-        return false;
-    }
-    for (const auto &k : keys)
-        if (!knownKey(k.toInt()))
-            return false;
-    const QString hex = QString::asprintf("#%02x%02x%02x", rgb[0], rgb[1], rgb[2]);
-    bool changed = false;
-    for (const auto &k : keys) {
-        auto &v = m_muralColors[QString::number(k.toInt())];
-        if (v.toString() != hex) {
-            v = hex;
-            changed = true;
-        }
-    }
-    if (changed) {
-        pushMural();
-        emit muralChanged();
-    }
-    return true;
-}
-
-bool Backend::fillMural(const QString &color)
-{
-    QVariantList all;
-    for (const auto &k : akko::layout())
-        all.append(int(k.id));
-    return paintMural(all, color);
-}
-
-void Backend::pushMural()
-{
-    if (!m_muralRun)
-        return;
-    std::vector<akko::KeyColor> colors;
-    for (auto it = m_muralColors.cbegin(); it != m_muralColors.cend(); ++it)
-        colors.push_back({static_cast<std::uint16_t>(it.key().toInt()), akko::parseColor(it.value().toString().toStdString())});
-    std::lock_guard lock(m_muralRun->mutex);
-    m_muralRun->colors = std::move(colors);
-    ++m_muralRun->version;
-}
-
-void Backend::startMural()
-{
-    if (m_muralRun)
-        return;
-    auto run = std::make_shared<MuralRun>();
-    m_muralRun = run;
-    pushMural();
-    emit muralChanged();
-    post({}, [run](akko::Keyboard &kb, Snapshot &) {
-        unsigned sent = 0;  // version 0 is never pushed: the first call always sends
-        kb.streamMural([run] { return !run->stop; }, [run, &sent](std::vector<akko::KeyColor> &out) {
-            std::lock_guard lock(run->mutex);
-            if (run->version == sent)
-                return false;
-            sent = run->version;
-            out = run->colors;
-            return true;
-        });
-    });
-}
-
-void Backend::stopMural()
-{
-    if (!m_muralRun)
-        return;
-    m_muralRun->stop = true;
-    m_muralRun.reset();
-    emit muralChanged();
-}
-
 void Backend::applyError(const QString &message)
 {
     if (m_calibrationRun)
         finishCalibration();  // the session ended with the batch (Finish was sent)
-    stopMural();  // the stream ended with the batch
     if (m_restarting && m_restartClock.elapsed() < kRestartGiveUpMs) {
         m_restartWait.start(300);  // not back yet: try again soon, without the error banner
         return;

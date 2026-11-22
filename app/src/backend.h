@@ -16,7 +16,6 @@
 #include <atomic>
 #include <map>
 #include <memory>
-#include <mutex>
 
 class Backend : public QObject {
     Q_OBJECT
@@ -74,11 +73,6 @@ class Backend : public QObject {
     Q_PROPERTY(int calibrationFull READ calibrationFull NOTIFY calibrationChanged)
     Q_PROPERTY(int calibrationSaved READ calibrationSaved NOTIFY calibrationChanged)
     Q_PROPERTY(int calibrationFullPercent READ calibrationFullPercent CONSTANT)
-    // Mural page. muralColors: key ID (string) → "#rrggbb", the picture painted this run (all
-    // black at first, kept until the app quits). muralRunning: it is being streamed to the board,
-    // which shows it instead of its own lighting until the stream stops.
-    Q_PROPERTY(QVariantMap muralColors READ muralColors NOTIFY muralChanged)
-    Q_PROPERTY(bool muralRunning READ muralRunning NOTIFY muralChanged)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -237,24 +231,12 @@ public:
     Q_INVOKABLE void startCalibration();
     Q_INVOKABLE void finishCalibration();
 
-    QVariantMap muralColors() const { return m_muralColors; }
-    bool muralRunning() const { return m_muralRun != nullptr; }
-    // Paint these keys (or every key) one colour; shown at once while streaming. False, and
-    // nothing changed, for a bad key or colour.
-    Q_INVOKABLE bool paintMural(const QVariantList &keys, const QString &color);
-    Q_INVOKABLE bool fillMural(const QString &color);
-    // Start streaming the picture, or stop (the board goes back to its own lighting by itself).
-    // Both do nothing when already in that state.
-    Q_INVOKABLE void startMural();
-    Q_INVOKABLE void stopMural();
-
     static QString classifyError(const QString &message);
 
 signals:
     void connectionChanged();
     void stateChanged();
     void calibrationChanged();
-    void muralChanged();
 
 private:
     void post(const std::string &key, DeviceWorker::Action action);
@@ -285,15 +267,5 @@ private:
     std::map<std::uint16_t, akko::KeyCalibration> m_calibrationBefore;
     QVariantMap m_calibrationDepth;
     int m_calibrationSaved = -1;
-    // Mural stream, shared with the worker: the colours to show, bumped version when they change.
-    struct MuralRun {
-        std::atomic<bool> stop{false};
-        std::mutex mutex;
-        std::vector<akko::KeyColor> colors;
-        unsigned version = 0;
-    };
-    std::shared_ptr<MuralRun> m_muralRun;
-    QVariantMap m_muralColors;
-    void pushMural();  // m_muralColors → m_muralRun
     std::unique_ptr<DeviceWorker> m_worker;  // destroyed first, in ~Backend
 };
