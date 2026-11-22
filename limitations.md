@@ -62,7 +62,7 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Keys (tabs Action, Travel, Advanced, Colour), Macros, Lighting, Settings and Device.
+- Pages: Keys (tabs Action, Travel, Advanced, Colour), Macros, Lighting, Settings (with Calibration and Device).
 - Settings page: the four writes were sent by Magnetar's core and read back on the board, but the
   page itself hasn't been used by hand on the board yet. Whether these settings are per profile is
   unknown (they're read with every batch, so a profile switch would show it). What Combo
