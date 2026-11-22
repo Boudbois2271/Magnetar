@@ -3,6 +3,7 @@
 #include "device.h"
 #include "fake_transport.h"
 #include "keyboard.h"
+#include "mural.h"
 
 #include <QTemporaryDir>
 #include <QtTest>
@@ -120,6 +121,17 @@ Bytes asReport(const Bytes &frame)
     Bytes r{kReportId};
     r.insert(r.end(), frame.begin(), frame.end());
     return r;
+}
+
+std::vector<Frame> muralPackets(const std::string &name)
+{
+    std::vector<Frame> out;
+    for (const auto &b : fixtureSection("vendor-mural.txt", name)) {
+        Frame f{};
+        std::copy_n(b.begin(), std::min(b.size(), f.size()), f.begin());
+        out.push_back(f);
+    }
+    return out;
 }
 
 std::vector<Bytes> macroFrames(const std::string &name)
@@ -572,6 +584,118 @@ private slots:
         QCOMPARE(sent(t, 1), calibrationFrames("finish")[0]);
         QCOMPARE(board.calibration[0x0d], (std::pair<std::uint16_t, std::uint16_t>{10500, 0x089c}));
         QCOMPARE(board.calibration[0x0c], (std::pair<std::uint16_t, std::uint16_t>{10500, 1800}));
+    }
+
+    // ---- Mural ------------------------------------------------------------
+    void muralSolidFramesMatchTheVendorApp()
+    {
+        const std::pair<const char *, std::array<std::uint8_t, 3>> cases[] = {
+            {"red", {0xff, 0, 0}}, {"green", {0, 0xff, 0}}, {"blue", {0, 0, 0xff}}};
+        for (const auto &[name, rgb] : cases) {
+            std::vector<KeyColor> colors;
+            for (const auto &k : layout())
+                colors.push_back({k.id, rgb});
+            const auto frames = muralFrames(colors);
+            const auto captured = muralPackets(name);
+            QCOMPARE(captured.size(), std::size_t(2));
+            QCOMPARE(frames.size(), captured.size());
+            for (std::size_t i = 0; i < frames.size(); ++i)
+                QCOMPARE(frames[i], captured[i]);
+        }
+    }
+
+    void muralKeyMapCoversTheCapturedLeds()
+    {
+        std::set<std::uint8_t> leds;
+        for (const auto &k : layout()) {
+            const auto l = muralLed(k.id);
+            QVERIFY2(l.has_value(), qPrintable(QString::number(k.id, 16)));
+            leds.insert(*l);
+        }
+        QCOMPARE(leds.size(), kMuralLeds);
+        std::set<std::uint8_t> captured;
+        for (const auto &[l, c] : muralDecode(muralPackets("red")))
+            captured.insert(l);
+        QCOMPARE(leds, captured);
+        QCOMPARE(*muralLed(0x01), std::uint8_t(0x00));  // Esc: column 0, row 0
+        QCOMPARE(*muralLed(0x62), std::uint8_t(0x70));  // Insert: column 14, row 0
+        QCOMPARE(*muralLed(0x4d), std::uint8_t(0x4d));  // Right: column 9, row 5
+        QVERIFY(!muralLed(0x99));
+    }
+
+    void muralCapturedRainbowRoundTrips()
+    {
+        const auto decoded = muralDecode(muralPackets("rainbow"));
+        QCOMPARE(decoded.size(), kMuralLeds);
+        std::vector<KeyColor> colors;
+        for (const auto &k : layout()) {
+            const std::uint16_t c = decoded.at(*muralLed(k.id));
+            // RGB565 back to 8 bits per channel, low bits zero: encodes to the same value.
+            colors.push_back({k.id, {std::uint8_t((c >> 11) << 3), std::uint8_t(((c >> 5) & 0x3f) << 2),
+                                     std::uint8_t((c & 0x1f) << 3)}});
+        }
+        const auto frames = muralFrames(colors);
+        QCOMPARE(frames.size(), std::size_t(5));
+        QCOMPARE(muralDecode(frames), decoded);
+    }
+
+    void muralFramesCutGroupsAcrossPackets()
+    {
+        std::vector<KeyColor> colors;
+        int i = 0;
+        for (const auto &k : layout()) {  // 83 different RGB565 colours
+            colors.push_back({k.id, {std::uint8_t((i & 31) << 3), std::uint8_t((i >> 5) << 2), 0}});
+            ++i;
+        }
+        const auto frames = muralFrames(colors);
+        QCOMPARE(frames.size(), std::size_t(6));  // 83 × 4 bytes = 332 = 5 × 56 + 52
+        QCOMPARE(int(frames[5][5]), 52);
+        for (std::size_t p = 0; p < frames.size(); ++p) {
+            QCOMPARE(int(frames[p][3]), 6);
+            QCOMPARE(int(frames[p][4]), int(p));
+        }
+        QCOMPARE(muralDecode(frames).size(), kMuralLeds);
+        QCOMPARE(muralFrames({}).size(), std::size_t(2));  // all black
+    }
+
+    void muralStreamsChangesAndResends()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        int calls = 0;
+        QElapsedTimer clock;
+        clock.start();
+        kb.streamMural([&] { return clock.elapsed() < 1100; },
+                       [&](std::vector<KeyColor> &out) {
+                           if (++calls != 1)
+                               return false;
+                           out = {{0x01, {0xff, 0, 0}}};
+                           return true;
+                       });
+        // The frame at once, then the same one again after a second; nothing echoed or read back.
+        QCOMPARE(board.mural.size(), std::size_t(4));
+        QCOMPARE(board.mural[0], board.mural[2]);
+        Frame first{};
+        std::copy(board.mural[0].begin() + 1, board.mural[0].end(), first.begin());
+        Frame second{};
+        std::copy(board.mural[1].begin() + 1, board.mural[1].end(), second.begin());
+        const std::array<Frame, 2> sentFrame{first, second};
+        const auto leds = muralDecode(sentFrame);
+        QCOMPARE(leds.at(0x00), std::uint16_t(0xf800));
+        QCOMPARE(leds.at(0x08), std::uint16_t(0));
+        QCOMPARE(t.written.size(), board.mural.size());
+    }
+
+    void muralStopsWhenAsked()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        kb.streamMural([] { return false; }, [](std::vector<KeyColor> &) { return true; });
+        QVERIFY(t.written.empty());
     }
 
     void calibrateFinishesOnError()

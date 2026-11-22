@@ -92,6 +92,7 @@ struct FakeKeyboard {
     std::deque<Bytes> calibrationReports;
     std::map<std::uint16_t, std::uint16_t> calibrationLowest;
     int keepAlives = 0, finishes = 0;
+    std::vector<Bytes> mural;  // 08 04 packets received (never echoed, like the real board)
 
     FakeKeyboard()
     {
@@ -236,6 +237,10 @@ struct FakeKeyboard {
     std::vector<Bytes> operator()(const Bytes &w)
     {
         const std::uint8_t cmd = w[1], sub = w[2];
+        if (cmd == 0x08 && sub == 0x04) {
+            mural.push_back(w);
+            return {};
+        }
         if (cmd == 0x85)
             return {macroRead(w)};
         if (cmd == 0x05 && sub == 0x00)

@@ -178,6 +178,15 @@ public:
     void calibrate(const std::function<bool()> &keepGoing,
                    const std::function<void(std::span<const CalibrationSample>)> &onSamples);
 
+    // A Mural session (08 04): sends the colours nextColors() gives, as one frame of up to 6
+    // packets, while keepGoing() returns true. nextColors(out) returns true when the colours
+    // changed: that frame goes out at once (32 ms apart at most, the vendor app's animation
+    // rate); otherwise the last frame is sent again every second, as the vendor app does. Frames
+    // are not echoed and nothing is sent at the end: the board goes back to its stored effect
+    // once frames stop.
+    void streamMural(const std::function<bool()> &keepGoing,
+                     const std::function<bool(std::vector<KeyColor> &)> &nextColors);
+
 private:
     // Sends 12 00 type 00 for each key that has an advanced key, and for the other key of a
     // SOCD pair it is part of.

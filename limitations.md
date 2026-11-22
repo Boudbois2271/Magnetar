@@ -19,8 +19,8 @@ reflected in `akko-protocol.md`.
 - `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
-- **Mural**: frame format decoded, but the LED index → key mapping is only inferred from the grid, and the
-  firmware's behaviour when frames stop (the 3 s fallback) was not observed in the log.
+- **Mural**: how long the board keeps the last frame was only timed by eye (1–3 s); frames more than 6
+  packets long can't happen (83 LEDs × 4 B at most).
 - **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`
   and `08` were never sent alone.
 - **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is

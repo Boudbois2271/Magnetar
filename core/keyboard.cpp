@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 #include "keyboard.h"
 
+#include "mural.h"
+
 #include <algorithm>
 #include <chrono>
 #include <cstdio>
@@ -395,6 +397,36 @@ void Keyboard::calibrate(const std::function<bool()> &keepGoing,
         throw;
     }
     transact(0x94, 0x04);
+}
+
+void Keyboard::streamMural(const std::function<bool()> &keepGoing,
+                           const std::function<bool(std::vector<KeyColor> &)> &nextColors)
+{
+    using clock = std::chrono::steady_clock;
+    using std::chrono::milliseconds;
+    constexpr auto kResend = milliseconds(1000), kMinGap = milliseconds(32), kPoll = milliseconds(32);
+
+    std::vector<KeyColor> colors;
+    std::vector<Frame> frames = muralFrames(colors);  // all dark until nextColors() says otherwise
+    bool changed = true;
+    auto last = clock::now() - kResend;
+    while (keepGoing()) {
+        changed = nextColors(colors) || changed;
+        const auto now = clock::now();
+        if ((changed && now - last >= kMinGap) || now - last >= kResend) {
+            if (changed)
+                frames = muralFrames(colors);
+            changed = false;
+            for (const auto &f : frames) {
+                std::array<std::uint8_t, kReportLen> report{};
+                report[0] = kReportId;
+                std::copy(f.begin(), f.end(), report.begin() + 1);
+                t_.write(report);
+            }
+            last = clock::now();
+        }
+        t_.read(static_cast<int>(kPoll.count()));  // waits, and drops unsolicited reports
+    }
 }
 
 namespace {
