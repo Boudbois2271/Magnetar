@@ -96,10 +96,10 @@ reflected in `akko-protocol.md`.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.
-- Calibration page: "pressed all the way down" (green) means 95 % of the travel stored at Start.
+- Calibration screen (Settings → Calibrate): "pressed all the way down" (green) means 95 % of the travel stored at Start.
   A key whose stored bottom is already too shallow turns green early. No undo: Finish is the
   board's only way out, and the old values can't be written back.
-- Calibration page: while a session runs, other changes (profile shortcuts included) wait for Finish;
+- Calibration screen: while a session runs, other changes (profile shortcuts included) wait for Finish;
   the profile picker is disabled.
 - Travel page: assumed per profile (read again on a profile switch), not checked on the board.
 - Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
