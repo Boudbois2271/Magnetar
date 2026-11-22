@@ -26,7 +26,7 @@ Item {
         ColumnLayout {
             Layout.fillWidth: true
             spacing: 2
-            Label { text: row.name }
+            Label { Layout.fillWidth: true; text: row.name }
         }
         Switch {
             id: toggle
@@ -108,7 +108,7 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Label { text: qsTr("Key travel") }
+                        Label { Layout.fillWidth: true; text: qsTr("Key travel") }
                     }
                     Button {
                         objectName: "openCalibrationButton"
@@ -130,7 +130,7 @@ Item {
                     ColumnLayout {
                         Layout.fillWidth: true
                         spacing: 2
-                        Label { text: qsTr("Polling rate") }
+                        Label { Layout.fillWidth: true; text: qsTr("Polling rate") }
                         Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
