@@ -57,21 +57,21 @@ Item {
             visible: backend.ready && backend.keymapReady && backend.travelReady && backend.advancedReady
                      && backend.colorsReady
             enabled: backend.connected
-            spacing: 20
+            spacing: 20 * ui.unit
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
 
             Label {
-                Layout.leftMargin: 32
+                Layout.leftMargin: 32 * ui.unit
                 text: qsTr("Keys")
-                font.pixelSize: 26
+                font.pixelSize: Math.round(26 * ui.unit)
                 font.bold: true
             }
 
             TabBar {
                 id: tabBar
                 objectName: "keysTabs"
-                Layout.leftMargin: 32
+                Layout.leftMargin: 32 * ui.unit
                 currentIndex: page.tab
                 onCurrentIndexChanged: page.tab = currentIndex
                 TabButton { text: qsTr("Action"); width: implicitWidth }
@@ -81,8 +81,8 @@ Item {
             }
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: page.current.drawingTitle
 
                 // The keymap has layers; the drawing shows the one being edited.
@@ -111,14 +111,14 @@ Item {
 
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 6 * ui.unit
                     Chip { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
                     Chip { text: qsTr("Invert"); onClicked: page.invert() }
                     Chip { text: qsTr("None"); onClicked: page.select([]) }
                     Label {
                         objectName: "selectedCount"
-                        height: 34
-                        leftPadding: 10
+                        height: 34 * ui.unit
+                        leftPadding: 10 * ui.unit
                         verticalAlignment: Text.AlignVCenter
                         text: qsTr("Selected: %1").arg(page.selection.length)
                         opacity: 0.7
@@ -157,7 +157,7 @@ Item {
                 selection: page.selection
             }
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
         }
     }
 }

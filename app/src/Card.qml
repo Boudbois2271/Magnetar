@@ -10,7 +10,7 @@ Rectangle {
     default property alias content: inner.data
 
     Layout.fillWidth: true
-    implicitHeight: inner.implicitHeight + heading.implicitHeight + 52
+    implicitHeight: inner.implicitHeight + heading.implicitHeight + 52 * ui.unit
     radius: theme.radius
     color: theme.card
 
@@ -18,9 +18,9 @@ Rectangle {
         id: heading
         anchors.top: parent.top
         anchors.left: parent.left
-        anchors.margins: 20
+        anchors.margins: 20 * ui.unit
         text: card.title
-        font.pixelSize: 13
+        font.pixelSize: Math.round(13 * ui.unit)
         font.bold: true
         opacity: 0.7
     }
@@ -30,8 +30,8 @@ Rectangle {
         anchors.top: heading.bottom
         anchors.left: parent.left
         anchors.right: parent.right
-        anchors.margins: 20
-        anchors.topMargin: 12
-        spacing: 12
+        anchors.margins: 20 * ui.unit
+        anchors.topMargin: 12 * ui.unit
+        spacing: 12 * ui.unit
     }
 }

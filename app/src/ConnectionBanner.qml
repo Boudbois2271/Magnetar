@@ -9,7 +9,7 @@ Rectangle {
     id: banner
     objectName: "connectionBanner"
     visible: !backend.connected
-    implicitHeight: visible ? row.implicitHeight + 28 : 0
+    implicitHeight: visible ? row.implicitHeight + 28 * ui.unit : 0
     color: backend.errorKind === "" ? theme.banner : theme.bannerError
 
     readonly property string message: {
@@ -26,13 +26,13 @@ Rectangle {
     RowLayout {
         id: row
         anchors.fill: parent
-        anchors.leftMargin: 24
-        anchors.rightMargin: 16
-        spacing: 16
+        anchors.leftMargin: 24 * ui.unit
+        anchors.rightMargin: 16 * ui.unit
+        spacing: 16 * ui.unit
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: 2 * ui.unit
             Label {
                 Layout.fillWidth: true
                 text: banner.message
@@ -47,7 +47,7 @@ Rectangle {
                 text: qsTr("Trying again every few seconds.") + (detailed ? "  " + backend.errorDetail : "")
                 wrapMode: Text.WordWrap
                 opacity: 0.6
-                font.pixelSize: 12
+                font.pixelSize: Math.round(12 * ui.unit)
             }
         }
         Button {

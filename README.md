@@ -37,7 +37,8 @@ tool for scripts and status bars.
 The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3.
 
 Magnetar follows the current Omarchy theme live (light or dark, background, text, accent, window
-rounding) and the Omarchy language.
+rounding), the desktop's text size (`omarchy display text size`, i.e. GNOME's text scaling factor)
+and the Omarchy language.
 
 Every page planned so far is in; Magnetar grows one page at a time.
 

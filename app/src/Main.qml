@@ -7,13 +7,15 @@ import QtQuick.Layouts
 
 ApplicationWindow {
     id: win
-    width: 1000
-    height: 680
-    minimumWidth: 760
-    minimumHeight: 540
+    width: 1000 * ui.unit
+    height: 680 * ui.unit
+    minimumWidth: 760 * ui.unit
+    minimumHeight: 540 * ui.unit
     visible: true
     title: "Magnetar"
     color: theme.background
+    // The desktop's interface font at its text size; every control inherits it.
+    font: ui.font
 
     Material.theme: theme.dark ? Material.Dark : Material.Light
     Material.background: theme.background
@@ -49,31 +51,31 @@ ApplicationWindow {
             // ---- sidebar -------------------------------------------------------
             Rectangle {
                 Layout.fillHeight: true
-                Layout.preferredWidth: 230
+                Layout.preferredWidth: 230 * ui.unit
                 color: theme.sidebar
 
                 ColumnLayout {
                     anchors.fill: parent
-                    anchors.margins: 18
-                    spacing: 4
+                    anchors.margins: 18 * ui.unit
+                    spacing: 4 * ui.unit
 
                     Label {
                         text: "Magnetar"
-                        font.pixelSize: 22
+                        font.pixelSize: Math.round(22 * ui.unit)
                         font.bold: true
                     }
                     Label {
                         text: "Akko TAC75 HE"
                         opacity: 0.55
-                        font.pixelSize: 12
+                        font.pixelSize: Math.round(12 * ui.unit)
                     }
 
-                    Item { implicitHeight: 18 }
+                    Item { implicitHeight: 18 * ui.unit }
 
                     Label {
                         text: qsTr("Profile")
                         opacity: 0.55
-                        font.pixelSize: 12
+                        font.pixelSize: Math.round(12 * ui.unit)
                     }
                     ComboBox {
                         id: profileBox
@@ -93,7 +95,7 @@ ApplicationWindow {
                         onActivated: (index) => backend.setProfile(index + 1)
                     }
 
-                    Item { implicitHeight: 18 }
+                    Item { implicitHeight: 18 * ui.unit }
 
                     Repeater {
                         model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings")]
@@ -113,14 +115,14 @@ ApplicationWindow {
                         Layout.fillWidth: true
                         text: qsTr("Press ? for shortcuts")
                         opacity: 0.45
-                        font.pixelSize: 11
+                        font.pixelSize: Math.round(11 * ui.unit)
                     }
                     Label {
                         Layout.fillWidth: true
                         text: qsTr("Unofficial tool, not affiliated with Akko.")
                         wrapMode: Text.WordWrap
                         opacity: 0.45
-                        font.pixelSize: 11
+                        font.pixelSize: Math.round(11 * ui.unit)
                     }
                 }
             }
@@ -161,8 +163,8 @@ ApplicationWindow {
 
             Rectangle {
                 anchors.centerIn: parent
-                width: helpGrid.implicitWidth + 64
-                height: helpGrid.implicitHeight + helpTitle.implicitHeight + 72
+                width: helpGrid.implicitWidth + 64 * ui.unit
+                height: helpGrid.implicitHeight + helpTitle.implicitHeight + 72 * ui.unit
                 radius: theme.radius
                 color: theme.overlay
 
@@ -170,9 +172,9 @@ ApplicationWindow {
                     id: helpTitle
                     anchors.top: parent.top
                     anchors.left: parent.left
-                    anchors.margins: 32
+                    anchors.margins: 32 * ui.unit
                     text: qsTr("Shortcuts")
-                    font.pixelSize: 18
+                    font.pixelSize: Math.round(18 * ui.unit)
                     font.bold: true
                 }
 
@@ -180,11 +182,11 @@ ApplicationWindow {
                     id: helpGrid
                     anchors.top: helpTitle.bottom
                     anchors.left: parent.left
-                    anchors.margins: 32
-                    anchors.topMargin: 16
+                    anchors.margins: 32 * ui.unit
+                    anchors.topMargin: 16 * ui.unit
                     columns: 2
-                    columnSpacing: 28
-                    rowSpacing: 10
+                    columnSpacing: 28 * ui.unit
+                    rowSpacing: 10 * ui.unit
 
                     // Key, then what it does, filling the two columns row by row.
                     Repeater {

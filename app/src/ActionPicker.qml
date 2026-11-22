@@ -17,7 +17,7 @@ ColumnLayout {
     property int macroCount: 1
     signal picked(string code)
 
-    spacing: 12
+    spacing: 12 * ui.unit
 
     KeyNames { id: names }
 
@@ -98,7 +98,7 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: picker.search.trim() === ""
-        spacing: 6
+        spacing: 6 * ui.unit
         Repeater {
             model: picker.categories
             delegate: Chip {
@@ -115,7 +115,7 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: picker.onMacros && backend.macros.length > 0
-        spacing: 6
+        spacing: 6 * ui.unit
         Repeater {
             model: [{ loop: "times", label: qsTr("Play a number of times") },
                     { loop: "untilKeyPressed", label: qsTr("Repeat until a key is pressed") },
@@ -143,7 +143,7 @@ ColumnLayout {
     Flow {
         Layout.fillWidth: true
         visible: !(picker.search.trim() === "" && picker.categories[picker.category].shortcut)
-        spacing: 6
+        spacing: 6 * ui.unit
         Repeater {
             model: picker.shownItems
             delegate: Chip {
@@ -166,7 +166,7 @@ ColumnLayout {
         id: builder
         Layout.fillWidth: true
         visible: picker.search.trim() === "" && picker.categories[picker.category].shortcut === true
-        spacing: 10
+        spacing: 10 * ui.unit
 
         property int modifiers: 0
         readonly property string code: firstKey.currentIndex < 0 ? "" : backend.comboCode(
@@ -177,7 +177,7 @@ ColumnLayout {
 
         Flow {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 6 * ui.unit
             Repeater {
                 model: [{ bit: 1, label: "Ctrl" }, { bit: 2, label: qsTr("Shift") },
                         { bit: 4, label: "Alt" }, { bit: 8, label: "Win" }]
@@ -192,31 +192,31 @@ ColumnLayout {
         // Wraps at narrow widths: two labelled pickers don't fit side by side.
         Flow {
             Layout.fillWidth: true
-            spacing: 16
+            spacing: 16 * ui.unit
             Row {
-                spacing: 10
+                spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Key") }
                 ComboBox {
                     id: firstKey
-                    width: 160
+                    width: 160 * ui.unit
                     model: picker.shortcutKeys.map(k => k.label)
                     currentIndex: -1
                     displayText: currentIndex < 0 ? qsTr("Choose") : currentText
                 }
             }
             Row {
-                spacing: 10
+                spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Second key") }
                 ComboBox {
                     id: secondKey
-                    width: 160
+                    width: 160 * ui.unit
                     model: [qsTr("None")].concat(picker.shortcutKeys.map(k => k.label))
                     currentIndex: 0
                 }
             }
         }
         RowLayout {
-            spacing: 16
+            spacing: 16 * ui.unit
             Button {
                 text: qsTr("Apply")
                 highlighted: true

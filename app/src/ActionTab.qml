@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: tab
-    spacing: 20
+    spacing: 20 * ui.unit
 
     property var selection: []
     property int activeLayer: 0
@@ -83,21 +83,21 @@ ColumnLayout {
 
     // ---- selected keys -----------------------------------------------------
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         title: tab.selection.length > 1 ? qsTr("%1 keys selected").arg(tab.selection.length) : qsTr("Selected key")
 
         RowLayout {
             visible: tab.selection.length > 0
-            spacing: 16
+            spacing: 16 * ui.unit
 
             ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 4
+                spacing: 4 * ui.unit
                 Label {
                     objectName: "currentAction"
                     text: tab.current ? names.name(tab.current) : qsTr("Different actions")
-                    font.pixelSize: 18
+                    font.pixelSize: Math.round(18 * ui.unit)
                     font.bold: true
                 }
                 Label {
@@ -121,8 +121,8 @@ ColumnLayout {
 
     // ---- picker --------------------------------------------------------------
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         title: qsTr("Change it to")
         visible: tab.selection.length > 0
 
@@ -143,16 +143,16 @@ ColumnLayout {
 
         // The heading sits in the body: a long wrapped Material title makes a sizing loop.
         ColumnLayout {
-            spacing: 12
+            spacing: 12 * ui.unit
             Label {
-                Layout.preferredWidth: 400
+                Layout.preferredWidth: 400 * ui.unit
                 text: qsTr("Change the last %1 key?").arg(tab.pendingLayer)
                 wrapMode: Text.WordWrap
-                font.pixelSize: 18
+                font.pixelSize: Math.round(18 * ui.unit)
                 font.bold: true
             }
             Label {
-                Layout.preferredWidth: 400
+                Layout.preferredWidth: 400 * ui.unit
                 wrapMode: Text.WordWrap
                 text: qsTr("This is the only %1 key on the Default layer. Without it, the %1 layer can't be reached from the keyboard until you set one again here.")
                       .arg(tab.pendingLayer)

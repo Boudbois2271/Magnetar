@@ -33,7 +33,7 @@ Item {
 
     // Keys grow with the window up to this size (one key width, in pixels), then the drawing
     // stays put: on a wide window it would push everything else off screen.
-    property real maxKeySize: 56
+    property real maxKeySize: 56 * ui.unit
     implicitWidth: columns * maxKeySize / 4
     implicitHeight: rows * unit
 
@@ -67,7 +67,7 @@ Item {
                 color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0") : cap.selected ? theme.accentForeground : Material.foreground
                 // Sized from the key, so every label starts at the same size; only long names
                 // shrink on their own, before they are cut.
-                font.pixelSize: Math.max(8, Math.min(13, Math.round(view.unit * 1.5)))
+                font.pixelSize: Math.max(Math.round(8 * ui.unit), Math.min(Math.round(13 * ui.unit), Math.round(view.unit * 1.5)))
                 fontSizeMode: Text.HorizontalFit
                 minimumPixelSize: 7
                 horizontalAlignment: Text.AlignHCenter
@@ -81,17 +81,17 @@ Item {
                 visible: view.markedFor(cap.keyId)
                 anchors.top: parent.top
                 anchors.right: parent.right
-                anchors.margins: 4
-                width: 6
-                height: 6
-                radius: 3
+                anchors.margins: 4 * ui.unit
+                width: 6 * ui.unit
+                height: 6 * ui.unit
+                radius: width / 2
                 color: cap.selected ? theme.accentForeground : theme.accent
             }
 
             Rectangle {  // keeps the ring visible on a key the accent's own colour
                 visible: cap.fill !== "" && cap.selected
                 anchors.fill: parent
-                anchors.margins: 3
+                anchors.margins: 3 * ui.unit
                 radius: Math.max(0, parent.radius - 3)
                 color: "transparent"
                 border.width: 1

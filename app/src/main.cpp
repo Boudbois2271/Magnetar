@@ -8,6 +8,7 @@
 #include <QUrl>
 
 #include "backend.h"
+#include "desktop_size.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -23,6 +24,7 @@ int main(int argc, char *argv[])
     app.setDesktopFileName("magnetar");
     app.setWindowIcon(QIcon::fromTheme("magnetar"));
 
+    // Material, Dense variant (from qtquickcontrols2.conf): desktop-sized controls.
     QQuickStyle::setStyle("Material");
 
     // Installed before anything is translated; every qsTr() binding is re-evaluated when
@@ -31,6 +33,7 @@ int main(int argc, char *argv[])
     app.installTranslator(&translator);
 
     Theme theme;
+    DesktopSize ui;
     Backend backend;
 
     QQmlApplicationEngine engine;
@@ -38,6 +41,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("translator", &translator);
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("backend", &backend);
+    engine.rootContext()->setContextProperty("ui", &ui);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;

@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/">
+        <file alias="qtquickcontrols2.conf">qtquickcontrols2.conf</file>
         <file alias="Main.qml">Main.qml</file>
         <file alias="ConnectionBanner.qml">ConnectionBanner.qml</file>
         <file alias="Card.qml">Card.qml</file>

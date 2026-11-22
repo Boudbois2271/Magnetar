@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: page
-    spacing: 20
+    spacing: 20 * ui.unit
 
     property var selection: []  // key IDs
     readonly property var travel: backend.travelReady ? backend.travel : ({})
@@ -70,8 +70,8 @@ ColumnLayout {
     }
 
     RowLayout {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         Item { Layout.fillWidth: true }
         Button {
             objectName: "undoTravel"
@@ -82,12 +82,12 @@ ColumnLayout {
     }
 
     GridLayout {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         visible: page.selection.length > 0
-        columns: page.width > 1350 ? 3 : 1
-        columnSpacing: 20
-        rowSpacing: 20
+        columns: page.width > 1350 * ui.unit ? 3 : 1
+        columnSpacing: 20 * ui.unit
+        rowSpacing: 20 * ui.unit
 
         // ---- actuation -------------------------------------------------
         Card {

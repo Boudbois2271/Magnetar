@@ -186,25 +186,25 @@ Item {
             // Nothing to show until the macros have been read: no made-up values.
             visible: backend.macrosReady
             enabled: backend.connected
-            spacing: 20
+            spacing: 20 * ui.unit
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
 
             Label {
-                Layout.leftMargin: 32
+                Layout.leftMargin: 32 * ui.unit
                 text: qsTr("Macros")
-                font.pixelSize: 26
+                font.pixelSize: Math.round(26 * ui.unit)
                 font.bold: true
             }
 
             // ---- list and storage ----------------------------------------------
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Macros of profile %1").arg(backend.profile)
 
                 RowLayout {
-                    spacing: 12
+                    spacing: 12 * ui.unit
                     ProgressBar {
                         Layout.fillWidth: true
                         from: 0
@@ -220,7 +220,7 @@ Item {
 
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 6
+                    spacing: 6 * ui.unit
                     Repeater {
                         model: page.macros
                         delegate: Chip {
@@ -244,13 +244,13 @@ Item {
 
             // ---- editor --------------------------------------------------------
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: page.saved ? qsTr("Edit macro %1").arg(page.index + 1) : qsTr("New macro")
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 12 * ui.unit
                     Label { text: qsTr("Name") }
                     TextField {
                         objectName: "macroName"
@@ -266,7 +266,7 @@ Item {
 
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 16
+                    spacing: 16 * ui.unit
                     // A Chip: Material's Button background doesn't paint on the dark theme here.
                     Chip {
                         objectName: "recordButton"
@@ -294,10 +294,10 @@ Item {
                         required property var modelData
                         readonly property bool last: index === page.draft.steps.length - 1
                         Layout.fillWidth: true
-                        spacing: 6
+                        spacing: 6 * ui.unit
 
                         Chip {
-                            Layout.preferredWidth: 90
+                            Layout.preferredWidth: 90 * ui.unit
                             text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
                             onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
                         }
@@ -308,7 +308,7 @@ Item {
                             elide: Text.ElideRight
                         }
                         TextField {
-                            Layout.preferredWidth: 72
+                            Layout.preferredWidth: 72 * ui.unit
                             visible: !stepRow.last
                             enabled: !page.standard
                             horizontalAlignment: Text.AlignRight
@@ -319,32 +319,32 @@ Item {
                                                    page.setStep(stepRow.index, { delay: Number(text) })
                         }
                         Label {
-                            Layout.preferredWidth: 72 + 6 + 24
+                            Layout.preferredWidth: (72 + 6 + 24) * ui.unit
                             visible: stepRow.last
                             horizontalAlignment: Text.AlignRight
                             text: qsTr("1 ms (end)")
                             opacity: 0.5
                         }
                         Label {
-                            Layout.preferredWidth: 24
+                            Layout.preferredWidth: 24 * ui.unit
                             visible: !stepRow.last
                             text: "ms"
                             opacity: 0.6
                         }
                         ToolButton {
-                            Layout.preferredWidth: 32
+                            Layout.preferredWidth: 32 * ui.unit
                             text: "↑"
                             enabled: stepRow.index > 0
                             onClicked: page.moveStep(stepRow.index, -1)
                         }
                         ToolButton {
-                            Layout.preferredWidth: 32
+                            Layout.preferredWidth: 32 * ui.unit
                             text: "↓"
                             enabled: !stepRow.last
                             onClicked: page.moveStep(stepRow.index, 1)
                         }
                         ToolButton {
-                            Layout.preferredWidth: 32
+                            Layout.preferredWidth: 32 * ui.unit
                             text: "✕"
                             onClicked: page.removeStep(stepRow.index)
                         }
@@ -354,10 +354,10 @@ Item {
                 // Adds a press and a release of one key, for editing by hand.
                 Flow {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 10 * ui.unit
                     ComboBox {
                         id: addKeyBox
-                        width: 200
+                        width: 200 * ui.unit
                         model: page.addableKeys.map(u => names.usageName(u))
                         currentIndex: -1
                         displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
@@ -380,7 +380,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 12
+                    spacing: 12 * ui.unit
                     Button {
                         objectName: "saveMacro"
                         text: qsTr("Save")
@@ -404,7 +404,7 @@ Item {
                 }
             }
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
         }
     }
 
@@ -428,16 +428,16 @@ Item {
 
         // The heading sits in the body: a long wrapped Material title makes a sizing loop.
         ColumnLayout {
-            spacing: 12
+            spacing: 12 * ui.unit
             Label {
-                Layout.preferredWidth: 400
+                Layout.preferredWidth: 400 * ui.unit
                 text: qsTr("Delete “%1”?").arg(page.saved ? page.saved.name : "")
                 wrapMode: Text.WordWrap
-                font.pixelSize: 18
+                font.pixelSize: Math.round(18 * ui.unit)
                 font.bold: true
             }
             Label {
-                Layout.preferredWidth: 400
+                Layout.preferredWidth: 400 * ui.unit
                 wrapMode: Text.WordWrap
                 text: deleteDialog.bound === 0 ? qsTr("No key runs it.")
                       : deleteDialog.bound === 1 ? qsTr("One key runs it; it will do nothing afterwards. Keys bound to the other macros keep theirs.")

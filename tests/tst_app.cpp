@@ -2,6 +2,7 @@
 // Magnetar tests: the real Backend and DeviceWorker against the pretend keyboard, the theme
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
+#include "desktop_size.h"
 #include "fake_transport.h"
 #include "theme.h"
 #include "translator.h"
@@ -15,6 +16,7 @@
 #include <QQuickItem>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QScreen>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -113,6 +115,7 @@ struct KeysWindow {
     Backend backend{fakeSessions(board), dir.filePath("state.json")};
     Theme theme{dir.path(), nullptr, "/nonexistent-hyprctl"};
     Translator translator{dir.filePath("language"), ":/i18n"};
+    DesktopSize ui{"/nonexistent-gsettings"};
     QQmlApplicationEngine engine;
     QList<QQmlError> warnings;
     QQuickWindow *window = nullptr;
@@ -124,6 +127,7 @@ struct KeysWindow {
         engine.rootContext()->setContextProperty("translator", &translator);
         engine.rootContext()->setContextProperty("theme", &theme);
         engine.rootContext()->setContextProperty("backend", &backend);
+        engine.rootContext()->setContextProperty("ui", &ui);
         engine.load(QUrl("qrc:/Main.qml"));
         window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window)
@@ -758,6 +762,44 @@ private slots:
     }
 
     // ---- theme and language --------------------------------------------------
+    void desktopSizeFollowsTextScaling()
+    {
+        // Omarchy's minimum-ish text size: Adwaita Sans 11 pt at a factor of 9/11 is 12 px.
+        QFont adwaita;
+        adwaita.setPointSizeF(11);
+        QCOMPARE(DesktopSize::pixelSize(adwaita, 0.8182, 96), 12);
+        QCOMPARE(DesktopSize::parseScaling("0.81820000000000004\n"), 0.8182);
+        QCOMPARE(DesktopSize::parseScaling("No such schema\n"), 1.0);
+        QCOMPARE(DesktopSize::parseScaling("40"), 1.0);
+
+        // The factor comes from gsettings.
+        QTemporaryDir dir;
+        const auto script = dir.filePath("gsettings");
+        QFile file(script);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write("#!/bin/sh\n[ \"$3\" = text-scaling-factor ] && echo 0.5\n");
+        file.close();
+        file.setPermissions(file.permissions() | QFileDevice::ExeOwner);
+        DesktopSize halved(script);
+        QCOMPARE(halved.fontSize(), DesktopSize::pixelSize(QGuiApplication::font(), 0.5,
+                                                           QGuiApplication::primaryScreen()->logicalDotsPerInch()));
+        DesktopSize missing("/nonexistent-gsettings");
+        QCOMPARE(missing.fontSize(), DesktopSize::pixelSize(QGuiApplication::font(), 1,
+                                                            QGuiApplication::primaryScreen()->logicalDotsPerInch()));
+
+        // QML gets the font (family and size only) and one layout pixel.
+        QSignalSpy spy(&missing, &DesktopSize::changed);
+        QFont base("Sans");
+        base.setPixelSize(20);
+        missing.setBase(base, 0.7);
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(missing.fontSize(), 14);
+        QCOMPARE(missing.unit(), 1.0);
+        QCOMPARE(missing.font().pixelSize(), 14);
+        QCOMPARE(missing.font().family(), QString("Sans"));
+        QVERIFY(!(missing.font().resolveMask() & QFont::WeightResolved));
+    }
+
     void themeFollowsOmarchyAccent()
     {
         QTemporaryDir dir;
@@ -867,6 +909,7 @@ private slots:
         Backend backend(fakeSessions(board), dir.filePath("state.json"));
         Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
         Translator translator(dir.filePath("language"), ":/i18n");
+        DesktopSize ui("/nonexistent-gsettings");
 
         QQmlApplicationEngine engine;
         QList<QQmlError> warnings;
@@ -874,6 +917,7 @@ private slots:
         engine.rootContext()->setContextProperty("translator", &translator);
         engine.rootContext()->setContextProperty("theme", &theme);
         engine.rootContext()->setContextProperty("backend", &backend);
+        engine.rootContext()->setContextProperty("ui", &ui);
         engine.load(QUrl("qrc:/Main.qml"));
         QCOMPARE(engine.rootObjects().size(), 1);
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());

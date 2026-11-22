@@ -38,7 +38,7 @@ ColumnLayout {
 
     RowLayout {
         Layout.fillWidth: true
-        spacing: 8
+        spacing: 8 * ui.unit
         Label {
             Layout.fillWidth: true
             text: ms.label
@@ -52,7 +52,7 @@ ColumnLayout {
         TextField {
             id: typed
             objectName: ms.objectName + "Field"
-            Layout.preferredWidth: 76
+            Layout.preferredWidth: 76 * ui.unit
             horizontalAlignment: TextInput.AlignRight
             enabled: !ms.beyond
             inputMethodHints: Qt.ImhFormattedNumbersOnly

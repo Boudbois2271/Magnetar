@@ -23,7 +23,7 @@ Item {
         "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffc8", "#00a0ff",
         "#0000ff", "#8000ff", "#ff00c8", "#ffffff"
     ]
-    readonly property int labelWidth: 120
+    readonly property real labelWidth: 120 * ui.unit
 
     ScrollView {
         anchors.fill: parent
@@ -34,21 +34,21 @@ Item {
             // Nothing to show until the keyboard has been read once: no made-up values.
             visible: backend.ready
             enabled: backend.connected
-            spacing: 20
+            spacing: 20 * ui.unit
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
 
             Label {
-                Layout.leftMargin: 32
+                Layout.leftMargin: 32 * ui.unit
                 text: qsTr("Lighting")
-                font.pixelSize: 26
+                font.pixelSize: Math.round(26 * ui.unit)
                 font.bold: true
             }
 
             // ---- on/off and brightness -----------------------------------------
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Lights")
 
                 RowLayout {
@@ -84,7 +84,7 @@ Item {
                         }
                     }
                     Label {
-                        Layout.preferredWidth: 64
+                        Layout.preferredWidth: 64 * ui.unit
                         horizontalAlignment: Text.AlignRight
                         text: Math.round(brightness.value) + " / " + backend.maxBrightness
                         font.features: { "tnum": 1 }
@@ -94,8 +94,8 @@ Item {
 
             // ---- effect and speed ----------------------------------------------
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Effect")
 
                 RowLayout {
@@ -105,7 +105,7 @@ Item {
                     }
                     ComboBox {
                         objectName: "effectBox"
-                        Layout.preferredWidth: 300
+                        Layout.preferredWidth: 300 * ui.unit
                         model: page.effectNames
                         currentIndex: backend.effect
                         onActivated: (index) => backend.setEffect(index)
@@ -133,7 +133,7 @@ Item {
                         }
                     }
                     Label {
-                        Layout.preferredWidth: 64
+                        Layout.preferredWidth: 64 * ui.unit
                         horizontalAlignment: Text.AlignRight
                         text: Math.round(speed.value) + " / 4"
                     }
@@ -142,25 +142,25 @@ Item {
 
             // ---- colour ----------------------------------------------------------
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Colour")
 
                 RowLayout {
-                    spacing: 16
+                    spacing: 16 * ui.unit
 
                     // What the keyboard is showing now.
                     Rectangle {
-                        implicitWidth: 56
-                        implicitHeight: 56
+                        implicitWidth: 56 * ui.unit
+                        implicitHeight: 56 * ui.unit
                         radius: Math.min(4, theme.radius)
                         color: backend.color
                         visible: !backend.rainbow
                         border.color: Qt.alpha(theme.foreground, 0.19)
                     }
                     Rectangle {
-                        implicitWidth: 56
-                        implicitHeight: 56
+                        implicitWidth: 56 * ui.unit
+                        implicitHeight: 56 * ui.unit
                         radius: Math.min(4, theme.radius)
                         visible: backend.rainbow
                         gradient: Gradient {
@@ -174,15 +174,15 @@ Item {
 
                     Flow {
                         Layout.fillWidth: true
-                        spacing: 10
+                        spacing: 10 * ui.unit
                         Repeater {
                             model: page.swatches
                             delegate: Rectangle {
                                 required property string modelData
                                 readonly property bool current: !backend.rainbow && backend.color === modelData
-                                width: 30
-                                height: 30
-                                radius: 15
+                                width: 30 * ui.unit
+                                height: 30 * ui.unit
+                                radius: width / 2
                                 color: modelData
                                 border.width: current ? 3 : 1
                                 border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.19)
@@ -204,7 +204,7 @@ Item {
                     TextField {
                         id: hex
                         objectName: "hexField"
-                        Layout.preferredWidth: 140
+                        Layout.preferredWidth: 140 * ui.unit
                         font.family: "monospace"
                         validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
                         onAccepted: if (!backend.setColor(text)) hex.text = backend.color
@@ -230,7 +230,7 @@ Item {
                 }
             }
 
-            Item { implicitHeight: 20 }
+            Item { implicitHeight: 20 * ui.unit }
         }
     }
 }

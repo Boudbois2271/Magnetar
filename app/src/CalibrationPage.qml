@@ -28,30 +28,30 @@ Item {
             width: parent.width
             visible: backend.ready
             enabled: backend.connected && !backend.restarting
-            spacing: 20
+            spacing: 20 * ui.unit
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
 
             RowLayout {
-                Layout.leftMargin: 20
-                Layout.rightMargin: 32
-                spacing: 8
+                Layout.leftMargin: 20 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
+                spacing: 8 * ui.unit
                 ToolButton {
                     objectName: "calibrationBack"
                     text: "←  " + qsTr("Back")
-                    font.pixelSize: 14
+                    font.pixelSize: Math.round(14 * ui.unit)
                     onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
                 }
                 Label {
                     text: qsTr("Calibration")
-                    font.pixelSize: 26
+                    font.pixelSize: Math.round(26 * ui.unit)
                     font.bold: true
                 }
             }
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Key travel")
 
                 Label {
@@ -63,7 +63,7 @@ Item {
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 16
+                    spacing: 16 * ui.unit
                     Button {
                         objectName: "calibrationButton"
                         text: backend.calibrating ? qsTr("Finish") : qsTr("Start calibration")
@@ -88,7 +88,7 @@ Item {
                     Layout.fillWidth: true
                     Layout.maximumWidth: implicitWidth
                     Layout.alignment: Qt.AlignHCenter
-                    Layout.topMargin: 8
+                    Layout.topMargin: 8 * ui.unit
                     labelFor: function (id) {
                         const d = page.depth(id)
                         if (backend.calibrating && d >= 0)
@@ -107,13 +107,13 @@ Item {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     opacity: 0.55
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * ui.unit)
                     visible: backend.calibrating
                     text: qsTr("Green: pressed all the way down (%1% or more of its stored travel). Amber: not yet.").arg(backend.calibrationFullPercent)
                 }
             }
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
         }
     }
 }

@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: tab
-    spacing: 20
+    spacing: 20 * ui.unit
 
     property var selection: []  // key IDs
     readonly property var colors: backend.colorsReady ? backend.keyColors : ({})
@@ -19,7 +19,7 @@ ColumnLayout {
         "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffc8", "#00a0ff",
         "#0000ff", "#8000ff", "#ff00c8", "#ffffff", "#000000"
     ]
-    readonly property int labelWidth: 120
+    readonly property real labelWidth: 120 * ui.unit
 
     KeyNames { id: names }
 
@@ -45,13 +45,13 @@ ColumnLayout {
     // ---- the colours only show under Custom ---------------------------------
     Card {
         objectName: "customHint"
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         visible: !tab.customOn
         title: qsTr("Custom effect is off")
 
         RowLayout {
-            spacing: 16
+            spacing: 16 * ui.unit
             Button {
                 objectName: "switchToCustom"
                 text: qsTr("Switch to Custom")
@@ -62,19 +62,19 @@ ColumnLayout {
     }
 
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         visible: tab.selection.length > 0
         title: qsTr("Colour")
 
         RowLayout {
-            spacing: 16
+            spacing: 16 * ui.unit
 
             // What the selected keys have now; striped when they differ.
             Rectangle {
                 objectName: "selectedColor"
-                implicitWidth: 56
-                implicitHeight: 56
+                implicitWidth: 56 * ui.unit
+                implicitHeight: 56 * ui.unit
                 radius: Math.min(4, theme.radius)
                 color: tab.shared !== "" ? tab.shared : "transparent"
                 border.color: Qt.alpha(theme.foreground, 0.19)
@@ -82,23 +82,23 @@ ColumnLayout {
                     anchors.centerIn: parent
                     visible: tab.shared === ""
                     text: qsTr("Mixed")
-                    font.pixelSize: 11
+                    font.pixelSize: Math.round(11 * ui.unit)
                     opacity: 0.7
                 }
             }
 
             Flow {
                 Layout.fillWidth: true
-                spacing: 10
+                spacing: 10 * ui.unit
                 Repeater {
                     model: tab.swatches
                     delegate: Rectangle {
                         required property string modelData
                         readonly property bool current: tab.shared === modelData
                         objectName: "swatch_" + modelData.slice(1)
-                        width: 30
-                        height: 30
-                        radius: 15
+                        width: 30 * ui.unit
+                        height: 30 * ui.unit
+                        radius: width / 2
                         color: modelData
                         border.width: current ? 3 : 1
                         border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.31)
@@ -124,7 +124,7 @@ ColumnLayout {
             TextField {
                 id: hex
                 objectName: "keyHexField"
-                Layout.preferredWidth: 140
+                Layout.preferredWidth: 140 * ui.unit
                 font.family: "monospace"
                 validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
                 onAccepted: if (!tab.apply(text)) hex.text = tab.shared

@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: page
-    spacing: 20
+    spacing: 20 * ui.unit
 
     property var selection: []
     signal selectKeys(var ids)
@@ -292,23 +292,23 @@ ColumnLayout {
     component SlotButton: Chip {
         property int index: 0
         objectName: "slot_" + index
-        implicitWidth: Math.max(120, contentItem.implicitWidth + 24)
-        implicitHeight: 40
+        implicitWidth: Math.max(120 * ui.unit, contentItem.implicitWidth + 24 * ui.unit)
+        implicitHeight: 40 * ui.unit
         text: index === 0 && page.draft && page.draft.own ? qsTr("Each key's own action") : page.actionName(page.slotCode(index))
         on: page.slot === index
         onClicked: page.slot = page.slot === index ? -1 : index
     }
 
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         title: qsTr("Keys with an advanced function")
 
         Flow {
             objectName: "advancedList"
             Layout.fillWidth: true
             visible: backend.advancedKeys.length > 0
-            spacing: 6
+            spacing: 6 * ui.unit
             Repeater {
                 model: backend.advancedKeys
                 delegate: Chip {
@@ -324,8 +324,8 @@ ColumnLayout {
 
     // ---- selected key: type ----------------------------------------------
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         title: page.selection.length > 1 ? qsTr("%1 keys selected").arg(page.selection.length)
              : page.selectedKey < 0 ? qsTr("Selected key") : qsTr("Selected key: %1").arg(page.keyName(page.selectedKey))
 
@@ -344,7 +344,7 @@ ColumnLayout {
             objectName: "typeChips"
             visible: page.selectedKey >= 0
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 6 * ui.unit
             Repeater {
                 model: page.types
                 delegate: Chip {
@@ -364,8 +364,8 @@ ColumnLayout {
     Card {
         id: editor
         objectName: "advancedEditor"
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         visible: page.draft !== null
         title: page.draft !== null ? page.typeName(page.draft.type) : ""
 
@@ -375,8 +375,8 @@ ColumnLayout {
         GridLayout {
             visible: editor.type === "modTap" || editor.type === "toggle" || editor.type === "release"
             columns: 2
-            columnSpacing: 16
-            rowSpacing: 8
+            columnSpacing: 16 * ui.unit
+            rowSpacing: 8 * ui.unit
             Label { text: page.slotName(0) }
             SlotButton { index: 0 }
             Label { visible: editor.type === "modTap"; text: page.slotName(1) }
@@ -419,11 +419,11 @@ ColumnLayout {
                 id: point
                 required property int index
                 Layout.fillWidth: true
-                columns: editor.width > 900 ? 2 : 1
-                columnSpacing: 32
+                columns: editor.width > 900 * ui.unit ? 2 : 1
+                columnSpacing: 32 * ui.unit
                 RowLayout {
-                    Layout.preferredWidth: 320
-                    spacing: 12
+                    Layout.preferredWidth: 320 * ui.unit
+                    spacing: 12 * ui.unit
                     Label { text: page.slotName(10 + point.index) }
                     SlotButton { index: 10 + point.index }
                     Button {
@@ -452,9 +452,9 @@ ColumnLayout {
         GridLayout {
             visible: editor.type === "dks"
             Layout.fillWidth: true
-            columns: editor.width > 900 ? 2 : 1
-            columnSpacing: 32
-            rowSpacing: 8
+            columns: editor.width > 900 * ui.unit ? 2 : 1
+            columnSpacing: 32 * ui.unit
+            rowSpacing: 8 * ui.unit
         Repeater {
             model: editor.type === "dks" ? 4 : 0
             delegate: MmSlider {
@@ -482,12 +482,12 @@ ColumnLayout {
                     ? page.strokes.concat([{ label: qsTr("Another pattern (kept as it is)"), from: -1, to: -1 }])
                     : page.strokes
                 Layout.fillWidth: true
-                spacing: 10
-                Label { text: page.slotName(20 + row.index); height: 40; verticalAlignment: Text.AlignVCenter }
+                spacing: 10 * ui.unit
+                Label { text: page.slotName(20 + row.index); height: 40 * ui.unit; verticalAlignment: Text.AlignVCenter }
                 SlotButton { index: 20 + row.index }
                 ComboBox {
                     objectName: "dksStroke" + row.index
-                    width: Math.min(480, editor.width - 40)
+                    width: Math.min(480 * ui.unit, editor.width - 40 * ui.unit)
                     enabled: row.rowData.action !== ""
                     model: row.options.map(o => o.label)
                     currentIndex: {
@@ -519,16 +519,16 @@ ColumnLayout {
         GridLayout {
             visible: editor.type === "socd"
             Layout.fillWidth: true
-            columns: editor.width > 600 ? 2 : 1
-            columnSpacing: 16
-            rowSpacing: 8
+            columns: editor.width > 600 * ui.unit ? 2 : 1
+            columnSpacing: 16 * ui.unit
+            rowSpacing: 8 * ui.unit
             Label { visible: secondKey.visible; text: qsTr("Second key") }
             ComboBox {
                 id: secondKey
                 objectName: "socdSecondKey"
                 visible: page.selection.length !== 2
                 Layout.fillWidth: true
-                Layout.maximumWidth: 240
+                Layout.maximumWidth: 240 * ui.unit
                 readonly property var ids: backend.layout.map(k => k.id).filter(id => id !== (page.draft ? page.draft.key : -1))
                 model: secondKey.ids.map(id => page.keyName(id))
                 currentIndex: page.draft && page.draft.key2 !== undefined ? secondKey.ids.indexOf(page.draft.key2) : -1
@@ -540,7 +540,7 @@ ColumnLayout {
                 id: mode
                 objectName: "socdMode"
                 Layout.fillWidth: true
-                Layout.maximumWidth: 320
+                Layout.maximumWidth: 320 * ui.unit
                 readonly property var modes: ["lastInput", "neutral", "key1", "key2"]
                 readonly property string first: page.draft ? page.keyName(page.draft.key) : ""
                 readonly property string second: page.draft && page.draft.key2 >= 0 ? page.keyName(page.draft.key2) : qsTr("the second key")
@@ -569,7 +569,7 @@ ColumnLayout {
 
         Flow {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: 12 * ui.unit
             Button {
                 objectName: "saveAdvanced"
                 text: qsTr("Save")
@@ -596,8 +596,8 @@ ColumnLayout {
 
     // ---- picker for the slot being filled -------------------------------
     Card {
-        Layout.leftMargin: 32
-        Layout.rightMargin: 32
+        Layout.leftMargin: 32 * ui.unit
+        Layout.rightMargin: 32 * ui.unit
         visible: page.draft !== null && page.slot >= 0
         title: qsTr("%1: choose an action").arg(page.slotName(page.slot))
 

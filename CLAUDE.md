@@ -30,7 +30,7 @@ there: capture logs stay local and are gitignored.
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
 | `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
 | `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool (removed; it is in git history) and frames from captures: the reference the C++ code must match. |
-| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; QML: `Main.qml` (sidebar), one `*Page.qml` per page, `MacrosPage.qml` records and edits macros; `SettingsPage.qml` pushes `CalibrationPage.qml` (a calibration session) on its own StackView; `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab`/`ColorTab` around a shared `KeyboardView`; `src/scancodes` = evdev → HID usages for macro recording; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
+| `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only; QML: `Main.qml` (sidebar), one `*Page.qml` per page, `MacrosPage.qml` records and edits macros; `SettingsPage.qml` pushes `CalibrationPage.qml` (a calibration session) on its own StackView; `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab`/`ColorTab` around a shared `KeyboardView`; `src/scancodes` = evdev → HID usages for macro recording; `src/desktop_size` = the desktop text size, `ui` in QML; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
 | `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
 | `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
 | `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
@@ -115,6 +115,8 @@ The keyboard under test is a daily-use keyboard. Rules:
   that merely looks odd; block only what can't work on the board.
 - App colours come from `theme` (Omarchy `colors.toml`, light and dark); hard-code only real LED
   colours and text drawn on them.
+- App sizes come from `ui` (the desktop's text size): lengths are `n * ui.unit`, font sizes
+  `Math.round(n * ui.unit)`, n being the size at 14 px body text. No bare pixel sizes in QML.
 - Nothing personal in tracked files: no home paths, usernames, machine names. That goes in
   `CLAUDE.local.md`.
 

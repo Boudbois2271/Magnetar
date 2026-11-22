@@ -21,11 +21,11 @@ Item {
         signal toggled(bool on)
 
         Layout.fillWidth: true
-        spacing: 16
+        spacing: 16 * ui.unit
 
         ColumnLayout {
             Layout.fillWidth: true
-            spacing: 2
+            spacing: 2 * ui.unit
             Label { Layout.fillWidth: true; text: row.name }
         }
         Switch {
@@ -60,20 +60,20 @@ Item {
             // Nothing to show until the keyboard has been read once: no made-up values.
             visible: backend.ready
             enabled: backend.connected && !backend.restarting
-            spacing: 20
+            spacing: 20 * ui.unit
 
-            Item { implicitHeight: 12 }
+            Item { implicitHeight: 12 * ui.unit }
 
             Label {
-                Layout.leftMargin: 32
+                Layout.leftMargin: 32 * ui.unit
                 text: qsTr("Settings")
-                font.pixelSize: 26
+                font.pixelSize: Math.round(26 * ui.unit)
                 font.bold: true
             }
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Keyboard")
 
                 SettingRow {
@@ -97,17 +97,17 @@ Item {
             }
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Calibration")
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 16
+                    spacing: 16 * ui.unit
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 2 * ui.unit
                         Label { Layout.fillWidth: true; text: qsTr("Key travel") }
                     }
                     Button {
@@ -119,23 +119,23 @@ Item {
             }
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Connection")
 
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 16
+                    spacing: 16 * ui.unit
 
                     ColumnLayout {
                         Layout.fillWidth: true
-                        spacing: 2
+                        spacing: 2 * ui.unit
                         Label { Layout.fillWidth: true; text: qsTr("Polling rate") }
                         Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             opacity: 0.55
-                            font.pixelSize: 12
+                            font.pixelSize: Math.round(12 * ui.unit)
                             visible: backend.restarting
                             text: qsTr("Restarting the keyboard…")
                         }
@@ -143,7 +143,7 @@ Item {
                     ComboBox {
                         id: rateBox
                         objectName: "pollingRateBox"
-                        Layout.preferredWidth: 150
+                        Layout.preferredWidth: 150 * ui.unit
                         model: backend.pollingRates
                         currentIndex: backend.pollingRates.indexOf(backend.pollingRate)
                         displayText: qsTr("%1 Hz").arg(currentValue)
@@ -167,14 +167,14 @@ Item {
             
 
             Card {
-                Layout.leftMargin: 32
-                Layout.rightMargin: 32
+                Layout.leftMargin: 32 * ui.unit
+                Layout.rightMargin: 32 * ui.unit
                 title: qsTr("Device")
 
                 GridLayout {
                     columns: 2
-                    columnSpacing: 32
-                    rowSpacing: 10
+                    columnSpacing: 32 * ui.unit
+                    rowSpacing: 10 * ui.unit
 
                     Label { text: qsTr("Model"); opacity: 0.6 }
                     Label { text: "Akko TAC75 HE (38ee:0016)" }
@@ -194,7 +194,7 @@ Item {
 
                 Label {
                     Layout.fillWidth: true
-                    Layout.topMargin: 8
+                    Layout.topMargin: 8 * ui.unit
                     wrapMode: Text.WordWrap
                     opacity: 0.7
                     text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")
@@ -203,12 +203,12 @@ Item {
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
                     opacity: 0.55
-                    font.pixelSize: 12
+                    font.pixelSize: Math.round(12 * ui.unit)
                     text: qsTr("License: GPL-3.0-or-later")
                 }
             }
 
-            Item { implicitHeight: 20 }
+            Item { implicitHeight: 20 * ui.unit }
         }
     }
 }

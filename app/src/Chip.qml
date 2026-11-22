@@ -8,8 +8,8 @@ AbstractButton {
     id: chip
     property bool on: false
 
-    implicitWidth: label.implicitWidth + 24
-    implicitHeight: 34
+    implicitWidth: label.implicitWidth + 24 * ui.unit
+    implicitHeight: 34 * ui.unit
     hoverEnabled: true
     opacity: enabled ? 1 : 0.4
 
