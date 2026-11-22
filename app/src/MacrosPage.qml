@@ -389,7 +389,7 @@ Item {
                     visible: !page.fits
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    color: "#ff8a80"
+                    color: theme.error
                     text: qsTr("This macro doesn't fit: the keyboard holds %1 bytes of macros, and saving it would use %2.")
                           .arg(backend.macroStorage.max).arg(page.usedAfterSave)
                 }

@@ -91,7 +91,7 @@ ColumnLayout {
                 implicitHeight: 56
                 radius: Math.min(4, theme.radius)
                 color: tab.shared !== "" ? tab.shared : "transparent"
-                border.color: "#30ffffff"
+                border.color: Qt.alpha(theme.foreground, 0.19)
                 Label {
                     anchors.centerIn: parent
                     visible: tab.shared === ""
@@ -115,7 +115,7 @@ ColumnLayout {
                         radius: 15
                         color: modelData
                         border.width: current ? 3 : 1
-                        border.color: current ? theme.accent : "#50ffffff"
+                        border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.31)
                         ToolTip.visible: modelData === "#000000" && swatchMouse.containsMouse
                         ToolTip.text: qsTr("Black: the key stays dark")
                         MouseArea {

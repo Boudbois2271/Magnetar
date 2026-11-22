@@ -12,7 +12,7 @@ Rectangle {
     Layout.fillWidth: true
     implicitHeight: inner.implicitHeight + heading.implicitHeight + 52
     radius: theme.radius
-    color: "#17171b"
+    color: theme.card
 
     Label {
         id: heading

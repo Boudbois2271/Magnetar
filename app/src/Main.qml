@@ -13,9 +13,11 @@ ApplicationWindow {
     minimumHeight: 540
     visible: true
     title: "Magnetar"
-    color: "#0e0e10"
+    color: theme.background
 
-    Material.theme: Material.Dark
+    Material.theme: theme.dark ? Material.Dark : Material.Light
+    Material.background: theme.background
+    Material.foreground: theme.foreground
     Material.accent: theme.accent
     Material.roundedScale: theme.radius
 
@@ -48,7 +50,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.fillHeight: true
                 Layout.preferredWidth: 230
-                color: "#141417"
+                color: theme.sidebar
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -162,7 +164,7 @@ ApplicationWindow {
                 width: helpGrid.implicitWidth + 64
                 height: helpGrid.implicitHeight + helpTitle.implicitHeight + 72
                 radius: theme.radius
-                color: "#1b1b20"
+                color: theme.overlay
 
                 Label {
                     id: helpTitle
