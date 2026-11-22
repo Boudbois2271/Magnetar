@@ -47,31 +47,30 @@ Item {
         page.selection = page.allKeys().filter(id => page.selection.indexOf(id) < 0)
     }
 
-    ScrollView {
-        anchors.fill: parent
-        contentWidth: availableWidth
+    // Wide windows put the tab's panel beside the drawing, narrow ones below it. The drawing
+    // leaves the panel room: at least panelWidth beside it, or most of the height below it.
+    readonly property real panelWidth: 560 * ui.unit
+    readonly property bool wide: width >= 1220 * ui.unit
+    readonly property real drawingMaxWidth: page.wide ? page.width - 64 * ui.unit - page.panelWidth - 56 * ui.unit
+                                                      : page.height * 0.42 * 66 / 26
 
-        ColumnLayout {
-            width: parent.width
-            // Nothing to show until the keyboard has been read: no made-up values.
-            visible: backend.ready && backend.keymapReady && backend.travelReady && backend.advancedReady
-                     && backend.colorsReady
-            enabled: backend.connected
-            spacing: 20 * ui.unit
+    PageLayout {
+        // Nothing to show until the keyboard has been read: no made-up values.
+        visible: backend.ready && backend.keymapReady && backend.travelReady && backend.advancedReady
+                 && backend.colorsReady
+        enabled: backend.connected
 
-            Item { implicitHeight: 12 * ui.unit }
-
+        RowLayout {
+            spacing: 24 * ui.unit
             Label {
-                Layout.leftMargin: 32 * ui.unit
                 text: qsTr("Keys")
                 font.pixelSize: Math.round(26 * ui.unit)
                 font.bold: true
             }
-
             TabBar {
                 id: tabBar
                 objectName: "keysTabs"
-                Layout.leftMargin: 32 * ui.unit
+                Layout.alignment: Qt.AlignBottom
                 currentIndex: page.tab
                 onCurrentIndexChanged: page.tab = currentIndex
                 TabButton { text: qsTr("Action"); width: implicitWidth }
@@ -79,85 +78,128 @@ Item {
                 TabButton { text: qsTr("Advanced"); width: implicitWidth }
                 TabButton { text: qsTr("Colour"); width: implicitWidth }
             }
+        }
 
-            Card {
-                Layout.leftMargin: 32 * ui.unit
-                Layout.rightMargin: 32 * ui.unit
-                title: page.current.drawingTitle
+        GridLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            columns: page.wide ? 2 : 1
+            columnSpacing: 16 * ui.unit
+            rowSpacing: 16 * ui.unit
 
-                // The keymap has layers; the drawing shows the one being edited.
-                TabBar {
-                    objectName: "layerTabs"
-                    visible: page.tab === 0
-                    currentIndex: actionTab.activeLayer
-                    onCurrentIndexChanged: actionTab.activeLayer = currentIndex
-                    TabButton { text: qsTr("Default layer"); width: implicitWidth }
-                    TabButton { text: qsTr("Fn layer"); width: implicitWidth }
-                    TabButton { text: qsTr("Fn1 layer"); width: implicitWidth }
+            // The drawing, and under it on wide windows what a tab puts aside.
+            ColumnLayout {
+                Layout.fillWidth: !page.wide
+                Layout.preferredWidth: page.wide ? drawing.Layout.maximumWidth + 40 * ui.unit : -1
+                Layout.alignment: Qt.AlignTop
+                spacing: 16 * ui.unit
+
+                Card {
+                    Layout.fillWidth: !page.wide
+                    Layout.preferredWidth: page.wide ? drawing.Layout.maximumWidth + 40 * ui.unit : -1
+                    Layout.alignment: Qt.AlignTop
+                    title: page.current.drawingTitle
+
+                    // The keymap has layers; the drawing shows the one being edited.
+                    TabBar {
+                        objectName: "layerTabs"
+                        visible: page.tab === 0
+                        currentIndex: actionTab.activeLayer
+                        onCurrentIndexChanged: actionTab.activeLayer = currentIndex
+                        TabButton { text: qsTr("Default layer"); width: implicitWidth }
+                        TabButton { text: qsTr("Fn layer"); width: implicitWidth }
+                        TabButton { text: qsTr("Fn1 layer"); width: implicitWidth }
+                    }
+
+                    KeyboardView {
+                        id: drawing
+                        objectName: "keysKeyboard"
+                        Layout.fillWidth: true
+                        Layout.maximumWidth: Math.min(implicitWidth, page.drawingMaxWidth)
+                        Layout.alignment: Qt.AlignHCenter
+                        labelFor: page.current.labelFor
+                        markedFor: page.current.markedFor
+                        colorFor: page.current.colorFor || function (id) { return "" }
+                        selectedKeys: page.selection
+                        onKeyClicked: (id, modifiers) => page.click(id, modifiers)
+                        onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
+                    }
+
+                    Flow {
+                        Layout.fillWidth: true
+                        spacing: 6 * ui.unit
+                        Chip { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
+                        Chip { text: qsTr("Invert"); onClicked: page.invert() }
+                        Chip { text: qsTr("None"); onClicked: page.select([]) }
+                        Label {
+                            objectName: "selectedCount"
+                            height: 34 * ui.unit
+                            leftPadding: 10 * ui.unit
+                            verticalAlignment: Text.AlignVCenter
+                            text: qsTr("Selected: %1").arg(page.selection.length)
+                            opacity: 0.7
+                        }
+                    }
                 }
 
-                KeyboardView {
-                    objectName: "keysKeyboard"
+                ColumnLayout {
+                    id: aside
                     Layout.fillWidth: true
-                    Layout.maximumWidth: implicitWidth
-                    Layout.alignment: Qt.AlignHCenter
-                    labelFor: page.current.labelFor
-                    markedFor: page.current.markedFor
-                    colorFor: page.current.colorFor || function (id) { return "" }
-                    selectedKeys: page.selection
-                    onKeyClicked: (id, modifiers) => page.click(id, modifiers)
-                    onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
+                    spacing: 16 * ui.unit
+                }
+            }
+
+            // The tab's panel takes the rest of the page; the long lists in it scroll in their
+            // own boxes. Hidden tabs keep their state (an unsaved draft).
+            ScrollView {
+                id: panel
+                objectName: "keysPanel"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                contentWidth: availableWidth
+                // At least the panel's height, so the picker can fill it. Delayed: the tab's
+                // height and the layout inside it settle one after the other.
+                Binding on contentHeight {
+                    value: Math.max(panel.availableHeight, page.current.implicitHeight - (page.current.slack || 0))
+                    delayed: true
                 }
 
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 6 * ui.unit
-                    Chip { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
-                    Chip { text: qsTr("Invert"); onClicked: page.invert() }
-                    Chip { text: qsTr("None"); onClicked: page.select([]) }
-                    Label {
-                        objectName: "selectedCount"
-                        height: 34 * ui.unit
-                        leftPadding: 10 * ui.unit
-                        verticalAlignment: Text.AlignVCenter
-                        text: qsTr("Selected: %1").arg(page.selection.length)
-                        opacity: 0.7
+                Item {
+                    width: panel.availableWidth
+                    height: panel.contentHeight
+
+                    ActionTab {
+                        id: actionTab
+                        objectName: "actionTab"
+                        anchors.fill: parent
+                        visible: page.tab === 0
+                        selection: page.selection
+                    }
+                    TravelTab {
+                        id: travelTab
+                        objectName: "travelTab"
+                        anchors.fill: parent
+                        visible: page.tab === 1
+                        selection: page.selection
+                    }
+                    AdvancedTab {
+                        id: advancedTab
+                        objectName: "advancedTab"
+                        anchors.fill: parent
+                        visible: page.tab === 2
+                        selection: page.selection
+                        aside: page.wide && page.tab === 2 ? aside : null
+                        onSelectKeys: (ids) => page.select(ids)
+                    }
+                    ColorTab {
+                        id: colorTab
+                        objectName: "colorTab"
+                        anchors.fill: parent
+                        visible: page.tab === 3
+                        selection: page.selection
                     }
                 }
             }
-
-            // Hidden tabs take no room in the layout, and keep their state (an unsaved draft).
-            ActionTab {
-                id: actionTab
-                objectName: "actionTab"
-                Layout.fillWidth: true
-                visible: page.tab === 0
-                selection: page.selection
-            }
-            TravelTab {
-                id: travelTab
-                objectName: "travelTab"
-                Layout.fillWidth: true
-                visible: page.tab === 1
-                selection: page.selection
-            }
-            AdvancedTab {
-                id: advancedTab
-                objectName: "advancedTab"
-                Layout.fillWidth: true
-                visible: page.tab === 2
-                selection: page.selection
-                onSelectKeys: (ids) => page.select(ids)
-            }
-            ColorTab {
-                id: colorTab
-                objectName: "colorTab"
-                Layout.fillWidth: true
-                visible: page.tab === 3
-                selection: page.selection
-            }
-
-            Item { implicitHeight: 12 * ui.unit }
         }
     }
 }

@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: tab
-    spacing: 20 * ui.unit
+    spacing: 16 * ui.unit
 
     property var selection: []
     property int activeLayer: 0
@@ -17,6 +17,9 @@ ColumnLayout {
     property string pendingLayer: ""  // the layer key's name, for the dialog
 
     KeyNames { id: names }
+
+    // How much shorter than its implicit height the tab can get (the picker's list scrolls).
+    readonly property real slack: tab.selection.length > 0 ? picker.slack : 0
 
     readonly property string drawingTitle: tab.activeLayer === 0 ? qsTr("What each key does")
         : qsTr("What each key does while %1 is held").arg(tab.activeLayer === 1 ? "Fn" : "Fn1")
@@ -83,8 +86,6 @@ ColumnLayout {
 
     // ---- selected keys -----------------------------------------------------
     Card {
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         title: tab.selection.length > 1 ? qsTr("%1 keys selected").arg(tab.selection.length) : qsTr("Selected key")
 
         RowLayout {
@@ -121,17 +122,21 @@ ColumnLayout {
 
     // ---- picker --------------------------------------------------------------
     Card {
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         title: qsTr("Change it to")
         visible: tab.selection.length > 0
+        Layout.fillHeight: true
+        Layout.maximumHeight: implicitHeight
 
         ActionPicker {
+            id: picker
             Layout.fillWidth: true
+            Layout.fillHeight: true
             currentCode: tab.current !== undefined ? tab.current.code : ""
             onPicked: (code) => tab.assign(code)
         }
     }
+
+    Item { Layout.fillHeight: true }
 
     Dialog {
         id: confirmDialog

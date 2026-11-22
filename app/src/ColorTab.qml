@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: tab
-    spacing: 20 * ui.unit
+    spacing: 16 * ui.unit
 
     property var selection: []  // key IDs
     readonly property var colors: backend.colorsReady ? backend.keyColors : ({})
@@ -45,8 +45,6 @@ ColumnLayout {
     // ---- the colours only show under Custom ---------------------------------
     Card {
         objectName: "customHint"
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         visible: !tab.customOn
         title: qsTr("Custom effect is off")
 
@@ -62,8 +60,6 @@ ColumnLayout {
     }
 
     Card {
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         visible: tab.selection.length > 0
         title: qsTr("Colour")
 
@@ -136,4 +132,6 @@ ColumnLayout {
             }
         }
     }
+
+    Item { Layout.fillHeight: true }
 }

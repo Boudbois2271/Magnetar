@@ -36,15 +36,24 @@ ColumnLayout {
         return ms.french ? s.replace(".", ",") : s
     }
 
-    RowLayout {
+    // Name, slider, value and unit on one row when there is room; the slider below otherwise.
+    readonly property bool oneRow: ms.width >= 420 * ui.unit
+    GridLayout {
         Layout.fillWidth: true
-        spacing: 8 * ui.unit
+        columns: 5
+        columnSpacing: 8 * ui.unit
+        rowSpacing: 0
         Label {
-            Layout.fillWidth: true
+            Layout.row: 0
+            Layout.column: 0
+            Layout.fillWidth: !ms.oneRow
+            Layout.preferredWidth: ms.oneRow ? 150 * ui.unit : -1
             text: ms.label
             elide: Text.ElideRight
         }
         Label {
+            Layout.row: 0
+            Layout.column: 2
             visible: ms.mixed
             text: qsTr("varies")
             opacity: 0.55
@@ -52,6 +61,8 @@ ColumnLayout {
         TextField {
             id: typed
             objectName: ms.objectName + "Field"
+            Layout.row: 0
+            Layout.column: 3
             Layout.preferredWidth: 76 * ui.unit
             horizontalAlignment: TextInput.AlignRight
             enabled: !ms.beyond
@@ -69,22 +80,29 @@ ColumnLayout {
                 focus = false
             }
         }
-        Label { text: "mm" }
-    }
-    Slider {
-        id: slider
-        objectName: ms.objectName + "Bar"
-        Layout.fillWidth: true
-        from: ms.from
-        to: ms.to
-        // No stepSize: Material draws a tick per step. send() rounds to the step instead.
-        enabled: !ms.beyond
-        onPressedChanged: if (!pressed) ms.send(value)
-        onMoved: if (!pressed) ms.send(value)  // arrow keys
-        Binding on value {
-            when: !slider.pressed
-            value: ms.shown === undefined ? ms.from : ms.shown
-            restoreMode: Binding.RestoreNone
+        Label {
+            Layout.row: 0
+            Layout.column: 4
+            text: "mm"
+        }
+        Slider {
+            id: slider
+            objectName: ms.objectName + "Bar"
+            Layout.fillWidth: true
+            Layout.row: ms.oneRow ? 0 : 1
+            Layout.column: ms.oneRow ? 1 : 0
+            Layout.columnSpan: ms.oneRow ? 1 : 5
+            from: ms.from
+            to: ms.to
+            // No stepSize: Material draws a tick per step. send() rounds to the step instead.
+            enabled: !ms.beyond
+            onPressedChanged: if (!pressed) ms.send(value)
+            onMoved: if (!pressed) ms.send(value)  // arrow keys
+            Binding on value {
+                when: !slider.pressed
+                value: ms.shown === undefined ? ms.from : ms.shown
+                restoreMode: Binding.RestoreNone
+            }
         }
     }
     Label {

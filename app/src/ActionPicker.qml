@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Choose an action: categories of ready-made actions, a search box, and a shortcut builder.
+// Given less height than it needs, the list of actions scrolls in its own box.
 // Used by the Keys page and the advanced key editors.
 import QtQuick
 import QtQuick.Controls
@@ -18,6 +19,9 @@ ColumnLayout {
     signal picked(string code)
 
     spacing: 12 * ui.unit
+
+    // How much shorter than its implicit height the picker can get: its list scrolls instead.
+    readonly property real slack: itemsBox.visible ? itemsBox.Layout.preferredHeight - itemsBox.Layout.minimumHeight : 0
 
     KeyNames { id: names }
 
@@ -139,19 +143,30 @@ ColumnLayout {
             onValueModified: picker.macroCount = value
         }
     }
-    // A list of ready-made actions…
-    Flow {
+    // A list of ready-made actions, in its own box: it scrolls when the page has no room left.
+    ScrollView {
+        id: itemsBox
+        objectName: "pickerItems"
         Layout.fillWidth: true
+        Layout.fillHeight: true
+        Layout.preferredHeight: items.implicitHeight
+        Layout.minimumHeight: Math.min(items.implicitHeight, 80 * ui.unit)
+        contentWidth: availableWidth
         visible: !(picker.search.trim() === "" && picker.categories[picker.category].shortcut)
-        spacing: 6 * ui.unit
-        Repeater {
-            model: picker.shownItems
-            delegate: Chip {
-                required property var modelData
-                // The key's current action is filled in.
-                on: picker.currentCode === modelData.code
-                text: modelData.label
-                onClicked: picker.picked(modelData.code)
+
+        Flow {
+            id: items
+            width: parent.width
+            spacing: 6 * ui.unit
+            Repeater {
+                model: picker.shownItems
+                delegate: Chip {
+                    required property var modelData
+                    // The key's current action is filled in.
+                    on: picker.currentCode === modelData.code
+                    text: modelData.label
+                    onClicked: picker.picked(modelData.code)
+                }
             }
         }
     }

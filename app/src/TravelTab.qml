@@ -9,7 +9,7 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: page
-    spacing: 20 * ui.unit
+    spacing: 16 * ui.unit
 
     property var selection: []  // key IDs
     readonly property var travel: backend.travelReady ? backend.travel : ({})
@@ -70,8 +70,6 @@ ColumnLayout {
     }
 
     RowLayout {
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         Item { Layout.fillWidth: true }
         Button {
             objectName: "undoTravel"
@@ -82,12 +80,13 @@ ColumnLayout {
     }
 
     GridLayout {
-        Layout.leftMargin: 32 * ui.unit
-        Layout.rightMargin: 32 * ui.unit
         visible: page.selection.length > 0
-        columns: page.width > 1350 * ui.unit ? 3 : 1
-        columnSpacing: 20 * ui.unit
-        rowSpacing: 20 * ui.unit
+        Layout.fillWidth: true
+        // Side by side, so the tab fits under the drawing.
+        columns: page.width >= 600 * ui.unit ? 3 : 1
+        uniformCellWidths: true
+        columnSpacing: 16 * ui.unit
+        rowSpacing: 16 * ui.unit
 
         // ---- actuation -------------------------------------------------
         Card {
@@ -123,6 +122,7 @@ ColumnLayout {
             readonly property bool linked: !separate && sameValues
 
             Switch {
+                Layout.fillWidth: true
                 objectName: "rapidTriggerSwitch"
                 text: rtCard.onCount > 0 && !rtCard.on
                       ? qsTr("On for %1 of %2 keys").arg(rtCard.onCount).arg(page.selection.length)
@@ -131,6 +131,7 @@ ColumnLayout {
                 onToggled: page.change({ rapidTrigger: checked })
             }
             Switch {
+                Layout.fillWidth: true
                 text: qsTr("Separate press and release sensitivity")
                 enabled: rtCard.on
                 checked: !rtCard.linked
@@ -197,6 +198,7 @@ ColumnLayout {
             readonly property bool on: onCount === page.selection.length
 
             Switch {
+                Layout.fillWidth: true
                 objectName: "deadZoneSwitch"
                 text: dzCard.onCount > 0 && !dzCard.on
                       ? qsTr("On for %1 of %2 keys").arg(dzCard.onCount).arg(page.selection.length)
@@ -232,4 +234,6 @@ ColumnLayout {
             }
         }
     }
+
+    Item { Layout.fillHeight: true }
 }
