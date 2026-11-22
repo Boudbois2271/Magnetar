@@ -998,6 +998,105 @@ private slots:
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
+
+    void macrosPageRecordsSavesAndBinds()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.macrosReady());
+        w.window->setProperty("page", 1);
+        auto *page = w.item("macrosPage");
+        QVERIFY(page);
+        auto call = [&](const char *fn, QVariantList args = {}) {
+            QVariant r;
+            switch (args.size()) {
+            case 0: QMetaObject::invokeMethod(page, fn, Q_RETURN_ARG(QVariant, r)); break;
+            case 1: QMetaObject::invokeMethod(page, fn, Q_RETURN_ARG(QVariant, r), Q_ARG(QVariant, args[0])); break;
+            case 3:
+                QMetaObject::invokeMethod(page, fn, Q_RETURN_ARG(QVariant, r), Q_ARG(QVariant, args[0]),
+                                          Q_ARG(QVariant, args[1]), Q_ARG(QVariant, args[2]));
+                break;
+            }
+            return r;
+        };
+        auto need = [&](const char *name) {
+            auto *i = w.item(name);
+            if (!i)
+                qFatal("no item %s", name);
+            return i;
+        };
+        auto steps = [&] { return page->property("draft").toMap().value("steps").toList(); };
+        auto save = need("saveMacro");
+        QVERIFY(save);
+
+        // Recording: Shift held around A, with the real delays; a release that started before
+        // Record and keys with no HID usage are left out. Scan codes are XKB (evdev + 8).
+        call("startRecording");
+        call("recordEvent", {false, 30 + 8, 900.0});   // A released, pressed before Record
+        call("recordEvent", {true, 42 + 8, 1000.0});   // Shift
+        call("recordEvent", {true, 30 + 8, 1120.0});   // A
+        call("recordEvent", {true, 84 + 8, 1130.0});   // no key
+        call("recordEvent", {false, 30 + 8, 1200.0});
+        call("recordEvent", {false, 42 + 8, 1260.0});
+        call("stopRecording");
+        call("recordEvent", {true, 30 + 8, 1300.0});   // after Stop
+        QCOMPARE(steps().size(), 4);
+        QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0xe1);
+        QCOMPARE(steps()[0].toMap().value("delay").toInt(), 120);
+        QCOMPARE(steps()[1].toMap().value("delay").toInt(), 80);
+        QCOMPARE(steps()[2].toMap().value("press").toBool(), false);
+
+        // Save waits for a name the board takes.
+        QVERIFY(!save->property("enabled").toBool());
+        call("setName", {"a"});
+        QVERIFY(!save->property("enabled").toBool());
+        call("setName", {"ab"});
+        QVERIFY(save->property("enabled").toBool());
+        QMetaObject::invokeMethod(save, "clicked");
+        QTRY_COMPARE(w.backend.macros().size(), 1);
+        // The new macro is selected and shows the read-back: nothing left to save.
+        QTRY_COMPARE(page->property("index").toInt(), 0);
+        QVERIFY(!page->property("dirty").toBool());
+        const auto saved = w.backend.macros()[0].toMap().value("steps").toList();
+        QCOMPARE(saved[1].toMap().value("delay").toInt(), 80);
+        QCOMPARE(saved[3].toMap().value("delay").toInt(), 1);
+        QCOMPARE(need("macroStorageLabel")->property("text").toString(), QString("23 / 4096 bytes used"));
+
+        // Standard delay: every step waits 50 ms; Revert puts the board's delays back.
+        page->setProperty("standard", true);
+        QVERIFY(page->property("dirty").toBool());
+        QCOMPARE(page->property("record").toMap().value("steps").toList()[1].toMap().value("delay").toInt(), 50);
+        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+        QVERIFY(!page->property("dirty").toBool());
+        QVERIFY(!page->property("standard").toBool());
+        // A re-read (window focus) keeps an edited draft.
+        call("addKey", {0x05});
+        QCOMPARE(steps().size(), 6);
+        w.backend.refresh();
+        QTest::qWait(100);
+        QCOMPARE(steps().size(), 6);
+        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+
+        // Bound to Insert, played three times: the drawing and the Keys page name it.
+        w.window->setProperty("page", 0);
+        w.click(0x62);
+        QMetaObject::invokeMethod(need("actionTab"), "assign", Q_ARG(QVariant, w.backend.macroCode(0, "times", 3)));
+        QTRY_COMPARE(w.cap(0x62), QString("ab"));
+        QCOMPARE(need("currentAction")->property("text").toString(), QString("Macro: ab ×3"));
+        // The picker opens on Macros with that loop mode and count.
+        QTRY_COMPARE(need("macroCount")->property("value").toInt(), 3);
+        QVERIFY(need("macroCount")->isVisible());
+
+        // Deleting it unbinds the key.
+        w.window->setProperty("page", 1);
+        QCOMPARE(w.window->findChild<QObject *>("deleteMacroDialog")->property("bound").toInt(), 1);
+        call("remove");
+        QTRY_COMPARE(w.backend.macros().size(), 0);
+        QTRY_COMPARE(w.backend.keymap()[0].toMap().value("98").toMap().value("code").toString(), w.backend.unboundCode());
+        QCOMPARE(page->property("index").toInt(), -1);
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
 };
 
 int runAppTests(int argc, char **argv)

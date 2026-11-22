@@ -13,6 +13,8 @@ ColumnLayout {
     property bool offerNothing: true  // the "Nothing" category (unbound)
     property int category: 0
     property string search: ""
+    property string macroLoop: "times"  // how a picked macro plays: times, untilKeyPressed, whileHeld
+    property int macroCount: 1
     signal picked(string code)
 
     spacing: 12
@@ -44,6 +46,8 @@ ColumnLayout {
         { name: qsTr("Modifiers"), items: [1, 2, 4, 8, 16, 32, 64, 128].map(
               b => ({ label: names.modifierName(b), code: backend.comboCode(b, []) })) },
         { name: qsTr("Shortcut"), shortcut: true, items: [] },
+        { name: qsTr("Macros"), macros: true, items: backend.macros.map((m, i) => ({
+              label: names.macroName(i), code: backend.macroCode(i, picker.macroLoop, picker.macroCount) })) },
         { name: qsTr("Media"), items: names.media.map(m => ({ label: m.name, code: backend.consumerCode(m.usage) })) },
         { name: qsTr("Mouse"), items: [1, 2, 3].map(b => ({ label: names.mouseName(b), code: backend.mouseCode(b) })) },
         { name: qsTr("Layers and lighting"), items: [
@@ -52,6 +56,19 @@ ColumnLayout {
               { label: qsTr("Brightness cycle"), code: backend.brightnessCycleCode() }] },
         { name: qsTr("Nothing"), items: [{ label: qsTr("Nothing (the key does nothing)"), code: backend.unboundCode() }] }
     ].filter(c => picker.offerNothing || c.items.length === 0 || c.items[0].code !== backend.unboundCode())
+    readonly property bool onMacros: picker.search.trim() === "" && picker.categories[picker.category].macros === true
+
+    // A key that runs a macro opens on Macros, with its loop mode and count.
+    function showCurrent() {
+        const info = picker.currentCode === "" ? undefined : backend.actionInfo(picker.currentCode)
+        if (!info || info.kind !== "macro" || info.loop === "")
+            return
+        picker.macroLoop = info.loop
+        picker.macroCount = info.loop === "times" ? info.count : picker.macroCount
+        picker.category = picker.categories.findIndex(c => c.macros === true)
+    }
+    onCurrentCodeChanged: picker.showCurrent()
+    Component.onCompleted: picker.showCurrent()
 
     readonly property var shownItems: {
         const q = picker.search.trim().toLowerCase()
@@ -92,6 +109,42 @@ ColumnLayout {
                 onClicked: picker.category = index
             }
         }
+    }
+
+    // How a macro plays, above the list of macros.
+    Flow {
+        Layout.fillWidth: true
+        visible: picker.onMacros && backend.macros.length > 0
+        spacing: 6
+        Repeater {
+            model: [{ loop: "times", label: qsTr("Play a number of times") },
+                    { loop: "untilKeyPressed", label: qsTr("Repeat until a key is pressed") },
+                    { loop: "whileHeld", label: qsTr("Repeat while held") }]
+            delegate: Chip {
+                required property var modelData
+                on: picker.macroLoop === modelData.loop
+                text: modelData.label
+                onClicked: picker.macroLoop = modelData.loop
+            }
+        }
+        SpinBox {
+            objectName: "macroCount"
+            visible: picker.macroLoop === "times"
+            from: 1
+            to: backend.macroLimits.maxRepeat
+            editable: true
+            value: picker.macroCount
+            textFromValue: (v) => qsTr("%1×").arg(v)
+            valueFromText: (t) => parseInt(t) || 1
+            onValueModified: picker.macroCount = value
+        }
+    }
+    Label {
+        visible: picker.onMacros && backend.macros.length === 0
+        Layout.fillWidth: true
+        wrapMode: Text.WordWrap
+        text: qsTr("This profile has no macros yet: record one on the Macros page.")
+        opacity: 0.6
     }
 
     // A list of ready-made actions…

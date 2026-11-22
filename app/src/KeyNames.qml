@@ -17,6 +17,8 @@ QtObject {
             return "F" + (u - 0x39)
         if (u >= 0x68 && u <= 0x73)
             return "F" + (u - 0x68 + 13)
+        if (u >= 0xe0 && u <= 0xe7)
+            return modifierName(1 << (u - 0xe0))  // modifier usages, as in macro steps
         if (u >= 0x59 && u <= 0x61)
             return qsTr("Num %1").arg(u - 0x58)
         switch (u) {
@@ -149,7 +151,17 @@ QtObject {
             case 0x08: case 0x80: return "Win"
             }
         }
+        if (info && info.kind === "macro") {
+            const m = backend.macros[info.value]
+            return m ? m.name : qsTr("Macro %1").arg(info.value + 1)
+        }
         return name(info)
+    }
+
+    // A macro by its index on the active profile: "Macro: name", or its number if it isn't there.
+    function macroName(i) {
+        const m = backend.macros[i]
+        return m ? qsTr("Macro: %1").arg(m.name) : qsTr("Macro %1").arg(i + 1)
     }
 
     // Full name of an action info object.
@@ -167,7 +179,15 @@ QtObject {
         }
         case "mouse": return mouseName(info.value)
         case "consumer": return consumerName(info.value)
-        case "macro": return qsTr("Macro %1").arg(info.value + 1)
+        case "macro": {
+            const what = macroName(info.value)
+            switch (info.loop) {
+            case "times": return info.count > 1 ? qsTr("%1 ×%2").arg(what).arg(info.count) : what
+            case "untilKeyPressed": return qsTr("%1, until a key is pressed").arg(what)
+            case "whileHeld": return qsTr("%1, while held").arg(what)
+            }
+            return what
+        }
         case "layer": return info.value === 0 ? "Fn" : "Fn" + info.value
         case "profile": return qsTr("Profile %1").arg(info.value + 1)
         case "lighting": return info.code === "08 03 00 00" ? qsTr("Brightness cycle") : qsTr("Lighting control")

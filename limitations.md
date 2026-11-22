@@ -74,12 +74,15 @@ reflected in `akko-protocol.md`.
   board; Magnetar always clears both, like the vendor app.
 - Advanced tab: DKS patterns other than "once at a point" or "held from one point to another"
   (e.g. two separate taps in one row) are shown as "another pattern" and kept as read, not editable.
-- Advanced tab: no Undo (Remove, or saving the old values again). Macros can't be chosen as an
-  action (the picker has no macros yet).
+- Advanced tab: no Undo (Remove, or saving the old values again).
 - Advanced tab: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
-- Macros (backend only, no page yet): recording maps a key event's `nativeScanCode()` to a HID
+- Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb; not checked in
   the running app. Keys outside the evdev table (media keys, ...) record as nothing.
+- Macros page: the whole page (recording in the running app, saving, binding, deleting) is tested
+  against the fake keyboard only, not yet on the board. Steps can only use keyboard usages (no mouse
+  or media steps: never captured). A step's key can't be changed in place (remove it, add another).
+  Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.
@@ -88,7 +91,7 @@ reflected in `akko-protocol.md`.
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
 - Travel page: at 760 px wide the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
-- Keys page: macros, system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
+- Keys page: system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
   actions are shown but can't be assigned; the Fn layer's factory ones show as "System function" /
   "Lighting control" because their meaning is a guess. Mouse buttons 4/5 and media keys other than
   the twelve in the factory Fn layer aren't offered (not captured).

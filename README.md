@@ -30,13 +30,13 @@ tool for scripts and status bars.
 | Page | What you can do |
 |---|---|
 | **Keys** | Click keys on the drawing (or drag a box, Ctrl+drag to add) and edit them together in four tabs: **Action** (what the key sends, on all three layers), **Travel** (actuation point, Rapid Trigger, dead zones), **Advanced** (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD) and **Colour** (per-key colours for the Custom lighting effect). |
+| **Macros** | Record key presses and releases with their timing, edit the steps and delays (or use the standard 50 ms), save them to the keyboard's 4096-byte storage. Macros are per profile; bind one to a key on Keys → Action → Macros, played a number of times, until a key is pressed, or while held. |
 | **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow. |
 | **Device** | Model, firmware, connection status. |
 
 The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3.
 
-Magnetar grows one page at a time; macros are next (the protocol for them is already decoded in
-`akko-protocol.md`).
+Magnetar grows one page at a time; next are Settings, Mural and Calibration.
 
 ## Install
 

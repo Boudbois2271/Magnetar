@@ -14,6 +14,7 @@
         <file alias="MmSlider.qml">MmSlider.qml</file>
         <file alias="AdvancedTab.qml">AdvancedTab.qml</file>
         <file alias="ColorTab.qml">ColorTab.qml</file>
+        <file alias="MacrosPage.qml">MacrosPage.qml</file>
         <file alias="DevicePage.qml">DevicePage.qml</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
