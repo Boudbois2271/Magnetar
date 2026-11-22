@@ -177,235 +177,236 @@ Item {
         }
     }
 
-    ScrollView {
-        anchors.fill: parent
-        contentWidth: availableWidth
+    PageLayout {
+        title: qsTr("Macros")
+        // Nothing to show until the macros have been read: no made-up values.
+        visible: backend.macrosReady
+        enabled: backend.connected
 
-        ColumnLayout {
-            width: parent.width
-            // Nothing to show until the macros have been read: no made-up values.
-            visible: backend.macrosReady
-            enabled: backend.connected
-            spacing: 20 * ui.unit
+        // ---- list and storage ----------------------------------------------
+        Card {
+            title: qsTr("Macros of profile %1").arg(backend.profile)
 
-            Item { implicitHeight: 12 * ui.unit }
-
-            Label {
-                Layout.leftMargin: 32 * ui.unit
-                text: qsTr("Macros")
-                font.pixelSize: Math.round(26 * ui.unit)
-                font.bold: true
-            }
-
-            // ---- list and storage ----------------------------------------------
-            Card {
-                Layout.leftMargin: 32 * ui.unit
-                Layout.rightMargin: 32 * ui.unit
-                title: qsTr("Macros of profile %1").arg(backend.profile)
-
-                RowLayout {
-                    spacing: 12 * ui.unit
-                    ProgressBar {
-                        Layout.fillWidth: true
-                        from: 0
-                        to: backend.macroStorage.max
-                        value: backend.macroStorage.used
-                    }
-                    Label {
-                        objectName: "macroStorageLabel"
-                        text: qsTr("%1 / %2 bytes used").arg(backend.macroStorage.used).arg(backend.macroStorage.max)
-                        opacity: 0.7
-                    }
-                }
-
-                Flow {
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12 * ui.unit
+                ProgressBar {
                     Layout.fillWidth: true
-                    spacing: 6 * ui.unit
-                    Repeater {
-                        model: page.macros
-                        delegate: Chip {
-                            required property int index
-                            required property var modelData
-                            objectName: "macro_" + index
-                            on: page.index === index
-                            text: modelData.steps.length === 1 ? qsTr("%1 · 1 step").arg(modelData.name)
-                                  : qsTr("%1 · %2 steps").arg(modelData.name).arg(modelData.steps.length)
-                            onClicked: page.select(index)
-                        }
-                    }
-                    Chip {
-                        objectName: "newMacro"
-                        on: page.index < 0
-                        text: qsTr("+ New macro")
-                        onClicked: page.select(-1)
-                    }
+                    from: 0
+                    to: backend.macroStorage.max
+                    value: backend.macroStorage.used
+                }
+                Label {
+                    objectName: "macroStorageLabel"
+                    text: qsTr("%1 / %2 bytes used").arg(backend.macroStorage.used).arg(backend.macroStorage.max)
+                    opacity: 0.7
                 }
             }
 
-            // ---- editor --------------------------------------------------------
-            Card {
-                Layout.leftMargin: 32 * ui.unit
-                Layout.rightMargin: 32 * ui.unit
-                title: page.saved ? qsTr("Edit macro %1").arg(page.index + 1) : qsTr("New macro")
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12 * ui.unit
-                    Label { text: qsTr("Name") }
-                    TextField {
-                        objectName: "macroName"
-                        Layout.fillWidth: true
-                        placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
-                        text: page.draft.name
-                        maximumLength: page.limits.maxName
-                        // The board stores names as plain ASCII.
-                        validator: RegularExpressionValidator { regularExpression: /[\x20-\x7e]*/ }
-                        onTextEdited: page.setName(text)
-                    }
-                }
-
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 16 * ui.unit
-                    // A Chip: Material's Button background doesn't paint on the dark theme here.
-                    Chip {
-                        objectName: "recordButton"
-                        y: (standardSwitch.height - height) / 2
-                        on: page.recording
-                        text: page.recording ? qsTr("● Stop") : qsTr("● Record")
-                        onClicked: page.recording ? page.stopRecording() : page.startRecording()
-                    }
-                    Switch {
-                        id: standardSwitch
-                        objectName: "standardDelay"
-                        text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
-                        checked: page.standard
-                        onToggled: page.standard = checked
-                    }
-                }
-
-
-                // One row per step: what happens, then the wait before the next step.
+            Flow {
+                Layout.fillWidth: true
+                spacing: 6 * ui.unit
                 Repeater {
-                    model: page.draft.steps
-                    delegate: RowLayout {
-                        id: stepRow
+                    model: page.macros
+                    delegate: Chip {
                         required property int index
                         required property var modelData
-                        readonly property bool last: index === page.draft.steps.length - 1
-                        Layout.fillWidth: true
-                        spacing: 6 * ui.unit
+                        objectName: "macro_" + index
+                        on: page.index === index
+                        text: modelData.steps.length === 1 ? qsTr("%1 · 1 step").arg(modelData.name)
+                              : qsTr("%1 · %2 steps").arg(modelData.name).arg(modelData.steps.length)
+                        onClicked: page.select(index)
+                    }
+                }
+                Chip {
+                    objectName: "newMacro"
+                    on: page.index < 0
+                    text: qsTr("+ New macro")
+                    onClicked: page.select(-1)
+                }
+            }
+        }
 
-                        Chip {
-                            Layout.preferredWidth: 90 * ui.unit
-                            text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
-                            onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
-                        }
-                        Label {
+        // ---- editor --------------------------------------------------------
+        // Takes the height left, up to what it needs; the steps scroll inside it.
+        Card {
+            Layout.fillHeight: true
+            Layout.maximumHeight: implicitHeight
+            title: page.saved ? qsTr("Edit macro %1").arg(page.index + 1) : qsTr("New macro")
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12 * ui.unit
+                Label { text: qsTr("Name") }
+                TextField {
+                    objectName: "macroName"
+                    Layout.fillWidth: true
+                    placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
+                    text: page.draft.name
+                    maximumLength: page.limits.maxName
+                    // The board stores names as plain ASCII.
+                    validator: RegularExpressionValidator { regularExpression: /[\x20-\x7e]*/ }
+                    onTextEdited: page.setName(text)
+                }
+            }
+
+            Flow {
+                Layout.fillWidth: true
+                spacing: 16 * ui.unit
+                // A Chip: Material's Button background doesn't paint on the dark theme here.
+                Chip {
+                    objectName: "recordButton"
+                    y: (standardSwitch.height - height) / 2
+                    on: page.recording
+                    text: page.recording ? qsTr("● Stop") : qsTr("● Record")
+                    onClicked: page.recording ? page.stopRecording() : page.startRecording()
+                }
+                Switch {
+                    id: standardSwitch
+                    objectName: "standardDelay"
+                    text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
+                    checked: page.standard
+                    onToggled: page.standard = checked
+                }
+            }
+
+
+            // One row per step: what happens, then the wait before the next step. A long
+            // macro scrolls here; the rest of the page stays put.
+            ScrollView {
+                objectName: "macroSteps"
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                Layout.preferredHeight: steps.implicitHeight
+                Layout.minimumHeight: Math.min(steps.implicitHeight, 80 * ui.unit)
+                contentWidth: availableWidth
+                visible: page.draft.steps.length > 0
+
+                ColumnLayout {
+                    id: steps
+                    width: parent.width
+                    spacing: 8 * ui.unit
+                    Repeater {
+                        model: page.draft.steps
+                        delegate: RowLayout {
+                            id: stepRow
+                            required property int index
+                            required property var modelData
+                            readonly property bool last: index === page.draft.steps.length - 1
                             Layout.fillWidth: true
-                            text: names.usageName(stepRow.modelData.usage)
-                            font.bold: true
-                            elide: Text.ElideRight
-                        }
-                        TextField {
-                            Layout.preferredWidth: 72 * ui.unit
-                            visible: !stepRow.last
-                            enabled: !page.standard
-                            horizontalAlignment: Text.AlignRight
-                            inputMethodHints: Qt.ImhDigitsOnly
-                            validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
-                            text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
-                            onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
-                                                   page.setStep(stepRow.index, { delay: Number(text) })
-                        }
-                        Label {
-                            Layout.preferredWidth: (72 + 6 + 24) * ui.unit
-                            visible: stepRow.last
-                            horizontalAlignment: Text.AlignRight
-                            text: qsTr("1 ms (end)")
-                            opacity: 0.5
-                        }
-                        Label {
-                            Layout.preferredWidth: 24 * ui.unit
-                            visible: !stepRow.last
-                            text: "ms"
-                            opacity: 0.6
-                        }
-                        ToolButton {
-                            Layout.preferredWidth: 32 * ui.unit
-                            text: "↑"
-                            enabled: stepRow.index > 0
-                            onClicked: page.moveStep(stepRow.index, -1)
-                        }
-                        ToolButton {
-                            Layout.preferredWidth: 32 * ui.unit
-                            text: "↓"
-                            enabled: !stepRow.last
-                            onClicked: page.moveStep(stepRow.index, 1)
-                        }
-                        ToolButton {
-                            Layout.preferredWidth: 32 * ui.unit
-                            text: "✕"
-                            onClicked: page.removeStep(stepRow.index)
-                        }
-                    }
-                }
+                            spacing: 6 * ui.unit
 
-                // Adds a press and a release of one key, for editing by hand.
-                Flow {
-                    Layout.fillWidth: true
-                    spacing: 10 * ui.unit
-                    ComboBox {
-                        id: addKeyBox
-                        width: 200 * ui.unit
-                        model: page.addableKeys.map(u => names.usageName(u))
-                        currentIndex: -1
-                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
-                    }
-                    Button {
-                        text: qsTr("Add")
-                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
-                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
-                    }
-                }
-
-                Label {
-                    visible: !page.fits
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    color: theme.error
-                    text: qsTr("This macro doesn't fit: the keyboard holds %1 bytes of macros, and saving it would use %2.")
-                          .arg(backend.macroStorage.max).arg(page.usedAfterSave)
-                }
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 12 * ui.unit
-                    Button {
-                        objectName: "saveMacro"
-                        text: qsTr("Save")
-                        highlighted: true
-                        enabled: page.canSave
-                        onClicked: page.save()
-                    }
-                    Button {
-                        objectName: "revertMacro"
-                        text: qsTr("Revert")
-                        enabled: page.dirty || page.recording
-                        onClicked: page.load()
-                    }
-                    Item { Layout.fillWidth: true }
-                    Button {
-                        objectName: "deleteMacro"
-                        visible: page.saved !== null
-                        text: qsTr("Delete macro")
-                        onClicked: deleteDialog.open()
+                            Chip {
+                                Layout.preferredWidth: 90 * ui.unit
+                                text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
+                                onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                text: names.usageName(stepRow.modelData.usage)
+                                font.bold: true
+                                elide: Text.ElideRight
+                            }
+                            TextField {
+                                Layout.preferredWidth: 72 * ui.unit
+                                visible: !stepRow.last
+                                enabled: !page.standard
+                                horizontalAlignment: Text.AlignRight
+                                inputMethodHints: Qt.ImhDigitsOnly
+                                validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
+                                text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
+                                onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
+                                                       page.setStep(stepRow.index, { delay: Number(text) })
+                            }
+                            Label {
+                                Layout.preferredWidth: (72 + 6 + 24) * ui.unit
+                                visible: stepRow.last
+                                horizontalAlignment: Text.AlignRight
+                                text: qsTr("1 ms (end)")
+                                opacity: 0.5
+                            }
+                            Label {
+                                Layout.preferredWidth: 24 * ui.unit
+                                visible: !stepRow.last
+                                text: "ms"
+                                opacity: 0.6
+                            }
+                            ToolButton {
+                                Layout.preferredWidth: 32 * ui.unit
+                                text: "↑"
+                                enabled: stepRow.index > 0
+                                onClicked: page.moveStep(stepRow.index, -1)
+                            }
+                            ToolButton {
+                                Layout.preferredWidth: 32 * ui.unit
+                                text: "↓"
+                                enabled: !stepRow.last
+                                onClicked: page.moveStep(stepRow.index, 1)
+                            }
+                            ToolButton {
+                                Layout.preferredWidth: 32 * ui.unit
+                                text: "✕"
+                                onClicked: page.removeStep(stepRow.index)
+                            }
+                        }
                     }
                 }
             }
 
-            Item { implicitHeight: 12 * ui.unit }
+            // Adds a press and a release of one key, for editing by hand.
+            Flow {
+                Layout.fillWidth: true
+                spacing: 10 * ui.unit
+                ComboBox {
+                    id: addKeyBox
+                    width: 200 * ui.unit
+                    model: page.addableKeys.map(u => names.usageName(u))
+                    currentIndex: -1
+                    displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
+                }
+                Button {
+                    text: qsTr("Add")
+                    enabled: addKeyBox.currentIndex >= 0 && !page.recording
+                    onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
+                }
+            }
+
+            Label {
+                visible: !page.fits
+                Layout.fillWidth: true
+                wrapMode: Text.WordWrap
+                color: theme.error
+                text: qsTr("This macro doesn't fit: the keyboard holds %1 bytes of macros, and saving it would use %2.")
+                      .arg(backend.macroStorage.max).arg(page.usedAfterSave)
+            }
+
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 12 * ui.unit
+                Button {
+                    objectName: "saveMacro"
+                    text: qsTr("Save")
+                    highlighted: true
+                    enabled: page.canSave
+                    onClicked: page.save()
+                }
+                Button {
+                    objectName: "revertMacro"
+                    text: qsTr("Revert")
+                    enabled: page.dirty || page.recording
+                    onClicked: page.load()
+                }
+                Item { Layout.fillWidth: true }
+                Button {
+                    objectName: "deleteMacro"
+                    visible: page.saved !== null
+                    text: qsTr("Delete macro")
+                    onClicked: deleteDialog.open()
+                }
+            }
         }
+
+        Item { Layout.fillHeight: true }
     }
 
     // Keys the "Add a key" list offers: letters, digits, symbols, F1–F12, editing, arrows, modifiers.

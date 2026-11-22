@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// A titled panel that groups related settings on a page.
+// A titled panel that groups related settings on a page. Given less height than it needs, its
+// content shrinks: a box that scrolls inside it (Layout.fillHeight) gives way.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -30,6 +31,7 @@ Rectangle {
         anchors.top: heading.bottom
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.bottom: parent.bottom
         anchors.margins: 20 * ui.unit
         anchors.topMargin: 12 * ui.unit
         spacing: 12 * ui.unit
