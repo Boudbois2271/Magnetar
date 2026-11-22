@@ -82,9 +82,20 @@ void DeviceWorker::loop()
             akko::Keyboard kb(session->transport());
             if (keymapStale)
                 s.keymapProfile = s.travelProfile = s.advancedProfile = s.colorsProfile = s.macrosProfile = -1;
-            for (auto &item : batch)
+            s.restarting = false;
+            for (auto &item : batch) {
                 item.action(kb, s);
+                if (s.restarting)
+                    break;
+            }
+            if (s.restarting) {
+                // The board is about to drop off USB: don't touch it again in this session.
+                s.keymapProfile = s.travelProfile = s.advancedProfile = s.colorsProfile = s.macrosProfile = -1;
+                onState_(s);
+                continue;
+            }
             s.lighting = kb.lighting();
+            s.base = kb.baseFunctions();
             s.profile = kb.profile();
             s.profileCount = kb.profileCount();
             s.firmware = kb.firmwareVersion();

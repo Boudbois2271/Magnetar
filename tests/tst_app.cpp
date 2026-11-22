@@ -274,6 +274,64 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(b.connected(), 5000);  // the 3 s retry, no refresh() call
     }
 
+    void settingsAreWrittenAndReadBack()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        QVERIFY(!b.winKeyLock());
+        QVERIFY(b.comboOptimization());
+        QVERIFY(b.adaptiveCalibration());
+        QCOMPARE(b.pollingRate(), 1000);
+        QCOMPARE(b.pollingRates(), (QVariantList{125, 250, 500, 1000, 2000, 4000, 8000}));
+
+        b.setWinKeyLock(true);
+        QTRY_VERIFY(b.winKeyLock());
+        b.setComboOptimization(false);
+        QTRY_VERIFY(!b.comboOptimization());
+        b.setAdaptiveCalibration(false);
+        QTRY_VERIFY(!b.adaptiveCalibration());
+        QCOMPARE(board.writesOf(0x04, 0x15), 1);
+        QCOMPARE(board.writesOf(0x04, 0x18), 1);
+        QCOMPARE(board.writesOf(0x04, 0x19), 1);
+
+        QVERIFY(!b.setPollingRate(300));  // not a rate the board has
+        b.refresh();
+        QTRY_VERIFY(board.writesOf(0x84, 0x17) >= 3);
+        QCOMPARE(board.writesOf(0x04, 0x17), 0);
+    }
+
+    void pollingRateWaitsForTheRestart()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.keymapReady());
+        const int keymapReads = board.writesOf(0x83, 0x00);
+
+        QVERIFY(b.setPollingRate(500));
+        QTRY_VERIFY(b.restarting());
+        QCOMPARE(b.pollingRate(), 500);  // the read-back, before the board goes away
+        QCOMPARE(board.writesOf(0x04, 0x17), 1);
+        {
+            std::lock_guard lock(board.mutex);
+            board.failWith = "keyboard not found (is it plugged in?)";  // off USB for a moment
+        }
+        QTest::qWait(Backend::kRestartWaitMs + 500);  // at least one failed attempt
+        QVERIFY(b.restarting());
+        QVERIFY(b.connected());
+        QVERIFY(b.errorKind().isEmpty());  // no error banner while it restarts
+        {
+            std::lock_guard lock(board.mutex);
+            board.failWith.clear();  // back
+        }
+        QTRY_VERIFY(!b.restarting());
+        QVERIFY(b.connected());
+        QCOMPARE(b.pollingRate(), 500);
+        QVERIFY(board.writesOf(0x83, 0x00) > keymapReads);  // everything read again
+    }
+
     void keymapIsReadOnceAndKeptUpToDate()
     {
         FakeBoard board;

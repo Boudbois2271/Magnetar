@@ -42,7 +42,11 @@ struct Snapshot {
     int profile = 0;  // 0-based
     int profileCount = 0;
     akko::Lighting lighting;
+    akko::BaseFunctions base;  // Base Functions settings, read with every batch
     std::uint16_t firmware = 0;
+    // Set by an action after which the keyboard restarts (a polling-rate change): the rest of
+    // the batch is dropped, nothing more is read and everything is read again next batch.
+    bool restarting = false;
     std::string path;
     int keymapProfile = -1;  // profile the keymap below was read from, -1 = not read
     std::array<LayerMap, akko::kLayerCount> keymap;

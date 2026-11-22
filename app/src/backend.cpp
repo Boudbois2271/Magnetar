@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <optional>
+#include <utility>
 
 Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *parent)
     : QObject(parent),
@@ -20,6 +21,8 @@ Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *par
     // closing the vendor web app is enough.
     m_retry.setInterval(3000);
     connect(&m_retry, &QTimer::timeout, this, &Backend::refresh);
+    m_restartWait.setSingleShot(true);
+    connect(&m_restartWait, &QTimer::timeout, this, &Backend::refresh);
 
     // The worker calls back on its own thread; hop to this one before touching state.
     m_worker = std::make_unique<DeviceWorker>(
@@ -847,6 +850,44 @@ void Backend::toggleLights()
     post({}, [file](akko::Keyboard &kb, Snapshot &) { akko::switchLights(kb, akko::LightsAction::Toggle, file); });
 }
 
+QVariantList Backend::pollingRates() const
+{
+    QVariantList rates;
+    for (int code = 0; akko::pollingRateHz(code); ++code)
+        rates.append(akko::pollingRateHz(code));
+    std::sort(rates.begin(), rates.end(), [](const QVariant &a, const QVariant &b) { return a.toInt() < b.toInt(); });
+    return rates;
+}
+
+void Backend::setWinKeyLock(bool on)
+{
+    post("winKeyLock", [on](akko::Keyboard &kb, Snapshot &) { kb.setBaseSetting(akko::BaseSetting::WinKeyLock, on); });
+}
+
+void Backend::setComboOptimization(bool on)
+{
+    post("comboOptimization",
+         [on](akko::Keyboard &kb, Snapshot &) { kb.setBaseSetting(akko::BaseSetting::ComboOptimization, on); });
+}
+
+void Backend::setAdaptiveCalibration(bool on)
+{
+    post("adaptiveCalibration",
+         [on](akko::Keyboard &kb, Snapshot &) { kb.setBaseSetting(akko::BaseSetting::AdaptiveCalibration, on); });
+}
+
+bool Backend::setPollingRate(int hz)
+{
+    const int code = akko::pollingRateCode(hz);
+    if (code < 0)
+        return false;
+    post("pollingRate", [code](akko::Keyboard &kb, Snapshot &s) {
+        s.base.pollingRate = kb.setBaseSetting(akko::BaseSetting::PollingRate, static_cast<std::uint8_t>(code));
+        s.restarting = true;
+    });
+    return true;
+}
+
 QString Backend::classifyError(const QString &message)
 {
     if (message.startsWith("keyboard not found"))
@@ -862,6 +903,17 @@ QString Backend::classifyError(const QString &message)
 
 void Backend::applyState(const Snapshot &s)
 {
+    if (s.restarting) {
+        // Keep showing what is on screen, with the new polling rate, until the board is back.
+        m_state.base.pollingRate = s.base.pollingRate;
+        m_restarting = true;
+        m_restartClock.start();
+        m_restartWait.start(kRestartWaitMs);
+        emit connectionChanged();
+        emit stateChanged();
+        return;
+    }
+    const bool wasRestarting = std::exchange(m_restarting, false);
     m_state = s;
     m_keymap.clear();
     if (s.keymapProfile >= 0)
@@ -894,7 +946,7 @@ void Backend::applyState(const Snapshot &s)
             m_macros.append(toVariant(m));
     m_ready = true;
     m_retry.stop();
-    if (!m_connected || !m_errorKind.isEmpty()) {
+    if (wasRestarting || !m_connected || !m_errorKind.isEmpty()) {
         m_connected = true;
         m_errorKind.clear();
         m_errorDetail.clear();
@@ -905,6 +957,12 @@ void Backend::applyState(const Snapshot &s)
 
 void Backend::applyError(const QString &message)
 {
+    if (m_restarting && m_restartClock.elapsed() < kRestartGiveUpMs) {
+        m_restartWait.start(300);  // not back yet: try again soon, without the error banner
+        return;
+    }
+    if (std::exchange(m_restarting, false))
+        emit connectionChanged();
     m_connected = false;
     m_errorKind = classifyError(message);
     m_errorDetail = message;

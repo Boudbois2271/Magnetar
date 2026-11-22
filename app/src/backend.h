@@ -8,6 +8,7 @@
 
 #include <QObject>
 #include <QString>
+#include <QElapsedTimer>
 #include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
@@ -31,6 +32,14 @@ class Backend : public QObject {
     Q_PROPERTY(bool lightsOn READ lightsOn NOTIFY stateChanged)
     Q_PROPERTY(QString firmware READ firmware NOTIFY stateChanged)
     Q_PROPERTY(QString devicePath READ devicePath NOTIFY stateChanged)
+    // Settings page (Base Functions). pollingRate in Hz; restarting while the keyboard restarts
+    // after a polling-rate change.
+    Q_PROPERTY(bool winKeyLock READ winKeyLock NOTIFY stateChanged)
+    Q_PROPERTY(bool comboOptimization READ comboOptimization NOTIFY stateChanged)
+    Q_PROPERTY(bool adaptiveCalibration READ adaptiveCalibration NOTIFY stateChanged)
+    Q_PROPERTY(int pollingRate READ pollingRate NOTIFY stateChanged)
+    Q_PROPERTY(QVariantList pollingRates READ pollingRates CONSTANT)
+    Q_PROPERTY(bool restarting READ restarting NOTIFY connectionChanged)
     // Keys page. layout: [{id, x, y, w}] in quarter key widths. keymap: one object per layer,
     // key ID (as a string) → action info (see actionInfo).
     Q_PROPERTY(QVariantList layout READ layout CONSTANT)
@@ -76,6 +85,13 @@ public:
     bool lightsOn() const { return brightness() > 0; }
     QString firmware() const;
     QString devicePath() const { return QString::fromStdString(m_state.path); }
+
+    bool winKeyLock() const { return m_state.base.winKeyLock; }
+    bool comboOptimization() const { return m_state.base.comboOptimization; }
+    bool adaptiveCalibration() const { return m_state.base.adaptiveCalibration; }
+    int pollingRate() const { return akko::pollingRateHz(m_state.base.pollingRate); }
+    QVariantList pollingRates() const;  // Hz, ascending
+    bool restarting() const { return m_restarting; }
 
     QVariantList layout() const;
     bool keymapReady() const { return m_state.keymapProfile >= 0; }
@@ -180,6 +196,18 @@ public:
     Q_INVOKABLE void setLightsOn(bool on);
     Q_INVOKABLE void toggleLights();
 
+    Q_INVOKABLE void setWinKeyLock(bool on);
+    Q_INVOKABLE void setComboOptimization(bool on);
+    Q_INVOKABLE void setAdaptiveCalibration(bool on);
+    // The keyboard restarts after the change; restarting stays true until it has been read
+    // again. False, and nothing sent, for a rate it doesn't have.
+    Q_INVOKABLE bool setPollingRate(int hz);
+
+    // How long the keyboard takes to come back after a polling-rate change (measured ~1 s on
+    // Linux), and how long to keep waiting before showing the error.
+    static constexpr int kRestartWaitMs = 1200;
+    static constexpr int kRestartGiveUpMs = 10000;
+
     static QString classifyError(const QString &message);
 
 signals:
@@ -203,5 +231,8 @@ private:
     QString m_errorKind;
     QString m_errorDetail;
     QTimer m_retry;
+    bool m_restarting = false;
+    QTimer m_restartWait;  // single shot: read the keyboard again
+    QElapsedTimer m_restartClock;
     std::unique_ptr<DeviceWorker> m_worker;  // destroyed first, in ~Backend
 };
