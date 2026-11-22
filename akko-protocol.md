@@ -186,11 +186,15 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Sent by Magnetar 2026-11-21: one macro written, read back, bound to Insert (`03 01 01 00`), ran on
   the board; then the empty blob written and Insert restored.
 - **Per profile**: after that write, profile 2 read as empty storage.
-- Modifiers in steps (SEEN, `akko-capture12.txt` marks 2–8): L-Shift↓ A↓ A↑ L-Shift↑ =
+- Modifiers in steps (KNOWN, `akko-capture12.txt` marks 2–8): L-Shift↓ A↓ A↑ L-Shift↑ =
   `02 73 68 | 10 00 32 e1 | 00 00 32 04 | 80 00 32 04 | 90 00 01 e1`; R-Ctrl + C the same with `e4`, `06`.
-  The editor listed them as "L-Shift Down … L-Shift Up". Sent by us with dir `00`/`80` instead, `e1`
-  was **ignored** (typed "ab", not "Ab", 2026-11-21): the `10` bit is what makes it a modifier.
-  Deleting in the other order (`ct` then `sh`, marks 9–10) repacked the same way.
+  The editor listed them as "L-Shift Down … L-Shift Up". Deleting in the other order (`ct` then `sh`,
+  marks 9–10) repacked the same way.
+- Sent by Magnetar 2026-11-22 (those exact bytes, bound to Insert): the board's USB reports showed
+  L-Shift on interface 0 (boot keyboard, modifier byte `02`) but A on interface 1 (NKRO report `07`,
+  bitmap byte `10`), Shift released after A. Linux makes those two input devices with separate
+  modifier state, so the desktop (Hyprland) typed "a". Typed by hand, Shift and A both come on
+  interface 0. A host that merges modifiers across keyboards (likely Windows/macOS) would see "A".
 - Bind = plain `03 00` keymap write with action `03 …` (above), then `83 00` read of that key.
   Marks "drag the macro ab icon onto the Insert key", "10b", "12", "12b".
 

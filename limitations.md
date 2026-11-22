@@ -8,7 +8,9 @@ reflected in `akko-protocol.md`.
 ### Partly decoded
 - **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
   Unknown: what a key does if its macro index points past the last macro (the app prevents it);
-  modifier steps (dir `10`/`90`, `akko-capture12.txt`) are decoded but not yet sent by us. Directories over 56 bytes
+  modifier steps (dir `10`/`90`) work on the board, but the firmware sends the modifier on interface 0
+  and the keys on interface 1 (NKRO), so on Linux (Hyprland) the modifier doesn't apply: a Shift+A
+  macro types "a". No workaround known yet. Directories over 56 bytes
   (15+ macros) are read in packets by our code, never captured.
 
 ### Not captured at all
