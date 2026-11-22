@@ -55,13 +55,14 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 
 ### Base Functions (`akko-capture6b.txt`)
 One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the `84` subs below on load.
+KNOWN: sent by Magnetar's core (each switch toggled and restored, polling 1000 → 500 → 1000), read back right.
 
 | cmd/sub | Status | Meaning |
 |---|---|---|
-| `04 15` / `84 15` | SEEN | Win Key Lock: `01` on, `00` off. On = the Win key does nothing (checked on the board). Marks "tick/untick Win Key Lock" |
-| `04 19` / `84 19` | SEEN | Adaptive Calibration: `01` on (stock), `00` off. Marks "untick/tick Adaptive Calibration" |
-| `04 18` / `84 18` | SEEN | Combo Optimization: `01` on (stock), `00` off. Marks "untick/tick Combo Optimization" |
-| `04 17` / `84 17` | SEEN | Polling rate: `00` 1000 Hz (stock), `01` 500 Hz, `02` 250, `03` 125, `04` 8000, `05` 4000, `06` 2000 Hz. Keyboard restarts, the page re-reads everything. 500/8000: capture6b; 125/250/2000/4000 and back to 1000: `akko-capture10.txt` marks 1–5 |
+| `04 15` / `84 15` | KNOWN | Win Key Lock: `01` on, `00` off. On = the Win key does nothing (checked on the board). Marks "tick/untick Win Key Lock" |
+| `04 19` / `84 19` | KNOWN | Adaptive Calibration: `01` on (stock), `00` off. Marks "untick/tick Adaptive Calibration" |
+| `04 18` / `84 18` | KNOWN | Combo Optimization: `01` on (stock), `00` off. Marks "untick/tick Combo Optimization" |
+| `04 17` / `84 17` | KNOWN | Polling rate: `00` 1000 Hz (stock), `01` 500 Hz, `02` 250, `03` 125, `04` 8000, `05` 4000, `06` 2000 Hz. Echo and `84 17` read-back come at once, then the keyboard re-enumerates on USB: on Linux the old node answers for ~200 ms, is gone by ~350 ms, the new one appears at ~0.9 s and opens (udev access) at ~1 s; the page re-reads everything. 500/8000: capture6b; 125/250/2000/4000 and back to 1000: `akko-capture10.txt` marks 1–5 |
 | `84 11` | GUESS | `01` |
 | `84 13` | GUESS | 2 bytes, `00 b4` (180) |
 | `84 1d` `84 1e` | GUESS | `00` |
