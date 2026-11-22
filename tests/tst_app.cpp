@@ -1186,6 +1186,20 @@ private slots:
         QTest::mouseClick(w.window, Qt::LeftButton, Qt::ControlModifier, centre(0x01));
         QCOMPARE(selection(), (QSet<int>{0x0d, 0x01}));
 
+        // A drag may start in the margin around the keyboard and selects the keys it crosses.
+        const QRectF top = keyRect(0x01);
+        const QPoint outside = top.center().toPoint() - QPoint(0, int(top.height() / 2) + 8);  // just above Esc
+        QVERIFY(!w.view->contains(w.view->mapFromScene(outside)));
+        const QPoint end = centre(0x0d);
+        const QSet<int> fromMargin = touched(outside, end);
+        QVERIFY(fromMargin.contains(0x01) && fromMargin.contains(0x0d));
+        drag(outside, end);
+        QCOMPARE(selection(), fromMargin);
+        QVERIFY(!findItem(w.window->contentItem(), "selectionBox")->isVisible());
+        // A plain click in the margin selects nothing, even over a selection.
+        QTest::mouseClick(w.window, Qt::LeftButton, Qt::NoModifier, outside);
+        QCOMPARE(selection(), fromMargin);
+
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
