@@ -19,6 +19,8 @@ reflected in `akko-protocol.md`.
 - `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
+- **Mural page**: the painted picture lives in the app until it quits (not saved to disk); no images or
+  animations yet, only painting.
 - **Mural**: how long the board keeps the last frame was only timed by eye (1–3 s); frames more than 6
   packets long can't happen (83 LEDs × 4 B at most).
 - **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`

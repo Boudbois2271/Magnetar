@@ -3,6 +3,7 @@
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
 #include "fake_transport.h"
+#include "mural.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -45,6 +46,25 @@ struct FakeBoard {
             gated = false;
         }
         gate.notify_all();
+    }
+
+    // LED → RGB565 of the last complete Mural frame sent, empty if none.
+    std::map<std::uint8_t, std::uint16_t> lastMural()
+    {
+        std::lock_guard lock(mutex);
+        std::vector<akko::Frame> packets;
+        for (auto it = written.rbegin(); it != written.rend(); ++it) {
+            if ((*it)[1] != 0x08 || (*it)[2] != 0x04)
+                continue;
+            akko::Frame f{};
+            std::copy(it->begin() + 1, it->end(), f.begin());
+            if (packets.empty() && f[4] != f[3] - 1)
+                continue;  // the newest frame is still going out
+            packets.insert(packets.begin(), f);
+            if (f[4] == 0)
+                return akko::muralDecode(packets);
+        }
+        return {};
     }
 
     int writesOf(std::uint8_t cmd, std::uint8_t sub)
@@ -374,6 +394,54 @@ private slots:
             QTRY_VERIFY(board.writesOf(0x94, 0x00) >= 1);
         }
         QCOMPARE(board.writesOf(0x94, 0x04), 1);
+    }
+
+    void muralPaintsAndStreams()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        QCOMPARE(b.muralColors().size(), b.layout().size());
+        QCOMPARE(b.muralColors().value("1").toString(), QString("#000000"));
+        QVERIFY(!b.paintMural({1}, "nope"));
+        QVERIFY(!b.paintMural({0x99}, "#ff0000"));
+        QVERIFY(b.paintMural({1}, "#ff0000"));  // Esc, before streaming: kept for the start
+        QCOMPARE(b.muralColors().value("1").toString(), QString("#ff0000"));
+        QCOMPARE(board.writesOf(0x08, 0x04), 0);
+
+        b.startMural();
+        QVERIFY(b.muralRunning());
+        QVERIFY(!b.paintMural({1}, "nope"));
+        QTRY_COMPARE(board.lastMural().size(), akko::kMuralLeds);
+        QCOMPARE(board.lastMural().at(0x00), std::uint16_t(0xf800));
+        QCOMPARE(board.lastMural().at(0x08), std::uint16_t(0));
+        QVERIFY(b.fillMural("#0000ff"));
+        QTRY_COMPARE(board.lastMural().at(0x08), std::uint16_t(0x001f));
+        QCOMPARE(board.lastMural().at(0x00), std::uint16_t(0x001f));
+
+        b.stopMural();
+        QVERIFY(!b.muralRunning());
+        QTRY_VERIFY(board.writesOf(0x84, 0x01) >= 2);  // the batch ended with its read
+        const int frames = board.writesOf(0x08, 0x04);
+        QTest::qWait(150);
+        QCOMPARE(board.writesOf(0x08, 0x04), frames);
+        QCOMPARE(b.muralColors().value("1").toString(), QString("#0000ff"));  // kept for next time
+    }
+
+    void muralStopsWhenTheAppCloses()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        {
+            Backend b(fakeSessions(board), dir.filePath("state.json"));
+            QTRY_VERIFY(b.ready());
+            b.startMural();
+            QTRY_VERIFY(board.writesOf(0x08, 0x04) >= 2);
+        }
+        const int frames = board.writesOf(0x08, 0x04);
+        QTest::qWait(100);
+        QCOMPARE(board.writesOf(0x08, 0x04), frames);
     }
 
     void keymapIsReadOnceAndKeptUpToDate()
@@ -995,7 +1063,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 3);
+        w.window->setProperty("page", 4);
         QVERIFY(w.item("settingsPage")->isVisible());
         auto *winLock = w.item("winKeyLockSwitch");
         auto *combo = w.item("comboOptimizationSwitch");
@@ -1038,12 +1106,41 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    void muralPagePaintsAndStopsOnLeave()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.window->setProperty("page", 3);
+        QVERIFY(w.item("muralPage")->isVisible());
+        auto *view = w.item("muralKeyboard");
+        QVERIFY(view);
+        w.item("muralPage")->setProperty("brush", "#00ff00");
+        QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, 0x0d), Q_ARG(int, 0));
+        QCOMPARE(w.backend.muralColors().value("13").toString(), QString("#00ff00"));
+        QMetaObject::invokeMethod(view, "boxSelected", Q_ARG(QVariant, QVariant(QVariantList({1, 2}))), Q_ARG(int, 0));
+        QCOMPARE(w.backend.muralColors().value("2").toString(), QString("#00ff00"));
+
+        auto *button = w.item("muralButton");
+        QMetaObject::invokeMethod(button, "clicked");
+        QVERIFY(w.backend.muralRunning());
+        QCOMPARE(button->property("text").toString(), QString("Stop"));
+        QVERIFY(!w.item("profileBox")->isEnabled());
+        QTRY_COMPARE(w.board.lastMural().size(), akko::kMuralLeds);
+        QCOMPARE(w.board.lastMural().at(*akko::muralLed(0x0d)), std::uint16_t(0x07e0));
+
+        w.window->setProperty("page", 4);  // leaving stops it
+        QVERIFY(!w.backend.muralRunning());
+        QVERIFY(w.item("profileBox")->isEnabled());
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void calibrationPageStartsAndFinishesOnLeave()
     {
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 4);
+        w.window->setProperty("page", 5);
         QVERIFY(w.item("calibrationPage")->isVisible());
         auto *button = w.item("calibrationButton");
         QVERIFY(button);
@@ -1054,7 +1151,7 @@ private slots:
         QVERIFY(!w.item("profileBox")->isEnabled());
 
         // Leaving the page finishes, like the vendor app.
-        w.window->setProperty("page", 3);
+        w.window->setProperty("page", 4);
         QVERIFY(!w.backend.calibrating());
         QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 1);
         QTRY_COMPARE(w.backend.calibrationSaved(), 0);
