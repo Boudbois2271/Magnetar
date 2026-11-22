@@ -139,14 +139,6 @@ ColumnLayout {
             onValueModified: picker.macroCount = value
         }
     }
-    Label {
-        visible: picker.onMacros && backend.macros.length === 0
-        Layout.fillWidth: true
-        wrapMode: Text.WordWrap
-        text: qsTr("This profile has no macros yet: record one on the Macros page.")
-        opacity: 0.6
-    }
-
     // A list of ready-made actions…
     Flow {
         Layout.fillWidth: true
@@ -183,12 +175,6 @@ ColumnLayout {
                 ? [picker.shortcutKeys[firstKey.currentIndex].usage, picker.shortcutKeys[secondKey.currentIndex - 1].usage]
                 : [picker.shortcutKeys[firstKey.currentIndex].usage])
 
-        Label {
-            Layout.fillWidth: true
-            text: qsTr("Pick at least one modifier and a key, then apply.")
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-        }
         Flow {
             Layout.fillWidth: true
             spacing: 6

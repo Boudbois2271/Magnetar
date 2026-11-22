@@ -96,13 +96,6 @@ Item {
                     TabButton { text: qsTr("Fn1 layer"); width: implicitWidth }
                 }
 
-                Label {
-                    Layout.fillWidth: true
-                    text: page.current.drawingHelp
-                    wrapMode: Text.WordWrap
-                    opacity: 0.7
-                }
-
                 KeyboardView {
                     objectName: "keysKeyboard"
                     Layout.fillWidth: true

@@ -45,17 +45,6 @@ ColumnLayout {
         }
         return "?"
     }
-    function typeHelp(t) {
-        switch (t) {
-        case "modTap": return qsTr("Does one thing when tapped and another when held longer than the hold time.")
-        case "toggle": return qsTr("A tap switches the key to staying pressed, the next tap releases it. Held longer than the hold time, it works as a normal key.")
-        case "release": return qsTr("Sends its action when the key is let go instead of when it is pressed.")
-        case "multiPoint": return qsTr("Up to three actions, each sent when the key goes past its depth.")
-        case "dks": return qsTr("Up to four actions, each sent once or held between the four points of the key's travel: two going down, two coming up.")
-        case "socd": return qsTr("Two keys that cancel each other out, like left and right in a game. Choose what wins when both are down.")
-        }
-        return ""
-    }
 
     function copy(o) { return o === null || o === undefined ? null : JSON.parse(JSON.stringify(o)) }
     // Same content, whatever the order of the fields; a DKS row's stage bytes only count when
@@ -106,7 +95,6 @@ ColumnLayout {
     readonly property bool multi: page.selection.length > 1 && !(page.saved !== null && page.saved.type === "socd")
 
     readonly property string drawingTitle: qsTr("Advanced function of each key")
-    readonly property string drawingHelp: qsTr("Keys with an advanced function show its short name. Drag a box or Ctrl+click to select several keys: each gets the same function. SOCD takes exactly two keys.")
     function labelFor(id) {
         const r = page.recordFor(id)
         return r !== null ? page.typeTag(r.type) : page.keyName(id)
@@ -316,13 +304,6 @@ ColumnLayout {
         Layout.rightMargin: 32
         title: qsTr("Keys with an advanced function")
 
-        Label {
-            visible: backend.advancedKeys.length === 0
-            Layout.fillWidth: true
-            text: qsTr("None yet. Select keys on the drawing to give them one.")
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-        }
         Flow {
             objectName: "advancedList"
             Layout.fillWidth: true
@@ -348,11 +329,6 @@ ColumnLayout {
         title: page.selection.length > 1 ? qsTr("%1 keys selected").arg(page.selection.length)
              : page.selectedKey < 0 ? qsTr("Selected key") : qsTr("Selected key: %1").arg(page.keyName(page.selectedKey))
 
-        Label {
-            visible: page.selectedKey < 0
-            text: qsTr("Click a key on the drawing.")
-            opacity: 0.7
-        }
         Label {
             visible: page.selectedKey >= 0
             Layout.fillWidth: true
@@ -394,13 +370,6 @@ ColumnLayout {
         title: page.draft !== null ? page.typeName(page.draft.type) : ""
 
         readonly property string type: page.draft !== null ? page.draft.type : ""
-
-        Label {
-            Layout.fillWidth: true
-            text: page.typeHelp(editor.type)
-            wrapMode: Text.WordWrap
-            opacity: 0.7
-        }
 
         // Mod-Tap, Toggle, Release: one or two actions.
         GridLayout {

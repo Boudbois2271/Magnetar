@@ -24,7 +24,6 @@ ColumnLayout {
     KeyNames { id: names }
 
     readonly property string drawingTitle: qsTr("Colour of each key")
-    readonly property string drawingHelp: qsTr("Each key shows the colour it has under the Custom effect. Drag a box or Ctrl+click to select several keys.")
     readonly property var labelFor: function (id) {
         return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
     }
@@ -53,12 +52,6 @@ ColumnLayout {
 
         RowLayout {
             spacing: 16
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("These colours show only while the lighting effect is Custom. You can still change them now.")
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-            }
             Button {
                 objectName: "switchToCustom"
                 text: qsTr("Switch to Custom")
@@ -66,13 +59,6 @@ ColumnLayout {
                 onClicked: backend.setEffect(backend.customEffect)
             }
         }
-    }
-
-    Label {
-        Layout.leftMargin: 32
-        visible: tab.selection.length === 0
-        text: qsTr("Select one or more keys to change their colour.")
-        opacity: 0.7
     }
 
     Card {
@@ -147,13 +133,6 @@ ColumnLayout {
                     value: tab.shared
                     restoreMode: Binding.RestoreNone
                 }
-            }
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                opacity: 0.55
-                font.pixelSize: 12
-                text: qsTr("Press Enter to apply")
             }
         }
     }

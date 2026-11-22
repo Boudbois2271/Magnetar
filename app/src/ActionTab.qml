@@ -20,7 +20,6 @@ ColumnLayout {
 
     readonly property string drawingTitle: tab.activeLayer === 0 ? qsTr("What each key does")
         : qsTr("What each key does while %1 is held").arg(tab.activeLayer === 1 ? "Fn" : "Fn1")
-    readonly property string drawingHelp: qsTr("Click a key to select it; drag a box or Ctrl+click to select several. A dot means the key differs from the factory setting.")
 
     readonly property var layerMap: backend.keymapReady && backend.keymap.length > tab.activeLayer
                                     ? backend.keymap[tab.activeLayer] : ({})
@@ -87,12 +86,6 @@ ColumnLayout {
         Layout.leftMargin: 32
         Layout.rightMargin: 32
         title: tab.selection.length > 1 ? qsTr("%1 keys selected").arg(tab.selection.length) : qsTr("Selected key")
-
-        Label {
-            visible: tab.selection.length === 0
-            text: qsTr("Click a key on the drawing to change what it does.")
-            opacity: 0.7
-        }
 
         RowLayout {
             visible: tab.selection.length > 0

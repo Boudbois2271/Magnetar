@@ -56,7 +56,6 @@ ColumnLayout {
     }
 
     readonly property string drawingTitle: qsTr("Actuation point of each key")
-    readonly property string drawingHelp: qsTr("Each key shows its actuation point in mm; a dot means Rapid Trigger or dead zones are on. Drag a box or Ctrl+click to select several keys.")
     readonly property var labelFor: page.capLabel
     readonly property var markedFor: page.hasExtras
 
@@ -82,13 +81,6 @@ ColumnLayout {
         }
     }
 
-    Label {
-        Layout.leftMargin: 32
-        visible: page.selection.length === 0
-        text: qsTr("Select one or more keys to change their travel.")
-        opacity: 0.7
-    }
-
     GridLayout {
         Layout.leftMargin: 32
         Layout.rightMargin: 32
@@ -102,12 +94,6 @@ ColumnLayout {
             Layout.alignment: Qt.AlignTop
             title: qsTr("Actuation point")
 
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("How far a key goes down before it types. Lower is quicker, higher forgives resting fingers.")
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-            }
             MmSlider {
                 objectName: "actuationSlider"
                 label: qsTr("Actuation")
@@ -136,12 +122,6 @@ ColumnLayout {
                                                && page.common("press") === page.common("release")
             readonly property bool linked: !separate && sameValues
 
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("The key lets go as soon as it starts coming back up, and types again as soon as it moves down, wherever it is in its travel.")
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-            }
             Switch {
                 objectName: "rapidTriggerSwitch"
                 text: rtCard.onCount > 0 && !rtCard.on
@@ -216,12 +196,6 @@ ColumnLayout {
             readonly property int onCount: page.count("deadZones")
             readonly property bool on: onCount === page.selection.length
 
-            Label {
-                Layout.fillWidth: true
-                text: qsTr("Movement ignored at the top of the travel (stops accidental presses) and at the bottom (makes releases more reliable).")
-                wrapMode: Text.WordWrap
-                opacity: 0.7
-            }
             Switch {
                 objectName: "deadZoneSwitch"
                 text: dzCard.onCount > 0 && !dzCard.on
