@@ -121,3 +121,5 @@ The keyboard under test is a daily-use keyboard. Rules:
 1. Update `akko-protocol.md` with anything newly decoded (and its status).
 2. Move unfinished or doubtful items to `limitations.md`.
 3. Write the handoff (where we are, what's next) in `CLAUDE.local.md`.
+4. If Ilan validated an app change on the board this session, the installed Magnetar is stale:
+   have `bin/package` run (it needs sudo, so give Ilan the command) after committing.
