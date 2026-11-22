@@ -14,7 +14,7 @@ One protocol library (`core/`) is shared by the CLI and the app.
 
 What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
 global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
-and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced / Colour tabs on one shared selection, Macros, Lighting and Device). Next pages: Settings, Mural, Calibration.
+and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced / Colour tabs on one shared selection, Macros, Lighting, Settings and Device). Next pages: Mural, Calibration.
 
 Names: the project, repo and desktop app are **Magnetar**. `akkoctl` is the CLI inside it, and keeps
 that name everywhere it appears (command, `akkoctl.lock`, `~/.local/state/akkoctl/`, log).

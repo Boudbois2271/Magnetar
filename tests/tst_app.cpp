@@ -946,6 +946,54 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    void settingsPageShowsTheReadBack()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.window->setProperty("page", 3);
+        QVERIFY(w.item("settingsPage")->isVisible());
+        auto *winLock = w.item("winKeyLockSwitch");
+        auto *combo = w.item("comboOptimizationSwitch");
+        auto *rate = w.item("pollingRateBox");
+        QVERIFY(winLock && combo && rate);
+        QCOMPARE(winLock->property("checked").toBool(), false);
+        QCOMPARE(combo->property("checked").toBool(), true);
+        QCOMPARE(rate->property("displayText").toString(), QString("1000 Hz"));
+
+        // A click writes, and the switch shows the board's read-back.
+        winLock->setProperty("checked", true);
+        QMetaObject::invokeMethod(winLock, "toggled");
+        QTRY_VERIFY(w.backend.winKeyLock());
+        QCOMPARE(winLock->property("checked").toBool(), true);
+        QCOMPARE(w.board.writesOf(0x04, 0x15), 1);
+
+        // The board keeps the old value: the switch goes back to it.
+        {
+            std::lock_guard lock(w.board.mutex);
+            w.board.keyboard.ignoreBaseWrites = true;
+        }
+        combo->setProperty("checked", false);
+        QMetaObject::invokeMethod(combo, "toggled");
+        QTRY_VERIFY(!w.backend.errorKind().isEmpty());
+        QCOMPARE(combo->property("checked").toBool(), true);
+        {
+            std::lock_guard lock(w.board.mutex);
+            w.board.keyboard.ignoreBaseWrites = false;
+        }
+        w.backend.refresh();
+        QTRY_VERIFY(w.backend.connected());
+
+        // Polling rate: the box shows the new rate once the keyboard is back.
+        const int i500 = w.backend.pollingRates().indexOf(500);
+        QMetaObject::invokeMethod(rate, "activated", Q_ARG(int, i500));
+        QTRY_VERIFY(w.backend.restarting());
+        QTRY_VERIFY_WITH_TIMEOUT(!w.backend.restarting(), 5000);
+        QCOMPARE(rate->property("displayText").toString(), QString("500 Hz"));
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void keysPageChangesTravelAndKeepsTheSelection()
     {
         KeysWindow w;

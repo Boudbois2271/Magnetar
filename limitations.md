@@ -54,11 +54,19 @@ reflected in `akko-protocol.md`.
 - `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
   outside 1–8 falls back to 3.
 - `transact()` matches responses on `cmd`/`sub`/packet index, not `arg` (which only advanced keys use).
-- The CLI only covers profile and global lighting (`10/90 00`, `04/84 01`); the keymap is app-only.
+- The CLI only covers profile and global lighting (`10/90 00`, `04/84 01`); the keymap and the
+  Base Functions settings are app-only.
 
 ## Magnetar (desktop app)
 
-- Pages: Keys (tabs Action, Travel, Advanced, Colour), Lighting and Device.
+- Pages: Keys (tabs Action, Travel, Advanced, Colour), Macros, Lighting, Settings and Device.
+- Settings page: the four writes were sent by Magnetar's core and read back on the board, but the
+  page itself hasn't been used by hand on the board yet. Whether these settings are per profile is
+  unknown (they're read with every batch, so a profile switch would show it). What Combo
+  Optimization actually changes is unknown; the page's description stays vague on purpose.
+- Polling rate: the board drops off USB right after the write and is back after ~1 s. The app waits
+  1.2 s, then retries quietly for up to 10 s before showing an error. Anything queued in the same
+  batch after the change is dropped. 8000/4000/2000 Hz were written by the vendor app only.
 - Colour tab: tested against the fake keyboard only, not used on the board yet. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
