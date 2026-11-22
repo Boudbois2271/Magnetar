@@ -132,10 +132,13 @@ Item {
         border.color: theme.accent
     }
 
-    // One area over the whole drawing, so a drag can start on a key or between keys.
+    // One area over the whole drawing and a margin around it, so a drag can start on a key,
+    // between keys or outside the keyboard. Handlers get view coordinates (m.x - margin).
     MouseArea {
         id: mouse
+        readonly property real margin: 16  // stays inside the page's 20 px spacing
         anchors.fill: parent
+        anchors.margins: -margin
         hoverEnabled: true
         preventStealing: true  // the page scrolls; a drag here draws the box instead
         cursorShape: view.hoveredKey >= 0 && !boxing ? Qt.PointingHandCursor : Qt.ArrowCursor
@@ -146,32 +149,32 @@ Item {
         readonly property real threshold: 5
 
         function boxTo(px, py) {
-            const x = Math.max(0, Math.min(px, view.width))
-            const y = Math.max(0, Math.min(py, view.height))
+            const x = Math.max(-margin, Math.min(px, view.width + margin))
+            const y = Math.max(-margin, Math.min(py, view.height + margin))
             box = Qt.rect(Math.min(start.x, x), Math.min(start.y, y), Math.abs(x - start.x), Math.abs(y - start.y))
             view.boxKeys = view.keysIn(box)
         }
 
-        onPressed: (m) => { start = Qt.point(m.x, m.y); boxing = false }
+        onPressed: (m) => { start = Qt.point(m.x - margin, m.y - margin); boxing = false }
         onPositionChanged: (m) => {
-            view.hoveredKey = view.keyAt(m.x, m.y)
+            view.hoveredKey = view.keyAt(m.x - margin, m.y - margin)
             if (!pressed)
                 return
-            if (!boxing && Math.hypot(m.x - start.x, m.y - start.y) >= threshold)
+            if (!boxing && Math.hypot(m.x - margin - start.x, m.y - margin - start.y) >= threshold)
                 boxing = true
             if (boxing) {
                 view.boxAdds = (m.modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) !== 0
-                boxTo(m.x, m.y)
+                boxTo(m.x - margin, m.y - margin)
             }
         }
         onReleased: (m) => {
             if (boxing) {
-                boxTo(m.x, m.y)
+                boxTo(m.x - margin, m.y - margin)
                 boxing = false
                 view.boxSelected(view.boxKeys, m.modifiers)
                 view.boxKeys = []
             } else {
-                const id = view.keyAt(m.x, m.y)
+                const id = view.keyAt(m.x - margin, m.y - margin)
                 if (id >= 0)
                     view.keyClicked(id, m.modifiers)
             }
