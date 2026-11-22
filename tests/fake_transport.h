@@ -85,6 +85,13 @@ struct FakeKeyboard {
     Bytes macros;                       // the macro blob, empty = no macros (reads ff ff)
     bool ignoreMacroWrites = false;     // echoes 05 00 but keeps the old blob
     Bytes macroIncoming;                // 05 00 packets gathered until the last one
+    // Calibration: key → (rest, bottom), every key 10500 / 1800 at first. A 94 00 keep-alive also
+    // sends the reports waiting in calibrationReports (94 02, as captured); 94 04 stores the
+    // lowest value each key reached in them as its bottom.
+    std::map<std::uint16_t, std::pair<std::uint16_t, std::uint16_t>> calibration;
+    std::deque<Bytes> calibrationReports;
+    std::map<std::uint16_t, std::uint16_t> calibrationLowest;
+    int keepAlives = 0, finishes = 0;
 
     FakeKeyboard()
     {
@@ -98,6 +105,7 @@ struct FakeKeyboard {
             t.deadTop = 0x1a;
             t.deadBottom = 0x19;
             travel[k.id] = t;
+            calibration[k.id] = {10500, 1800};
         }
     }
 
@@ -254,6 +262,47 @@ struct FakeKeyboard {
         }
         if ((cmd == 0x93 || cmd == 0x96 || cmd == 0x99) && sub == 0x00)
             return {travelRead(w)};
+        if (cmd == 0x94 && sub == 0x05) {
+            // Answers each key ID of the request with key, rest, bottom, packet header kept.
+            Bytes r(kReportLen, 0);
+            std::copy_n(w.begin(), 6, r.begin());
+            std::size_t at = 7;
+            auto put = [&](std::uint16_t v) {
+                r[at++] = static_cast<std::uint8_t>(v >> 8);
+                r[at++] = static_cast<std::uint8_t>(v & 0xFF);
+            };
+            for (std::size_t i = 7; i + 1 < std::size_t(7) + w[6]; i += 2) {
+                const std::uint16_t id = static_cast<std::uint16_t>(w[i] << 8 | w[i + 1]);
+                put(id);
+                put(calibration[id].first);
+                put(calibration[id].second);
+            }
+            r[6] = static_cast<std::uint8_t>(at - 7);
+            return {r};
+        }
+        if (cmd == 0x94 && sub == 0x00) {
+            ++keepAlives;
+            std::vector<Bytes> out{Bytes(w)};
+            while (!calibrationReports.empty()) {
+                const Bytes rep = calibrationReports.front();
+                calibrationReports.pop_front();
+                for (std::size_t at = 7; at + 6 <= std::size_t(7) + rep[6]; at += 6) {
+                    const std::uint16_t id = static_cast<std::uint16_t>(rep[at] << 8 | rep[at + 1]);
+                    const std::uint16_t low = static_cast<std::uint16_t>(rep[at + 4] << 8 | rep[at + 5]);
+                    auto it = calibrationLowest.find(id);
+                    if (it == calibrationLowest.end() || low < it->second)
+                        calibrationLowest[id] = low;
+                }
+                out.push_back(rep);
+            }
+            return out;
+        }
+        if (cmd == 0x94 && sub == 0x04) {
+            ++finishes;
+            for (auto [id, low] : calibrationLowest)
+                calibration[id].second = low;
+            calibrationLowest.clear();
+        }
         if (cmd == 0x86 && sub == 0x00) {
             // Answers each key ID of the request with key, R, G, B, packet header kept.
             Bytes r(kReportLen, 0);

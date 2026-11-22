@@ -109,6 +109,19 @@ std::vector<Bytes> colorFrames(const std::string &name)
     return fixtureSection("vendor-colors.txt", name);
 }
 
+std::vector<Bytes> calibrationFrames(const std::string &name)
+{
+    return fixtureSection("vendor-calibration.txt", name);
+}
+
+// A captured frame as the keyboard sends it: report ID first.
+Bytes asReport(const Bytes &frame)
+{
+    Bytes r{kReportId};
+    r.insert(r.end(), frame.begin(), frame.end());
+    return r;
+}
+
 std::vector<Bytes> macroFrames(const std::string &name)
 {
     return fixtureSection("vendor-macros.txt", name);
@@ -513,6 +526,65 @@ private slots:
         QCOMPARE(pollingRateHz(7), 0);
         QCOMPARE(pollingRateHz(-1), 0);
         QCOMPARE(pollingRateCode(300), -1);
+    }
+
+    // ---- key calibration -------------------------------------------------
+    void readCalibrationLikeTheVendorApp()
+    {
+        FakeTransport t;
+        replay(t, calibrationFrames("read-reply"));
+        Keyboard kb(t);
+        const auto keys = kb.readCalibration();
+        const auto request = calibrationFrames("read-request");
+        QCOMPARE(t.written.size(), request.size());
+        for (std::size_t i = 0; i < request.size(); ++i)
+            QCOMPARE(sent(t, i), request[i]);
+        QCOMPARE(keys.size(), std::size_t(kKeyCount));
+        QCOMPARE(keys[0], (KeyCalibration{0x01, 0x2994, 0x06c0}));
+        QCOMPARE(keys[82], (KeyCalibration{0x65, 0x27f7, 0x0651}));
+    }
+
+    void calibrationSamplesFromCapture()
+    {
+        const auto frames = calibrationFrames("samples");
+        auto a = calibrationSamples(asReport(frames[0]));
+        QCOMPARE(a.size(), std::size_t(1));  // len 06: one entry, the rest is stale buffer
+        QCOMPARE(a[0], (CalibrationSample{0x0d, 0x2c41, 0x089c, true}));
+        auto b = calibrationSamples(asReport(frames[1]));
+        QCOMPARE(b[0], (CalibrationSample{0x0d, 0x2c40, 0x08ab, false}));
+        QVERIFY(calibrationSamples(asReport(calibrationFrames("keepalive")[0])).empty());
+    }
+
+    void calibrateKeepsAliveThenFinishes()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        for (const auto &f : calibrationFrames("samples"))
+            board.calibrationReports.push_back(asReport(f));
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        std::vector<CalibrationSample> seen;
+        kb.calibrate([&] { return seen.size() < 2; },
+                     [&](std::span<const CalibrationSample> s) { seen.insert(seen.end(), s.begin(), s.end()); });
+        QCOMPARE(seen.size(), std::size_t(2));
+        QCOMPARE(t.written.size(), std::size_t(2));
+        QCOMPARE(sent(t, 0), calibrationFrames("keepalive")[0]);
+        QCOMPARE(sent(t, 1), calibrationFrames("finish")[0]);
+        QCOMPARE(board.calibration[0x0d], (std::pair<std::uint16_t, std::uint16_t>{10500, 0x089c}));
+        QCOMPARE(board.calibration[0x0c], (std::pair<std::uint16_t, std::uint16_t>{10500, 1800}));
+    }
+
+    void calibrateFinishesOnError()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.calibrationReports.push_back(asReport(calibrationFrames("samples")[0]));
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        QVERIFY_THROWS_EXCEPTION(std::runtime_error,
+                                 kb.calibrate([] { return true; },
+                                              [](std::span<const CalibrationSample>) { throw std::runtime_error("x"); }));
+        QCOMPARE(board.finishes, 1);
     }
 
     // ---- per-key travel --------------------------------------------------

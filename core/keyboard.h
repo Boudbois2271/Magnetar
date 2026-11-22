@@ -4,6 +4,7 @@
 #pragma once
 
 #include "advanced.h"
+#include "calibration.h"
 #include "frame.h"
 #include "keymap.h"
 #include "macro.h"
@@ -166,6 +167,17 @@ public:
     };
     MacroDeletion deleteMacro(int index);
 
+    // Stored calibration of these keys (all 83 by default, in keyReadOrder() like the vendor app):
+    // 94 05 in packets of 9 keys. The vendor app sends it when calibration starts.
+    std::vector<KeyCalibration> readCalibration(std::span<const std::uint16_t> keys = keyReadOrder());
+    // A calibration session as the vendor app runs it, after readCalibration(): 94 00 now and every
+    // second (the keys don't type meanwhile), each 94 02 report handed to onSamples, until
+    // keepGoing() returns false; then Finish (94 04), which stores the lowest value each moved key
+    // reached as its new bottom. The vendor app has no cancel: leaving also sends Finish. So does
+    // this on an error, so the keyboard is never left in calibration mode.
+    void calibrate(const std::function<bool()> &keepGoing,
+                   const std::function<void(std::span<const CalibrationSample>)> &onSamples);
+
 private:
     // Sends 12 00 type 00 for each key that has an advanced key, and for the other key of a
     // SOCD pair it is part of.
@@ -175,7 +187,7 @@ private:
     // hands each answer entry for a key of that packet to onEntry(frame, offset).
     void perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entryLen, std::span<const std::uint16_t> keys,
                 const std::function<void(std::vector<std::uint8_t> &, std::uint16_t)> &encode,
-                const std::function<void(const Frame &, std::size_t)> &onEntry);
+                const std::function<void(const Frame &, std::size_t)> &onEntry, std::uint8_t sub = 0x00);
 
     Transport &t_;
 };

@@ -221,7 +221,7 @@ constexpr std::size_t kWidePerPacket = 7, kWideEntry = 8;             // RT and 
 void Keyboard::perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entryLen,
                       std::span<const std::uint16_t> keys,
                       const std::function<void(std::vector<std::uint8_t> &, std::uint16_t)> &encode,
-                      const std::function<void(const Frame &, std::size_t)> &onEntry)
+                      const std::function<void(const Frame &, std::size_t)> &onEntry, std::uint8_t sub)
 {
     const auto packets = static_cast<std::uint8_t>((keys.size() + perPacket - 1) / perPacket);
     for (std::uint8_t p = 0; p < packets; ++p) {
@@ -229,7 +229,7 @@ void Keyboard::perKey(std::uint8_t cmd, std::size_t perPacket, std::size_t entry
         std::vector<std::uint8_t> request;
         for (auto id : chunk)
             encode(request, id);
-        const Frame r = transactPacket(cmd, 0x00, packets, p, request);
+        const Frame r = transactPacket(cmd, sub, packets, p, request);
         const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
         for (std::size_t at = kPayloadOffset; at + entryLen <= kPayloadOffset + len; at += entryLen)
             if (std::find(chunk.begin(), chunk.end(), be16(r, at)) != chunk.end())
@@ -330,6 +330,71 @@ std::vector<KeyTravel> Keyboard::setTravel(TravelPart part, std::span<const KeyT
         if (!samePart(back[i], keys[i], part))
             throw Error("the keyboard kept other travel values on key " + std::to_string(back[i].key));
     return back;
+}
+
+namespace {
+constexpr std::size_t kCalibrationPerPacket = 9, kCalibrationEntry = 6;  // key, rest, bottom
+}  // namespace
+
+std::vector<KeyCalibration> Keyboard::readCalibration(std::span<const std::uint16_t> keys)
+{
+    std::vector<KeyCalibration> out(keys.size());
+    std::vector<bool> seen(keys.size(), false);
+    perKey(0x94, kCalibrationPerPacket, kCalibrationEntry, keys,
+           [](std::vector<std::uint8_t> &req, std::uint16_t id) { put16(req, id); },
+           [&](const Frame &f, std::size_t at) {
+               const auto i = static_cast<std::size_t>(std::find(keys.begin(), keys.end(), be16(f, at)) - keys.begin());
+               out[i] = {be16(f, at), be16(f, at + 2), be16(f, at + 4)};
+               seen[i] = true;
+           },
+           0x05);
+    if (std::find(seen.begin(), seen.end(), false) != seen.end())
+        throw Error("incomplete calibration read");
+    return out;
+}
+
+void Keyboard::calibrate(const std::function<bool()> &keepGoing,
+                         const std::function<void(std::span<const CalibrationSample>)> &onSamples)
+{
+    using clock = std::chrono::steady_clock;
+    using std::chrono::milliseconds;
+    constexpr auto kKeepAlive = milliseconds(1000), kSilence = milliseconds(3500), kPoll = milliseconds(100);
+
+    std::array<std::uint8_t, kReportLen> keepAlive{};
+    keepAlive[0] = kReportId;
+    const Frame f = buildFrame(0x94, 0x00);
+    std::copy(f.begin(), f.end(), keepAlive.begin() + 1);
+
+    try {
+        auto next = clock::now(), lastEcho = clock::now();
+        while (keepGoing()) {
+            auto now = clock::now();
+            if (now >= next) {
+                t_.write(keepAlive);
+                next = now + kKeepAlive;
+            }
+            if (now - lastEcho > kSilence)
+                throw Error("no response to command 94 00 while calibrating");
+            const auto wait = std::min(kPoll, std::chrono::duration_cast<milliseconds>(next - now));
+            const auto data = t_.read(static_cast<int>(std::max<long long>(wait.count(), 1)));
+            if (!data)
+                continue;
+            if (isReplyTo(*data, 0x94, 0x00)) {
+                lastEcho = clock::now();
+                continue;
+            }
+            const auto samples = calibrationSamples(*data);
+            if (!samples.empty())
+                onSamples(samples);
+        }
+    } catch (...) {
+        try {
+            transact(0x94, 0x04);
+        } catch (...) {
+        }
+        throw;
+    }
+    transact(0x94, 0x04);
 }
 
 namespace {
