@@ -138,22 +138,6 @@ Item {
                         text: Math.round(speed.value) + " / 4"
                     }
                 }
-                Label {
-                    Layout.fillWidth: true
-                    wrapMode: Text.WordWrap
-                    opacity: 0.55
-                    font.pixelSize: 12
-                    text: qsTr("Each effect keeps its own colour and speed on the keyboard, so switching effect brings back that effect's settings.")
-                }
-                Label {
-                    objectName: "customEffectHint"
-                    Layout.fillWidth: true
-                    visible: backend.effect === backend.customEffect
-                    wrapMode: Text.WordWrap
-                    font.pixelSize: 12
-                    color: theme.accent
-                    text: qsTr("Custom shows a colour of your choice on each key: set them on the Keys page, Colour tab.")
-                }
             }
 
             // ---- colour ----------------------------------------------------------
@@ -230,13 +214,6 @@ Item {
                             restoreMode: Binding.RestoreNone
                         }
                     }
-                    Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        opacity: 0.55
-                        font.pixelSize: 12
-                        text: qsTr("Press Enter to apply")
-                    }
                 }
 
                 RowLayout {
@@ -244,13 +221,7 @@ Item {
                         Layout.preferredWidth: page.labelWidth
                         text: qsTr("Rainbow")
                     }
-                    Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        opacity: 0.55
-                        font.pixelSize: 12
-                        text: qsTr("Cycle through all colours instead of one fixed colour.")
-                    }
+                    Item { Layout.fillWidth: true }
                     Switch {
                         objectName: "rainbowSwitch"
                         checked: backend.rainbow
