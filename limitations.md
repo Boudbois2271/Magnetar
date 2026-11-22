@@ -77,10 +77,9 @@ reflected in `akko-protocol.md`.
 - Advanced tab: no Undo (Remove, or saving the old values again).
 - Advanced tab: at 760 px wide the SOCD tag on 1u keys is cut ("SO…").
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
-  usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb; not checked in
-  the running app. Keys outside the evdev table (media keys, ...) record as nothing.
-- Macros page: the whole page (recording in the running app, saving, binding, deleting) is tested
-  against the fake keyboard only, not yet on the board. Steps can only use keyboard usages (no mouse
+  usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (works on Wayland;
+  xcb not tried). Keys outside the evdev table (media keys, ...) record as nothing.
+- Macros page: steps can only use keyboard usages (no mouse
   or media steps: never captured). A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
