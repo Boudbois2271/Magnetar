@@ -156,7 +156,7 @@ Item {
                         radius: Math.min(4, theme.radius)
                         color: backend.color
                         visible: !backend.rainbow
-                        border.color: "#30ffffff"
+                        border.color: Qt.alpha(theme.foreground, 0.19)
                     }
                     Rectangle {
                         implicitWidth: 56
@@ -185,7 +185,7 @@ Item {
                                 radius: 15
                                 color: modelData
                                 border.width: current ? 3 : 1
-                                border.color: current ? theme.accent : "#30ffffff"
+                                border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.19)
                                 MouseArea {
                                     anchors.fill: parent
                                     cursorShape: Qt.PointingHandCursor

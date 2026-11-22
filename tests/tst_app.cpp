@@ -771,6 +771,58 @@ private slots:
         QCOMPARE(Theme::readAccent(dir.filePath("missing.toml")), QString("#FFD60A"));
     }
 
+    void themeFollowsWholeOmarchyPalette()
+    {
+        QTemporaryDir dir;
+        // No colors.toml: today's dark greys.
+        Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
+        QVERIFY(theme.dark());
+        QCOMPARE(theme.background(), QColor("#0e0e10"));
+        QCOMPARE(theme.foreground(), QColor("#ffffff"));
+        QCOMPARE(theme.sidebar(), QColor("#141417"));
+        QCOMPARE(theme.card(), QColor("#17171b"));
+        QCOMPARE(theme.key(), QColor("#202026"));
+        QCOMPARE(theme.error(), QColor("#ff8a80"));
+
+        // A dark theme appears: keys parsed, surfaces between background and foreground.
+        QSignalSpy spy(&theme, &Theme::changed);
+        QVERIFY(QDir().mkpath(dir.filePath("theme")));
+        auto write = [&](const QByteArray &text) {
+            QFile colors(dir.filePath("theme/colors.toml"));
+            QVERIFY(colors.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            colors.write(text);
+        };
+        write("mode = \"dark\"\naccent = \"#7aa2f7\"\nbackground = \"#1a1b26\"\n"
+              "foreground = \"#a9b1d6\"\nred = \"#f7768e\"\ngreen = \"#9ece6a\"\n");
+        QTRY_COMPARE(theme.background(), QColor("#1a1b26"));
+        QVERIFY(spy.count() >= 1);
+        QVERIFY(theme.dark());
+        QCOMPARE(theme.foreground(), QColor("#a9b1d6"));
+        QCOMPARE(theme.error(), QColor("#f7768e"));
+        QCOMPARE(theme.success(), QColor("#9ece6a"));
+        QCOMPARE(theme.warning(), QColor("#8a6a1c"));  // missing key: fallback
+        auto lightness = [](const QColor &c) { return c.lightnessF(); };
+        QVERIFY(lightness(theme.background()) < lightness(theme.card()));
+        QVERIFY(lightness(theme.card()) < lightness(theme.key()));
+        QVERIFY(lightness(theme.key()) < lightness(theme.keyBorder()));
+        QVERIFY(lightness(theme.keyBorder()) < lightness(theme.foreground()));
+
+        // Live switch to a light theme: Material goes light, surfaces darken toward the text.
+        write("mode = \"light\"\naccent = \"#1e66f5\"\nbackground = \"#eff1f5\"\nforeground = \"#4c4f69\"\n");
+        QTRY_VERIFY(!theme.dark());
+        QCOMPARE(theme.accent(), QString("#1e66f5"));
+        QCOMPARE(theme.background(), QColor("#eff1f5"));
+        QVERIFY(lightness(theme.card()) < lightness(theme.background()));
+        QVERIFY(lightness(theme.key()) < lightness(theme.card()));
+        QCOMPARE(theme.error(), QColor("#ff8a80"));  // red gone: fallback
+
+        // No mode key: judged by the background.
+        write("background = \"#ffffff\"\nforeground = \"#000000\"\n");
+        QTRY_COMPARE(theme.background(), QColor("#ffffff"));
+        QVERIFY(!theme.dark());
+        QCOMPARE(Theme::readValues(dir.filePath("theme/colors.toml")).value("foreground"), QString("#000000"));
+    }
+
     void translatorFollowsOmarchyLanguage()
     {
         QTemporaryDir dir;

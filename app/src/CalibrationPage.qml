@@ -99,7 +99,7 @@ Item {
                         const d = page.depth(id)
                         if (!backend.calibrating || d < 0)
                             return ""
-                        return d >= backend.calibrationFullPercent ? "#3f8f50" : "#8a6a1c"
+                        return d >= backend.calibrationFullPercent ? theme.success : theme.warning
                     }
                 }
 

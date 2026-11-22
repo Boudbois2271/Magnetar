@@ -113,6 +113,8 @@ The keyboard under test is a daily-use keyboard. Rules:
   never as placeholders. Check layout with offscreen screenshots in English and French.
 - App: the user knows what they're doing. Never grey out, warn about or ask to confirm a choice
   that merely looks odd; block only what can't work on the board.
+- App colours come from `theme` (Omarchy `colors.toml`, light and dark); hard-code only real LED
+  colours and text drawn on them.
 - Nothing personal in tracked files: no home paths, usernames, machine names. That goes in
   `CLAUDE.local.md`.
 

@@ -10,7 +10,7 @@ Rectangle {
     objectName: "connectionBanner"
     visible: !backend.connected
     implicitHeight: visible ? row.implicitHeight + 28 : 0
-    color: backend.errorKind === "" ? "#1d1d22" : "#3a1d1d"
+    color: backend.errorKind === "" ? theme.banner : theme.bannerError
 
     readonly property string message: {
         switch (backend.errorKind) {

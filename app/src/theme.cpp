@@ -75,16 +75,60 @@ void Theme::refreshRounding() {
     m_roundingTimeout.start();
 }
 
-QString Theme::readAccent(const QString &path) {
+QHash<QString, QString> Theme::readValues(const QString &path) {
+    QHash<QString, QString> values;
     QFile file(path);
-    if (file.open(QIODevice::ReadOnly)) {
-        const QRegularExpression expression(R"re(^\s*accent\s*=\s*["'](#[0-9a-fA-F]{6})["'])re",
-                                            QRegularExpression::MultilineOption);
-        const auto match = expression.match(QString::fromUtf8(file.readAll()));
-        if (match.hasMatch())
-            return match.captured(1);
+    if (!file.open(QIODevice::ReadOnly))
+        return values;
+    const QRegularExpression expression(R"re(^\s*([A-Za-z_]+)\s*=\s*["']([^"'\n]*)["'])re",
+                                        QRegularExpression::MultilineOption);
+    for (auto it = expression.globalMatch(QString::fromUtf8(file.readAll())); it.hasNext();) {
+        const auto match = it.next();
+        values.insert(match.captured(1), match.captured(2).trimmed());
     }
-    return "#FFD60A";
+    return values;
+}
+
+static bool isHexColor(const QString &value) {
+    static const QRegularExpression hex("^#[0-9a-fA-F]{6}$");
+    return hex.match(value).hasMatch();
+}
+
+static QColor mix(const QColor &a, const QColor &b, double t) {
+    return QColor::fromRgbF(a.redF() + (b.redF() - a.redF()) * t, a.greenF() + (b.greenF() - a.greenF()) * t,
+                            a.blueF() + (b.blueF() - a.blueF()) * t);
+}
+
+QString Theme::readAccent(const QString &path) {
+    const auto accent = readValues(path).value("accent");
+    return isHexColor(accent) ? accent : "#FFD60A";
+}
+
+QColor Theme::color(const QString &key, const char *fallback) const {
+    const auto value = m_values.value(key);
+    return QColor(isHexColor(value) ? value : QString(fallback));
+}
+
+// A surface between background and foreground. Today's greys stand in until a
+// theme gives both ends.
+QColor Theme::shade(double t, const char *fallback) const {
+    if (!isHexColor(m_values.value("background")) || !isHexColor(m_values.value("foreground")))
+        return QColor(fallback);
+    return mix(background(), foreground(), t);
+}
+
+QColor Theme::bannerError() const {
+    if (!isHexColor(m_values.value("background")) || !isHexColor(m_values.value("red")))
+        return QColor("#3a1d1d");
+    return mix(background(), error(), .25);
+}
+
+// `mode` decides; older themes without it are judged by their background.
+bool Theme::dark() const {
+    const auto mode = m_values.value("mode");
+    if (mode == "light" || mode == "dark")
+        return mode == "dark";
+    return background().lightnessF() < .5;
 }
 
 // Black or white, whichever reads on the accent (WCAG relative luminance).
@@ -114,9 +158,12 @@ void Theme::reload() {
         if (QFileInfo::exists(path))
             m_watcher.addPath(path);
 
-    const auto accent = readAccent(m_directory + "/theme/colors.toml");
-    if (accent != m_accent) {
+    const auto path = m_directory + "/theme/colors.toml";
+    const auto values = readValues(path);
+    const auto accent = readAccent(path);
+    if (accent != m_accent || values != m_values) {
         m_accent = accent;
+        m_values = values;
         emit changed();
     }
 }

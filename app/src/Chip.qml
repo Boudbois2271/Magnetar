@@ -15,14 +15,14 @@ AbstractButton {
 
     background: Rectangle {
         radius: Math.min(theme.radius, 8)
-        color: chip.on ? theme.accent : (chip.hovered ? "#2c2c34" : "#222228")
+        color: chip.on ? theme.accent : (chip.hovered ? theme.chipHover : theme.chip)
         border.width: chip.visualFocus ? 2 : 0
         border.color: theme.accent
     }
     contentItem: Label {
         id: label
         text: chip.text
-        color: chip.on ? "#0e0e10" : Material.foreground
+        color: chip.on ? theme.accentForeground : Material.foreground
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
     }
