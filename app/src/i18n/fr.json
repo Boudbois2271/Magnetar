@@ -301,5 +301,14 @@
   "Delete macro": "Supprimer",
   "The Windows key does nothing, so it can't open a menu by accident.": "La touche Windows ne fait rien, elle ne peut donc pas ouvrir un menu par erreur.",
   "● Record": "● Capturer",
-  "● Stop": "● Arrêter"
+  "● Stop": "● Arrêter",
+  "%1 of %2 keys pressed all the way down": "%1 touches sur %2 enfoncées à fond",
+  "Calibration": "Calibrage",
+  "Finish": "Terminer",
+  "Green: pressed all the way down (%1% or more of its stored travel). Amber: not yet.": "Vert : enfoncée à fond (%1 % ou plus de sa course enregistrée). Ambre : pas encore.",
+  "Key travel": "Course des touches",
+  "Saved: %1 keys got a new bottom.": "Enregistré : %1 touches ont un nouveau fond.",
+  "Saved: 1 key got a new bottom.": "Enregistré : 1 touche a un nouveau fond.",
+  "Start calibration": "Lancer le calibrage",
+  "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin."
 }

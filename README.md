@@ -33,11 +33,12 @@ tool for scripts and status bars.
 | **Macros** | Record key presses and releases with their timing, edit the steps and delays (or use the standard 50 ms), save them to the keyboard's 4096-byte storage. Macros are per profile; bind one to a key on Keys → Action → Macros, played a number of times, until a key is pressed, or while held. |
 | **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow. |
 | **Settings** | Win Key Lock, Combo Optimization, Adaptive Calibration, polling rate (125–8000 Hz; the keyboard restarts for about a second when it changes). |
+| **Calibration** | Key calibration: press keys all the way down and watch each one fill in, then Finish to save. The keys don't type during a session. |
 | **Device** | Model, firmware, connection status. |
 
 The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3.
 
-Magnetar grows one page at a time; next are Mural and Calibration.
+Magnetar grows one page at a time; next is Mural.
 
 ## Install
 

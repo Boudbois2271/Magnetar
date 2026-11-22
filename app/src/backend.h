@@ -13,6 +13,8 @@
 #include <QVariantList>
 #include <QVariantMap>
 
+#include <atomic>
+#include <map>
 #include <memory>
 
 class Backend : public QObject {
@@ -62,6 +64,15 @@ class Backend : public QObject {
     Q_PROPERTY(QVariantList macros READ macros NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap macroStorage READ macroStorage NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap macroLimits READ macroLimits CONSTANT)
+    // Calibration page. calibrating: a session is running (the keys don't type). calibrationDepth:
+    // key ID (string) → how far down the key has been this session, 0-100 % of its stored travel.
+    // calibrationFull: keys at kCalibrationFull % or more. calibrationSaved: keys whose stored
+    // bottom changed at the last Finish, -1 before the first.
+    Q_PROPERTY(bool calibrating READ calibrating NOTIFY calibrationChanged)
+    Q_PROPERTY(QVariantMap calibrationDepth READ calibrationDepth NOTIFY calibrationChanged)
+    Q_PROPERTY(int calibrationFull READ calibrationFull NOTIFY calibrationChanged)
+    Q_PROPERTY(int calibrationSaved READ calibrationSaved NOTIFY calibrationChanged)
+    Q_PROPERTY(int calibrationFullPercent READ calibrationFullPercent CONSTANT)
 
 public:
     explicit Backend(SessionFactory sessions = hidrawSessions(), const QString &stateFile = {},
@@ -208,11 +219,24 @@ public:
     static constexpr int kRestartWaitMs = 1200;
     static constexpr int kRestartGiveUpMs = 10000;
 
+    bool calibrating() const { return m_calibrating; }
+    QVariantMap calibrationDepth() const { return m_calibrationDepth; }
+    int calibrationFull() const;
+    int calibrationSaved() const { return m_calibrationSaved; }
+    static constexpr int kCalibrationFull = 95;
+    int calibrationFullPercent() const { return kCalibrationFull; }
+    // Start reads the stored calibration and starts the session; Finish stores, for every key
+    // moved, the lowest point it reached (the vendor app's only way out). Both do nothing when
+    // already in that state.
+    Q_INVOKABLE void startCalibration();
+    Q_INVOKABLE void finishCalibration();
+
     static QString classifyError(const QString &message);
 
 signals:
     void connectionChanged();
     void stateChanged();
+    void calibrationChanged();
 
 private:
     void post(const std::string &key, DeviceWorker::Action action);
@@ -234,5 +258,14 @@ private:
     bool m_restarting = false;
     QTimer m_restartWait;  // single shot: read the keyboard again
     QElapsedTimer m_restartClock;
+    // Calibration session, shared with the worker: stop asks it to Finish.
+    struct CalibrationRun {
+        std::atomic<bool> stop{false};
+    };
+    std::shared_ptr<CalibrationRun> m_calibrationRun;
+    bool m_calibrating = false;
+    std::map<std::uint16_t, akko::KeyCalibration> m_calibrationBefore;
+    QVariantMap m_calibrationDepth;
+    int m_calibrationSaved = -1;
     std::unique_ptr<DeviceWorker> m_worker;  // destroyed first, in ~Backend
 };

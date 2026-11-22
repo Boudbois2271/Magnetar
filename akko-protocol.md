@@ -214,8 +214,8 @@ Source: `akko-capture4.txt` (2026-11-18).
 | `98 02` | SEEN | Visual Feedback off |
 | `94 05` | DECODED | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743) = the **stored** calibration. Sent on Start Calibration |
 | `94 00` | SEEN | calibration keep-alive, every 1 s while calibrating. Keys don't type in this mode |
-| `94 02` | DECODED | unsolicited IN while calibrating: 1–2 × `key u16, cur u16, min u16`; cur bit 15 = flag (GUESS: reached bottom / "green"), bits 0–14 = raw sensor; min = lowest value seen |
-| `94 04` | SEEN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below |
+| `94 02` | DECODED | unsolicited IN every 50 ms while calibrating: `len / 6` × `key u16, cur u16, min u16` (1–9 entries, the keys moved most recently; bytes past `len` are stale). cur bits 0–14 = raw sensor; min = lowest value seen this session. cur bit 15: set almost always, untouched keys included; clear for one report as a key comes back up after a full press (capture5, 125 of 6600 entries). Meaning unknown, not used |
+| `94 04` | SEEN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below. Leaving calibration without Finish sends it too (marks "leave … WITHOUT Save", "leave calibration without Save") |
 
 Calibration semantics, from `akko-capture5.txt` (each Start Calibration reads all 83 keys, so each
 session shows the result of the previous one):

@@ -332,6 +332,50 @@ private slots:
         QVERIFY(board.writesOf(0x83, 0x00) > keymapReads);  // everything read again
     }
 
+    void calibrationShowsDepthAndSavesOnFinish()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        QCOMPARE(b.calibrationSaved(), -1);
+        {
+            // F12 (0d) pressed to 2204, then 2219: 10500 → 2204 of a stored 10500 → 1800 is 95 %.
+            std::lock_guard lock(board.mutex);
+            board.keyboard.calibrationReports.push_back(reply(0x94, 0x02, {0x00, 0x0d, 0xac, 0x41, 0x08, 0x9c}));
+            board.keyboard.calibrationReports.push_back(reply(0x94, 0x02, {0x00, 0x0d, 0x2c, 0x40, 0x08, 0xab}));
+            board.keyboard.calibrationReports.push_back(reply(0x94, 0x02, {0x00, 0x0c, 0xa0, 0x00, 0x20, 0x00}));
+        }
+        b.startCalibration();
+        QVERIFY(b.calibrating());
+        QTRY_COMPARE(b.calibrationDepth().value("13").toInt(), 95);
+        QTRY_COMPARE(b.calibrationDepth().value("12").toInt(), 26);  // 0x2000 = 8192: a quarter of the way
+        QCOMPARE(b.calibrationFull(), 1);
+        QCOMPARE(board.writesOf(0x94, 0x05), 10);
+
+        b.finishCalibration();
+        QVERIFY(!b.calibrating());
+        QTRY_COMPARE(b.calibrationSaved(), 2);
+        QCOMPARE(board.writesOf(0x94, 0x04), 1);
+        QCOMPARE(board.writesOf(0x94, 0x05), 20);  // read again after Finish
+        std::lock_guard lock(board.mutex);
+        QCOMPARE(board.keyboard.calibration[0x0d].second, std::uint16_t(0x089c));
+        QCOMPARE(board.keyboard.calibration[0x0c].second, std::uint16_t(0x2000));
+    }
+
+    void calibrationFinishesWhenTheAppCloses()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        {
+            Backend b(fakeSessions(board), dir.filePath("state.json"));
+            QTRY_VERIFY(b.ready());
+            b.startCalibration();
+            QTRY_VERIFY(board.writesOf(0x94, 0x00) >= 1);
+        }
+        QCOMPARE(board.writesOf(0x94, 0x04), 1);
+    }
+
     void keymapIsReadOnceAndKeptUpToDate()
     {
         FakeBoard board;
@@ -991,6 +1035,29 @@ private slots:
         QTRY_VERIFY_WITH_TIMEOUT(!w.backend.restarting(), 5000);
         QCOMPARE(rate->property("displayText").toString(), QString("500 Hz"));
 
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    void calibrationPageStartsAndFinishesOnLeave()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.window->setProperty("page", 4);
+        QVERIFY(w.item("calibrationPage")->isVisible());
+        auto *button = w.item("calibrationButton");
+        QVERIFY(button);
+        QMetaObject::invokeMethod(button, "clicked");
+        QVERIFY(w.backend.calibrating());
+        QTRY_VERIFY(w.board.writesOf(0x94, 0x00) >= 1);
+        QCOMPARE(button->property("text").toString(), QString("Finish"));
+        QVERIFY(!w.item("profileBox")->isEnabled());
+
+        // Leaving the page finishes, like the vendor app.
+        w.window->setProperty("page", 3);
+        QVERIFY(!w.backend.calibrating());
+        QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 1);
+        QTRY_COMPARE(w.backend.calibrationSaved(), 0);
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 

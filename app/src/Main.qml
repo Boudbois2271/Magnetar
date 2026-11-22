@@ -30,9 +30,9 @@ ApplicationWindow {
     Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
     Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected; onActivated: backend.toggleLights() }
     Shortcut { sequence: "Ctrl+R"; context: Qt.ApplicationShortcut; onActivated: backend.reload() }
-    Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(1) }
-    Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(2) }
-    Shortcut { sequence: "Ctrl+3"; context: Qt.ApplicationShortcut; onActivated: backend.setProfile(3) }
+    Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(1) }
+    Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(2) }
+    Shortcut { sequence: "Ctrl+3"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(3) }
 
     // Right-to-left languages mirror the window; the Translator sets the layout direction.
     Item {
@@ -77,7 +77,8 @@ ApplicationWindow {
                         id: profileBox
                         objectName: "profileBox"
                         Layout.fillWidth: true
-                        enabled: backend.connected && backend.ready
+                        // A profile switch would wait behind the calibration session.
+                        enabled: backend.connected && backend.ready && !backend.calibrating
                         model: Math.max(backend.profileCount, 1)
                         currentIndex: backend.profile - 1
                         displayText: qsTr("Profile %1").arg(backend.profile)
@@ -93,7 +94,7 @@ ApplicationWindow {
                     Item { implicitHeight: 18 }
 
                     Repeater {
-                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings"), qsTr("Device")]
+                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings"), qsTr("Calibration"), qsTr("Device")]
                         delegate: ItemDelegate {
                             required property int index
                             required property string modelData
@@ -141,6 +142,7 @@ ApplicationWindow {
                     MacrosPage { objectName: "macrosPage" }
                     LightingPage {}
                     SettingsPage { objectName: "settingsPage" }
+                    CalibrationPage { objectName: "calibrationPage" }
                     DevicePage {}
                 }
             }

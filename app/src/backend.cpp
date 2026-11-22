@@ -37,6 +37,8 @@ Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *par
 
 Backend::~Backend()
 {
+    if (m_calibrationRun)
+        m_calibrationRun->stop = true;  // Finish, so the keyboard types again
     m_worker.reset();  // joins the thread before the members its callbacks use go away
 }
 
@@ -955,8 +957,73 @@ void Backend::applyState(const Snapshot &s)
     emit stateChanged();
 }
 
+int Backend::calibrationFull() const
+{
+    return int(std::count_if(m_calibrationDepth.begin(), m_calibrationDepth.end(),
+                             [](const QVariant &v) { return v.toInt() >= kCalibrationFull; }));
+}
+
+void Backend::startCalibration()
+{
+    if (m_calibrationRun)
+        return;
+    auto run = std::make_shared<CalibrationRun>();
+    m_calibrationRun = run;
+    m_calibrating = true;
+    m_calibrationDepth.clear();
+    emit calibrationChanged();
+    post({}, [this, run](akko::Keyboard &kb, Snapshot &) {
+        const auto before = kb.readCalibration();
+        QMetaObject::invokeMethod(this, [this, before] {
+            m_calibrationBefore.clear();
+            for (const auto &k : before)
+                m_calibrationBefore[k.key] = k;
+        }, Qt::QueuedConnection);
+        kb.calibrate([run] { return !run->stop; }, [this](std::span<const akko::CalibrationSample> s) {
+            std::vector<akko::CalibrationSample> samples(s.begin(), s.end());
+            QMetaObject::invokeMethod(this, [this, samples] {
+                bool changed = false;
+                for (const auto &x : samples) {
+                    const auto it = m_calibrationBefore.find(x.key);
+                    if (it == m_calibrationBefore.end() || it->second.rest <= it->second.bottom)
+                        continue;
+                    const double range = it->second.rest - it->second.bottom;
+                    const int depth = int(std::clamp((it->second.rest - double(x.lowest)) / range * 100.0, 0.0, 100.0));
+                    const QString id = QString::number(x.key);
+                    if (m_calibrationDepth.value(id, -1).toInt() != depth) {
+                        m_calibrationDepth[id] = depth;
+                        changed = true;
+                    }
+                }
+                if (changed)
+                    emit calibrationChanged();
+            }, Qt::QueuedConnection);
+        });
+        const auto after = kb.readCalibration();
+        int saved = 0;
+        for (std::size_t i = 0; i < after.size() && i < before.size(); ++i)
+            saved += after[i].bottom != before[i].bottom;
+        QMetaObject::invokeMethod(this, [this, saved] {
+            m_calibrationSaved = saved;
+            emit calibrationChanged();
+        }, Qt::QueuedConnection);
+    });
+}
+
+void Backend::finishCalibration()
+{
+    if (!m_calibrationRun)
+        return;
+    m_calibrationRun->stop = true;
+    m_calibrationRun.reset();
+    m_calibrating = false;
+    emit calibrationChanged();
+}
+
 void Backend::applyError(const QString &message)
 {
+    if (m_calibrationRun)
+        finishCalibration();  // the session ended with the batch (Finish was sent)
     if (m_restarting && m_restartClock.elapsed() < kRestartGiveUpMs) {
         m_restartWait.start(300);  // not back yet: try again soon, without the error banner
         return;

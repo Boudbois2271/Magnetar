@@ -28,8 +28,10 @@ reflected in `akko-protocol.md`.
 - **`11 00` layer reset**: payload `01` seen on Default Layer only; its meaning is a guess.
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
   press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
-  guess ("reached bottom"). Bottom drift between sessions is guessed to be Adaptive Calibration.
-  Calibration mode stops the keys typing.
+  unknown (not "reached bottom": it is set on untouched keys too). Bottom drift between sessions is
+  guessed to be Adaptive Calibration. Calibration mode stops the keys typing.
+- **Calibration timeout**: what the board does if keep-alives (`94 00`) stop without a Finish (app
+  killed) is not known. Magnetar sends Finish on quit, on leaving the page and on errors.
 - `84 11` (`01`), `84 13` (`00 b4`), `84 1d`/`84 1e` (`00`), `84 20` (`01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
@@ -93,6 +95,11 @@ reflected in `akko-protocol.md`.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.
+- Calibration page: "pressed all the way down" (green) means 95 % of the travel stored at Start.
+  A key whose stored bottom is already too shallow turns green early. No undo: Finish is the
+  board's only way out, and the old values can't be written back.
+- Calibration page: while a session runs, other changes (profile shortcuts included) wait for Finish;
+  the profile picker is disabled.
 - Travel page: assumed per profile (read again on a profile switch), not checked on the board.
 - Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
