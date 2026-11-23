@@ -1353,6 +1353,13 @@ private slots:
         QCOMPARE(winLock->property("checked").toBool(), false);
         QCOMPARE(combo->property("checked").toBool(), true);
         QCOMPARE(rate->property("displayText").toString(), QString("1000 Hz"));
+        // One narrow column: controls near their labels, Device and About under the options.
+        auto *settings = w.item("settingsPage");
+        auto right = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(i->width(), 0)).x(); };
+        auto top = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(0, 0)).y(); };
+        QVERIFY(right(winLock) < settings->width() / 2);
+        QVERIFY(top(w.item("firmwareLabel")) > top(rate));
+        QVERIFY(top(about) > top(w.item("firmwareLabel")));
 
         // A click writes, and the switch shows the board's read-back.
         winLock->setProperty("checked", true);
