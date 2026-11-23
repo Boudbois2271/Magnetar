@@ -25,12 +25,52 @@ Item {
     ]
     readonly property real labelWidth: 120 * ui.unit
 
+    KeyNames { id: names }
+
+    // The colour a key's LED shows, as read back: nothing with the lights or the effect off;
+    // the per-key colours under Custom; a hue across the board for rainbow; else the global
+    // colour. Brightness mixes it into the unlit cap: at 0 the cap looks unlit.
+    function previewColor(k) {
+        if (!backend.lightsOn || backend.effect === 0)
+            return ""
+        let led
+        if (backend.effect === backend.customEffect)
+            led = backend.colorsReady ? backend.keyColors[String(k.id)] : undefined
+        else if (backend.rainbow)
+            led = Qt.hsva((k.x + k.w / 2) / 66, 1, 1, 1)
+        else
+            led = backend.color
+        if (led === undefined)
+            return ""
+        const level = backend.maxBrightness > 0 ? backend.brightness / backend.maxBrightness : 1
+        return Qt.tint(theme.capTop, Qt.alpha(led, level)).toString()
+    }
+    readonly property var keyById: {
+        const m = {}
+        for (const k of backend.layout)
+            m[k.id] = k
+        return m
+    }
+
     // Two columns, so the page fits the window without scrolling.
     PageLayout {
         title: qsTr("Lighting")
         // Nothing to show until the keyboard has been read once: no made-up values.
         visible: backend.ready
         enabled: backend.connected
+
+        // What the board shows now, a picture only.
+        KeyboardView {
+            objectName: "lightingPreview"
+            Layout.fillWidth: true
+            Layout.maximumWidth: implicitWidth
+            maxKeySize: 44 * ui.unit
+            interactive: false
+            labelFor: function (id) {
+                return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
+            }
+            colorFor: function (id) { return page.previewColor(page.keyById[id]) }
+        }
 
         RowLayout {
             Layout.fillWidth: true
@@ -69,8 +109,7 @@ Item {
                             Layout.fillWidth: true
                             from: 0
                             to: backend.maxBrightness
-                            stepSize: 1
-                            snapMode: Slider.SnapAlways
+                            // No stepSize: Material would draw a tick dot per step.
                             onMoved: backend.setBrightness(Math.round(value))
                             Binding on value {
                                 when: !brightness.pressed
@@ -149,7 +188,7 @@ Item {
                         Rectangle {
                             implicitWidth: 56 * ui.unit
                             implicitHeight: 56 * ui.unit
-                            radius: Math.min(4, theme.radius)
+                            radius: theme.radius
                             color: backend.color
                             visible: !backend.rainbow
                             border.color: Qt.alpha(theme.foreground, 0.19)
@@ -157,7 +196,7 @@ Item {
                         Rectangle {
                             implicitWidth: 56 * ui.unit
                             implicitHeight: 56 * ui.unit
-                            radius: Math.min(4, theme.radius)
+                            radius: theme.radius
                             visible: backend.rainbow
                             gradient: Gradient {
                                 orientation: Gradient.Horizontal
@@ -177,7 +216,7 @@ Item {
                                     readonly property bool current: !backend.rainbow && backend.color === modelData
                                     width: 30 * ui.unit
                                     height: 30 * ui.unit
-                                    radius: width / 2
+                                    radius: theme.radius
                                     color: modelData
                                     border.width: current ? 3 : 1
                                     border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.19)

@@ -1170,6 +1170,34 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    void lightingPreviewShowsTheBoard()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.window->setProperty("page", 2);
+        auto *preview = w.item("lightingPreview");
+        QVERIFY(preview && preview->isVisible());
+        auto *esc = findItem(preview, "key_1");
+        QVERIFY(esc);
+        const auto shown = [&] { return esc->property("color").value<QColor>(); };
+
+        // Full brightness: the read-back colour; half: halfway into the unlit cap.
+        w.backend.setEffect(1);
+        QTRY_COMPARE(w.backend.effect(), 1);
+        QVERIFY(w.backend.setColor("#ff0000"));
+        w.backend.setBrightness(w.backend.maxBrightness());
+        QTRY_COMPARE(shown(), QColor("#ff0000"));
+        w.backend.setBrightness(w.backend.maxBrightness() / 2);
+        QTRY_VERIFY(shown() != QColor("#ff0000"));
+        QVERIFY(shown().red() > w.theme.capTop().red() && shown().red() < 255);
+
+        // Lights off: plain caps.
+        w.backend.setLightsOn(false);
+        QTRY_COMPARE(shown(), w.theme.capTop());
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void settingsPageShowsTheReadBack()
     {
         KeysWindow w;
