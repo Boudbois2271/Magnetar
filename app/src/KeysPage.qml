@@ -216,14 +216,12 @@ Item {
                     }
 
                     // The keymap has layers; the drawing shows the one being edited.
-                    TabBar {
-                        objectName: "layerTabs"
+                    Segmented {
+                        objectName: "layerSwitch"
                         visible: page.tab === 0
+                        model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
                         currentIndex: actionTab.activeLayer
-                        onCurrentIndexChanged: actionTab.activeLayer = currentIndex
-                        TabButton { text: qsTr("Default layer"); width: implicitWidth }
-                        TabButton { text: qsTr("Fn layer"); width: implicitWidth }
-                        TabButton { text: qsTr("Fn1 layer"); width: implicitWidth }
+                        onActivated: (index) => actionTab.activeLayer = index
                     }
                 }
             }

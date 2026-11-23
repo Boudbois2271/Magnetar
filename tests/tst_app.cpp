@@ -1058,6 +1058,15 @@ private slots:
         QTRY_VERIFY(w.cap(0x62) == "Ins" && w.cap(0x63) != "A");
         QCOMPARE(w.cap(0x64), QString("A"));
 
+        // The layer switch: Fn shows the Fn layer, and the drawing follows.
+        auto *fnSegment = findItem(w.window->contentItem(), "layerSwitch_1");
+        QVERIFY(fnSegment && fnSegment->isVisible());
+        QMetaObject::invokeMethod(fnSegment, "clicked");
+        QCOMPARE(tab->property("activeLayer").toInt(), 1);
+        QCOMPARE(w.item("layerSwitch")->property("currentIndex").toInt(), 1);
+        tab->setProperty("activeLayer", 0);
+        QCOMPARE(w.item("layerSwitch")->property("currentIndex").toInt(), 0);
+
         // Moving the only Fn key asks first, and sends nothing until confirmed.
         w.click(0x48);
         const int writes = w.board.writesOf(0x03, 0x00);
