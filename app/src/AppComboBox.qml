@@ -9,6 +9,6 @@ ComboBox {
     popup.background: Rectangle {
         radius: theme.radius
         color: theme.overlay
-        border.color: theme.keyBorder
+        border.color: theme.chipHover
     }
 }
