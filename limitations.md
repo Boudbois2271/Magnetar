@@ -62,7 +62,7 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Keys (tabs Action, Travel, Advanced, Colour), Macros, Lighting, Settings (with Calibration and Device).
+- Pages: Keys (tabs Action, Travel, Advanced), Macros, Lighting (with per-key colours), Settings (with Calibration and Device).
 - Settings page: the four writes were sent by Magnetar's core and read back on the board, but the
   page itself hasn't been used by hand on the board yet. Whether these settings are per profile is
   unknown (they're read with every batch, so a profile switch would show it). What Combo
@@ -70,8 +70,11 @@ reflected in `akko-protocol.md`.
 - Polling rate: the board drops off USB right after the write and is back after ~1 s. The app waits
   1.2 s, then retries quietly for up to 10 s before showing an error. Anything queued in the same
   batch after the change is dropped. 8000/4000/2000 Hz were written by the vendor app only.
-- Colour tab: tested against the fake keyboard only, not used on the board yet. Assumed per profile
+- Per-key colours (Lighting page): tested against the fake keyboard only, not used on the board yet. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
+- Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
+  `akkoctl` (and shown as read). The Lighting drawing is sized like the Keys one by the same rule,
+  not shared with it: the two can differ by a few pixels.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
 - Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
