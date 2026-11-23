@@ -1486,6 +1486,23 @@ private slots:
         QCOMPARE(selection(), QVariantList{0x63});
     }
 
+    // In a tall window the Action cards stay right under the keyboard, not centred in the room left.
+    void actionTabSitsUnderTheKeyboard()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        w.window->resize(1900, 1300);
+        w.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(w.window));
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.click(0x62);
+        auto *tab = w.item("actionTab");
+        auto *label = w.item("currentAction");
+        QTRY_VERIFY(label->isVisible() && tab->height() > 300);
+        QTest::qWait(300);
+        QVERIFY2(label->mapToItem(tab, QPointF(0, 0)).y() < 60, qPrintable(QString::number(label->mapToItem(tab, QPointF(0, 0)).y())));
+    }
+
     void keysPageSelectsWithABox()
     {
         KeysWindow w;

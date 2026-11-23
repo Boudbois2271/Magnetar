@@ -116,7 +116,7 @@ Reviewed on the desktop after items 1–18. Not fixed yet; one commit per item.
 | # | Where | Feedback |
 |---|---|---|
 | R1 | Keys | Clicking a selected key again must deselect it (today it stays selected). **Fixed**: a plain click on the only selected key clears it; on one of several it keeps only that key. |
-| R2 | Keys → Action | The controls sit at the bottom of the page instead of right under the keyboard like the other tabs, so they jump when something needs more room. Anchor them under the selection bar. |
+| R2 | Keys → Action | The controls sit at the bottom of the page instead of right under the keyboard like the other tabs, so they jump when something needs more room. Anchor them under the selection bar. **Fixed**: a filler under the cards, as on Travel, keeps them under the bar. |
 | R3 | Lighting | Rework the layout: keyboard the same size as on Keys, all options in one column under it (no split). Rows, in order: **Lights** (title with the switch on it; drop the duplicate "Lights on" row) · **Brightness** (slider + level/max) · **Effect** (dropdown; drop the duplicate "Effect" title) · **Speed** (slider + level/max) · **Color** (swatches on the same line) · **Hex color** (text field) · **Rainbow** (switch). Tight, even vertical spacing (today's gaps look random, Lights on→Brightness and Effect→Speed are huge). |
 | R3a | Lighting | Brightness offers only levels **0, 1, 5, 10, 15, 20** (the 20 steps are barely distinguishable). Brightness and Speed sliders short and the same length (Speed has 5 positions). |
 | R3b | UI text | Spelling **"color"**, not "colour" ("Hex color", "Color"). Check every visible string. |
