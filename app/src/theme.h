@@ -37,9 +37,10 @@ class Theme : public QObject {
     Q_PROPERTY(QColor overlay READ overlay NOTIFY changed)
     Q_PROPERTY(QColor chip READ chip NOTIFY changed)
     Q_PROPERTY(QColor chipHover READ chipHover NOTIFY changed)
-    Q_PROPERTY(QColor key READ key NOTIFY changed)
-    Q_PROPERTY(QColor keyHover READ keyHover NOTIFY changed)
-    Q_PROPERTY(QColor keyBorder READ keyBorder NOTIFY changed)
+    // The keyboard drawing: the case (plate) and each cap's top face on its darker skirt.
+    Q_PROPERTY(QColor plate READ plate NOTIFY changed)
+    Q_PROPERTY(QColor capTop READ capTop NOTIFY changed)
+    Q_PROPERTY(QColor capSkirt READ capSkirt NOTIFY changed)
     Q_PROPERTY(QColor banner READ banner NOTIFY changed)
     Q_PROPERTY(QColor bannerError READ bannerError NOTIFY changed)
     Q_PROPERTY(QColor error READ error NOTIFY changed)
@@ -62,9 +63,9 @@ public:
     QColor overlay() const { return shade(.055, "#1b1b20"); }
     QColor chip() const { return shade(.08, "#222228"); }
     QColor chipHover() const { return shade(.12, "#2c2c34"); }
-    QColor key() const { return shade(.07, "#202026"); }
-    QColor keyHover() const { return shade(.11, "#2a2a31"); }
-    QColor keyBorder() const { return shade(.14, "#2e2e36"); }
+    QColor plate() const { return shade(.05, "#1a1a1c"); }
+    QColor capTop() const;
+    QColor capSkirt() const;
     QColor banner() const { return shade(.06, "#1d1d22"); }
     QColor bannerError() const;
     QColor error() const { return color("red", "#ff8a80"); }
