@@ -232,9 +232,9 @@ ColumnLayout {
         }
         RowLayout {
             spacing: 16 * ui.unit
-            Button {
+            AppButton {
+                kind: "primary"
                 text: qsTr("Apply")
-                highlighted: true
                 enabled: builder.modifiers !== 0 && builder.code !== ""
                 onClicked: picker.picked(builder.code)
             }

@@ -111,7 +111,7 @@ ColumnLayout {
                     color: theme.secondary
                 }
             }
-            Button {
+            AppButton {
                 objectName: "restoreButton"
                 text: qsTr("Restore default")
                 enabled: tab.notFactory.length > 0
@@ -144,7 +144,19 @@ ColumnLayout {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        footer: Item {
+            implicitHeight: confirmDialogButtons.implicitHeight + 24 * ui.unit
+            implicitWidth: confirmDialogButtons.implicitWidth + 48 * ui.unit
+            RowLayout {
+                id: confirmDialogButtons
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: 24 * ui.unit
+                spacing: 8 * ui.unit
+                AppButton { text: qsTr("Cancel"); onClicked: confirmDialog.reject() }
+                AppButton { kind: "primary"; text: qsTr("Change it"); onClicked: confirmDialog.accept() }
+            }
+        }
 
         // The heading sits in the body: a long wrapped Material title makes a sizing loop.
         ColumnLayout {

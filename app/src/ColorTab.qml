@@ -50,10 +50,10 @@ ColumnLayout {
 
         RowLayout {
             spacing: 16 * ui.unit
-            Button {
+            AppButton {
                 objectName: "switchToCustom"
+                kind: "primary"
                 text: qsTr("Switch to Custom")
-                highlighted: true
                 onClicked: backend.setEffect(backend.customEffect)
             }
         }

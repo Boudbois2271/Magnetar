@@ -454,8 +454,8 @@ ColumnLayout {
                         spacing: 12 * ui.unit
                         Label { text: page.slotName(10 + point.index) }
                         SlotButton { index: 10 + point.index }
-                        Button {
-                            flat: true
+                        AppButton {
+                            kind: "quiet"
                             text: qsTr("Clear")
                             visible: page.slotCode(10 + point.index) !== ""
                             onClicked: page.setSlot(10 + point.index, "")
@@ -599,19 +599,19 @@ ColumnLayout {
             Flow {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
-                Button {
+                AppButton {
                     objectName: "saveAdvanced"
+                    kind: "primary"
                     text: qsTr("Save")
-                    highlighted: true
                     enabled: page.dirty && page.problem() === ""
                     onClicked: page.save()
                 }
-                Button {
+                AppButton {
                     text: qsTr("Discard changes")
                     enabled: page.dirty
                     onClicked: page.load()
                 }
-                Button {
+                AppButton {
                     objectName: "removeAdvanced"
                     visible: page.withRecords.length > 0
                     text: page.saved !== null && page.saved.type === "socd" ? qsTr("Remove the SOCD pair") : qsTr("Remove")

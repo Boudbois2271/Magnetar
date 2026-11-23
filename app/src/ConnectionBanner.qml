@@ -50,10 +50,9 @@ Rectangle {
                 font.pixelSize: ui.small
             }
         }
-        Button {
+        AppButton {
             visible: backend.errorKind !== ""
             text: qsTr("Retry")
-            flat: true
             onClicked: backend.refresh()
         }
     }

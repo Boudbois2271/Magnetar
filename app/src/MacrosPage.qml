@@ -219,9 +219,8 @@ Item {
                         onClicked: page.select(index)
                     }
                 }
-                Chip {
+                AppButton {
                     objectName: "newMacro"
-                    on: page.index < 0
                     text: qsTr("+ New macro")
                     onClicked: page.select(-1)
                 }
@@ -254,11 +253,10 @@ Item {
             Flow {
                 Layout.fillWidth: true
                 spacing: 16 * ui.unit
-                // A Chip: Material's Button background doesn't paint on the dark theme here.
-                Chip {
+                AppButton {
                     objectName: "recordButton"
                     y: (standardSwitch.height - height) / 2
-                    on: page.recording
+                    kind: page.recording ? "primary" : "secondary"
                     text: page.recording ? qsTr("● Stop") : qsTr("● Record")
                     onClicked: page.recording ? page.stopRecording() : page.startRecording()
                 }
@@ -334,20 +332,20 @@ Item {
                                 text: "ms"
                                 color: theme.secondary
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "↑"
                                 enabled: stepRow.index > 0
                                 onClicked: page.moveStep(stepRow.index, -1)
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "↓"
                                 enabled: !stepRow.last
                                 onClicked: page.moveStep(stepRow.index, 1)
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "✕"
                                 onClicked: page.removeStep(stepRow.index)
                             }
@@ -367,7 +365,7 @@ Item {
                     currentIndex: -1
                     displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
                 }
-                Button {
+                AppButton {
                     text: qsTr("Add")
                     enabled: addKeyBox.currentIndex >= 0 && !page.recording
                     onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
@@ -386,21 +384,21 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
-                Button {
+                AppButton {
                     objectName: "saveMacro"
+                    kind: "primary"
                     text: qsTr("Save")
-                    highlighted: true
                     enabled: page.canSave
                     onClicked: page.save()
                 }
-                Button {
+                AppButton {
                     objectName: "revertMacro"
                     text: qsTr("Revert")
                     enabled: page.dirty || page.recording
                     onClicked: page.load()
                 }
                 Item { Layout.fillWidth: true }
-                Button {
+                AppButton {
                     objectName: "deleteMacro"
                     visible: page.saved !== null
                     text: qsTr("Delete macro")
@@ -427,7 +425,19 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        footer: Item {
+            implicitHeight: deleteDialogButtons.implicitHeight + 24 * ui.unit
+            implicitWidth: deleteDialogButtons.implicitWidth + 48 * ui.unit
+            RowLayout {
+                id: deleteDialogButtons
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: 24 * ui.unit
+                spacing: 8 * ui.unit
+                AppButton { text: qsTr("Cancel"); onClicked: deleteDialog.reject() }
+                AppButton { kind: "primary"; text: qsTr("Delete macro"); onClicked: deleteDialog.accept() }
+            }
+        }
         readonly property int bound: page.saved ? page.boundKeys(page.index) : 0
 
         // The heading sits in the body: a long wrapped Material title makes a sizing loop.

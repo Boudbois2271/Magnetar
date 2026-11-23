@@ -279,5 +279,7 @@
   "Start calibration": "Lancer le calibrage",
   "Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.": "Apprend au clavier où s'arrête la course de chaque touche. Lancez le calibrage, enfoncez à fond chaque touche à calibrer, puis cliquez sur Terminer. Terminer enregistre le point le plus bas atteint par chaque touche pressée : une touche enfoncée à moitié reçoit donc un fond moins profond. Les touches non touchées gardent leur calibrage. Les touches ne tapent plus rien jusqu'à la fin.",
   "Back": "Retour",
-  "Calibrate": "Calibrer"
+  "Calibrate": "Calibrer",
+  "Cancel": "Annuler",
+  "Change it": "Modifier"
 }

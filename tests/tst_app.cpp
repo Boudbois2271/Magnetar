@@ -11,6 +11,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QQmlApplicationEngine>
+#include <QQmlComponent>
 #include <QQmlContext>
 #include <QColor>
 #include <QQuickItem>
@@ -978,6 +979,29 @@ private slots:
         for (const auto &w : warnings)
             text += w.toString() + "\n";
         QVERIFY2(warnings.isEmpty(), qPrintable(text));
+    }
+
+    // A segmented control shows its currentIndex and only reports clicks: the page decides.
+    void segmentedReportsTheClick()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QQmlComponent component(&w.engine);
+        component.setData("import QtQuick\nSegmented { objectName: \"seg\"; model: [\"1\", \"2\", \"3\"]; currentIndex: 0 }",
+                          QUrl("qrc:/SegmentedTest.qml"));
+        std::unique_ptr<QObject> object(component.create(w.engine.rootContext()));
+        QVERIFY2(object, qPrintable(component.errorString()));
+        auto *seg = qobject_cast<QQuickItem *>(object.get());
+        seg->setParentItem(w.window->contentItem());
+        QSignalSpy spy(seg, SIGNAL(activated(int)));
+        auto *second = findItem(seg, "seg_1");
+        QVERIFY(second);
+        QCOMPARE(second->height(), findItem(seg, "seg_0")->height());
+        QMetaObject::invokeMethod(second, "clicked");
+        QCOMPARE(spy.count(), 1);
+        QCOMPARE(spy.first().first().toInt(), 1);
+        QCOMPARE(seg->property("currentIndex").toInt(), 0);
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
     void keysPageRemapsKeys()

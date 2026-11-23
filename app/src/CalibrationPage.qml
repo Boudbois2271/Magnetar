@@ -27,10 +27,10 @@ Item {
         RowLayout {
             Layout.leftMargin: -12 * ui.unit  // the back arrow lines up with the margin
             spacing: 8 * ui.unit
-            ToolButton {
+            AppButton {
                 objectName: "calibrationBack"
+                kind: "quiet"
                 text: "←  " + qsTr("Back")
-                font.pixelSize: ui.body
                 onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
             }
             Label {
@@ -53,10 +53,10 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 16 * ui.unit
-                Button {
+                AppButton {
                     objectName: "calibrationButton"
+                    kind: "primary"
                     text: backend.calibrating ? qsTr("Finish") : qsTr("Start calibration")
-                    highlighted: true
                     onClicked: backend.calibrating ? backend.finishCalibration() : backend.startCalibration()
                 }
                 Label {

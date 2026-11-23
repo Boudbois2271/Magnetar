@@ -106,7 +106,7 @@ Item {
                                 spacing: 2 * ui.unit
                                 Label { Layout.fillWidth: true; text: qsTr("Key travel") }
                             }
-                            Button {
+                            AppButton {
                                 objectName: "openCalibrationButton"
                                 text: qsTr("Calibrate")
                                 onClicked: stack.push(calibrationScreen)
