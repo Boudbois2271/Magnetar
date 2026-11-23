@@ -128,8 +128,8 @@ Item {
                                 Label {
                                     Layout.fillWidth: true
                                     wrapMode: Text.WordWrap
-                                    opacity: 0.55
-                                    font.pixelSize: Math.round(12 * ui.unit)
+                                    color: theme.secondary
+                                    font.pixelSize: ui.small
                                     visible: backend.restarting
                                     text: qsTr("Restarting the keyboard…")
                                 }
@@ -141,6 +141,7 @@ Item {
                                 model: backend.pollingRates
                                 currentIndex: backend.pollingRates.indexOf(backend.pollingRate)
                                 displayText: qsTr("%1 Hz").arg(currentValue)
+                                font.features: { "tnum": 1 }
                                 delegate: ItemDelegate {
                                     required property int index
                                     required property int modelData
@@ -172,19 +173,19 @@ Item {
                             columnSpacing: 16 * ui.unit
                             rowSpacing: 10 * ui.unit
 
-                            Label { text: qsTr("Model"); opacity: 0.6 }
+                            Label { text: qsTr("Model"); color: theme.secondary }
                             Label { text: "Akko TAC75 HE (38ee:0016)" }
 
-                            Label { text: qsTr("Firmware"); opacity: 0.6 }
-                            Label { objectName: "firmwareLabel"; text: backend.firmware || "—" }
+                            Label { text: qsTr("Firmware"); color: theme.secondary }
+                            Label { objectName: "firmwareLabel"; text: backend.firmware || "—"; font.features: { "tnum": 1 } }
 
-                            Label { text: qsTr("Onboard profiles"); opacity: 0.6 }
-                            Label { text: backend.profileCount }
+                            Label { text: qsTr("Onboard profiles"); color: theme.secondary }
+                            Label { text: backend.profileCount; font.features: { "tnum": 1 } }
 
-                            Label { text: qsTr("Device node"); opacity: 0.6 }
+                            Label { text: qsTr("Device node"); color: theme.secondary }
                             Label { text: backend.devicePath || "—"; font.family: "monospace" }
 
-                            Label { text: qsTr("Status"); opacity: 0.6 }
+                            Label { text: qsTr("Status"); color: theme.secondary }
                             Label { text: backend.connected ? qsTr("Connected") : qsTr("Not connected") }
                         }
 
@@ -192,14 +193,14 @@ Item {
                             Layout.fillWidth: true
                             Layout.topMargin: 8 * ui.unit
                             wrapMode: Text.WordWrap
-                            opacity: 0.7
+                            color: theme.secondary
                             text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")
                         }
                         Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
-                            opacity: 0.55
-                            font.pixelSize: Math.round(12 * ui.unit)
+                            color: theme.secondary
+                            font.pixelSize: ui.small
                             text: qsTr("License: GPL-3.0-or-later")
                         }
                     }

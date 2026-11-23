@@ -827,6 +827,15 @@ private slots:
         QCOMPARE(missing.fontSize(), 14);
         QCOMPARE(missing.unit(), 1.0);
         QCOMPARE(missing.font().pixelSize(), 14);
+        // The type scale follows: title 22, section 15, body 14, small 12 at 14 px body text.
+        QCOMPARE(missing.titleSize(), 22);
+        QCOMPARE(missing.sectionSize(), 15);
+        QCOMPARE(missing.smallSize(), 12);
+        base.setPixelSize(12);
+        missing.setBase(base, 1);
+        QCOMPARE(missing.titleSize(), 19);
+        QCOMPARE(missing.sectionSize(), 13);
+        QCOMPARE(missing.smallSize(), 10);
         QCOMPARE(missing.font().family(), QString("Sans"));
         QVERIFY(!(missing.font().resolveMask() & QFont::WeightResolved));
     }
@@ -856,6 +865,9 @@ private slots:
         QCOMPARE(theme.card(), QColor("#17171b"));
         QCOMPARE(theme.key(), QColor("#202026"));
         QCOMPARE(theme.error(), QColor("#ff8a80"));
+        // Secondary text: a solid colour between background and foreground, nearer foreground.
+        QCOMPARE(theme.secondary(), QColor::fromRgbF(.65 + .35 * 0x0e / 255., .65 + .35 * 0x0e / 255.,
+                                                     .65 + .35 * 0x10 / 255.));
 
         // A dark theme appears: keys parsed, surfaces between background and foreground.
         QSignalSpy spy(&theme, &Theme::changed);

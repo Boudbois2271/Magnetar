@@ -173,7 +173,7 @@ ColumnLayout {
     Label {
         visible: picker.search.trim() !== "" && picker.shownItems.length === 0
         text: qsTr("Nothing matches.")
-        opacity: 0.6
+        color: theme.secondary
     }
 
     // …or the shortcut builder: one to four modifiers and one or two keys.
@@ -240,7 +240,7 @@ ColumnLayout {
             }
             Label {
                 text: builder.modifiers !== 0 && builder.code !== "" ? names.name(backend.actionInfo(builder.code)) : ""
-                opacity: 0.7
+                color: theme.secondary
             }
         }
     }

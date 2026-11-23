@@ -98,8 +98,8 @@ ColumnLayout {
                 Label {
                     objectName: "currentAction"
                     text: tab.current ? names.name(tab.current) : qsTr("Different actions")
-                    font.pixelSize: Math.round(18 * ui.unit)
-                    font.bold: true
+                    font.pixelSize: ui.section
+                    font.weight: Font.DemiBold
                 }
                 Label {
                     readonly property var factory: tab.selection.length === 1
@@ -108,7 +108,7 @@ ColumnLayout {
                                                                                  : qsTr("This is the factory setting."))
                           : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
                           : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
-                    opacity: 0.6
+                    color: theme.secondary
                 }
             }
             Button {
@@ -153,8 +153,8 @@ ColumnLayout {
                 Layout.preferredWidth: 400 * ui.unit
                 text: qsTr("Change the last %1 key?").arg(tab.pendingLayer)
                 wrapMode: Text.WordWrap
-                font.pixelSize: Math.round(18 * ui.unit)
-                font.bold: true
+                font.pixelSize: ui.section
+                font.weight: Font.DemiBold
             }
             Label {
                 Layout.preferredWidth: 400 * ui.unit

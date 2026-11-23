@@ -62,21 +62,21 @@ ApplicationWindow {
 
                     Label {
                         text: "Magnetar"
-                        font.pixelSize: Math.round(22 * ui.unit)
-                        font.bold: true
+                        font.pixelSize: ui.title
+                        font.weight: Font.DemiBold
                     }
                     Label {
                         text: "Akko TAC75 HE"
-                        opacity: 0.55
-                        font.pixelSize: Math.round(12 * ui.unit)
+                        color: theme.secondary
+                        font.pixelSize: ui.small
                     }
 
                     Item { implicitHeight: 18 * ui.unit }
 
                     Label {
                         text: qsTr("Profile")
-                        opacity: 0.55
-                        font.pixelSize: Math.round(12 * ui.unit)
+                        color: theme.secondary
+                        font.pixelSize: ui.small
                     }
                     ComboBox {
                         id: profileBox
@@ -115,15 +115,16 @@ ApplicationWindow {
                     Label {
                         Layout.fillWidth: true
                         text: qsTr("Press ? for shortcuts")
-                        opacity: 0.45
-                        font.pixelSize: Math.round(11 * ui.unit)
+                        wrapMode: Text.WordWrap
+                        color: theme.secondary
+                        font.pixelSize: ui.small
                     }
                     Label {
                         Layout.fillWidth: true
                         text: qsTr("Unofficial tool, not affiliated with Akko.")
                         wrapMode: Text.WordWrap
-                        opacity: 0.45
-                        font.pixelSize: Math.round(11 * ui.unit)
+                        color: theme.secondary
+                        font.pixelSize: ui.small
                     }
                 }
             }
@@ -175,8 +176,8 @@ ApplicationWindow {
                     anchors.left: parent.left
                     anchors.margins: 32 * ui.unit
                     text: qsTr("Shortcuts")
-                    font.pixelSize: Math.round(18 * ui.unit)
-                    font.bold: true
+                    font.pixelSize: ui.title
+                    font.weight: Font.DemiBold
                 }
 
                 GridLayout {

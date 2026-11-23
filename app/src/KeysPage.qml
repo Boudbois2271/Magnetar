@@ -64,8 +64,8 @@ Item {
             spacing: 24 * ui.unit
             Label {
                 text: qsTr("Keys")
-                font.pixelSize: Math.round(26 * ui.unit)
-                font.bold: true
+                font.pixelSize: ui.title
+                font.weight: Font.DemiBold
             }
             TabBar {
                 id: tabBar
@@ -137,7 +137,8 @@ Item {
                             leftPadding: 10 * ui.unit
                             verticalAlignment: Text.AlignVCenter
                             text: qsTr("Selected: %1").arg(page.selection.length)
-                            opacity: 0.7
+                            color: theme.secondary
+                            font.features: { "tnum": 1 }
                         }
                     }
                 }

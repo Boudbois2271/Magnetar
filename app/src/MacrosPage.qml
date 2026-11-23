@@ -199,7 +199,8 @@ Item {
                 Label {
                     objectName: "macroStorageLabel"
                     text: qsTr("%1 / %2 bytes used").arg(backend.macroStorage.used).arg(backend.macroStorage.max)
-                    opacity: 0.7
+                    color: theme.secondary
+                    font.features: { "tnum": 1 }
                 }
             }
 
@@ -304,7 +305,7 @@ Item {
                             Label {
                                 Layout.fillWidth: true
                                 text: names.usageName(stepRow.modelData.usage)
-                                font.bold: true
+                                font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
                             TextField {
@@ -312,6 +313,7 @@ Item {
                                 visible: !stepRow.last
                                 enabled: !page.standard
                                 horizontalAlignment: Text.AlignRight
+                                font.features: { "tnum": 1 }
                                 inputMethodHints: Qt.ImhDigitsOnly
                                 validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
                                 text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
@@ -323,13 +325,14 @@ Item {
                                 visible: stepRow.last
                                 horizontalAlignment: Text.AlignRight
                                 text: qsTr("1 ms (end)")
-                                opacity: 0.5
+                                color: theme.secondary
+                                font.features: { "tnum": 1 }
                             }
                             Label {
                                 Layout.preferredWidth: 24 * ui.unit
                                 visible: !stepRow.last
                                 text: "ms"
-                                opacity: 0.6
+                                color: theme.secondary
                             }
                             ToolButton {
                                 Layout.preferredWidth: 32 * ui.unit
@@ -434,8 +437,8 @@ Item {
                 Layout.preferredWidth: 400 * ui.unit
                 text: qsTr("Delete “%1”?").arg(page.saved ? page.saved.name : "")
                 wrapMode: Text.WordWrap
-                font.pixelSize: Math.round(18 * ui.unit)
-                font.bold: true
+                font.pixelSize: ui.section
+                font.weight: Font.DemiBold
             }
             Label {
                 Layout.preferredWidth: 400 * ui.unit

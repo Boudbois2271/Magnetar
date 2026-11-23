@@ -78,8 +78,8 @@ ColumnLayout {
                     anchors.centerIn: parent
                     visible: tab.shared === ""
                     text: qsTr("Mixed")
-                    font.pixelSize: Math.round(11 * ui.unit)
-                    opacity: 0.7
+                    font.pixelSize: ui.small
+                    color: theme.secondary
                 }
             }
 

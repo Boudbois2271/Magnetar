@@ -129,6 +129,7 @@ Item {
                             Layout.preferredWidth: 64 * ui.unit
                             horizontalAlignment: Text.AlignRight
                             text: Math.round(speed.value) + " / 4"
+                            font.features: { "tnum": 1 }
                         }
                     }
                 }

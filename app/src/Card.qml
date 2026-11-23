@@ -21,9 +21,8 @@ Rectangle {
         anchors.left: parent.left
         anchors.margins: 20 * ui.unit
         text: card.title
-        font.pixelSize: Math.round(13 * ui.unit)
-        font.bold: true
-        opacity: 0.7
+        font.pixelSize: ui.section
+        font.weight: Font.DemiBold
     }
 
     ColumnLayout {

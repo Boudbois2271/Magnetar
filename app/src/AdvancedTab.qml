@@ -363,7 +363,7 @@ ColumnLayout {
                                                      : qsTr("None of them has an advanced function. Choose one for all of them:"))
                       : page.saved === null ? qsTr("No advanced function. Choose one:")
                                           : qsTr("Now: %1. Change it below, or choose another type:").arg(page.typeName(page.saved.type))
-                opacity: 0.7
+                color: theme.secondary
             }
             Flow {
                 objectName: "typeChips"
@@ -420,6 +420,7 @@ ColumnLayout {
                     Label { Layout.fillWidth: true; text: qsTr("Hold time") }
                     Label {
                         objectName: "holdValue"
+                        font.features: { "tnum": 1 }
                         text: qsTr("%1 ms").arg(page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : 0)
                     }
                 }
@@ -592,7 +593,7 @@ ColumnLayout {
                 visible: text !== "" && page.dirty
                 text: page.replaces()
                 wrapMode: Text.WordWrap
-                opacity: 0.7
+                color: theme.secondary
             }
 
             Flow {

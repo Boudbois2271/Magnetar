@@ -30,13 +30,13 @@ Item {
             ToolButton {
                 objectName: "calibrationBack"
                 text: "←  " + qsTr("Back")
-                font.pixelSize: Math.round(14 * ui.unit)
+                font.pixelSize: ui.body
                 onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
             }
             Label {
                 text: qsTr("Calibration")
-                font.pixelSize: Math.round(26 * ui.unit)
-                font.bold: true
+                font.pixelSize: ui.title
+                font.weight: Font.DemiBold
             }
         }
 
@@ -46,7 +46,7 @@ Item {
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                opacity: 0.7
+                color: theme.secondary
                 text: qsTr("Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.")
             }
 
@@ -63,7 +63,8 @@ Item {
                     objectName: "calibrationStatus"
                     Layout.fillWidth: true
                     wrapMode: Text.WordWrap
-                    opacity: 0.7
+                    color: theme.secondary
+                    font.features: { "tnum": 1 }
                     text: backend.calibrating
                           ? qsTr("%1 of %2 keys pressed all the way down").arg(backend.calibrationFull).arg(backend.layout.length)
                           : backend.calibrationSaved === 1 ? qsTr("Saved: 1 key got a new bottom.")
@@ -95,8 +96,8 @@ Item {
             Label {
                 Layout.fillWidth: true
                 wrapMode: Text.WordWrap
-                opacity: 0.55
-                font.pixelSize: Math.round(12 * ui.unit)
+                color: theme.secondary
+                font.pixelSize: ui.small
                 visible: backend.calibrating
                 text: qsTr("Green: pressed all the way down (%1% or more of its stored travel). Amber: not yet.").arg(backend.calibrationFullPercent)
             }
