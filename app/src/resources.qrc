@@ -22,7 +22,6 @@
         <file alias="ActionPicker.qml">ActionPicker.qml</file>
         <file alias="MmSlider.qml">MmSlider.qml</file>
         <file alias="AdvancedTab.qml">AdvancedTab.qml</file>
-        <file alias="ColorTab.qml">ColorTab.qml</file>
         <file alias="MacrosPage.qml">MacrosPage.qml</file>
         <file alias="SettingsPage.qml">SettingsPage.qml</file>
         <file alias="CalibrationPage.qml">CalibrationPage.qml</file>

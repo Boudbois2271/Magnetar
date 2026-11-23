@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Keys: one drawing, one selection, and tabs for what to change on the selected keys (action,
-// travel, advanced function, colour). The active tab decides what each key on the drawing says. Any
+// travel, advanced function). The active tab decides what each key on the drawing says. Any
 // selection can be edited in every tab: the user decides what makes sense.
 // Layout: header (title, tabs, the tab's page actions) → the keyboard, full width → the selection
 // bar under its plate → the tab's controls in columns.
@@ -14,7 +14,7 @@ Item {
 
     property var selection: []  // key IDs, in the order they were picked
     property int tab: 0
-    readonly property var tabs: [actionTab, travelTab, advancedTab, colorTab]
+    readonly property var tabs: [actionTab, travelTab, advancedTab]
     readonly property var current: page.tabs[page.tab]
 
     // ---- selection --------------------------------------------------------
@@ -89,7 +89,6 @@ Item {
         id: frame
         // Nothing to show until the keyboard has been read: no made-up values.
         visible: backend.ready && backend.keymapReady && backend.travelReady && backend.advancedReady
-                 && backend.colorsReady
         enabled: backend.connected
 
         RowLayout {
@@ -110,7 +109,6 @@ Item {
                 TabButton { objectName: "keysTab_0"; text: qsTr("Action"); width: implicitWidth; FocusRing {} }
                 TabButton { objectName: "keysTab_1"; text: qsTr("Travel"); width: implicitWidth; FocusRing {} }
                 TabButton { objectName: "keysTab_2"; text: qsTr("Advanced"); width: implicitWidth; FocusRing {} }
-                TabButton { objectName: "keysTab_3"; text: qsTr("Colour"); width: implicitWidth; FocusRing {} }
             }
             Item { Layout.fillWidth: true }
             IconButton {
@@ -156,7 +154,6 @@ Item {
                 colorFor: page.current.colorFor || function (id) { return "" }
                 depthFor: page.current.depthFor || function (id) { return -1 }
                 badgeFor: page.current.badgeFor || function (id) { return "" }
-                legendColorFor: page.current.legendColorFor || function (id) { return "" }
                 selectedKeys: page.selection
                 onKeyClicked: (id, modifiers) => page.click(id, modifiers)
                 onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
@@ -200,21 +197,6 @@ Item {
                     }
                     Item { Layout.fillWidth: true }
 
-                    // Key colours only show under the Custom effect.
-                    Label {
-                        objectName: "customHint"
-                        visible: page.tab === 3 && !colorTab.customOn
-                        text: qsTr("Custom effect is off")
-                        color: theme.secondary
-                    }
-                    AppButton {
-                        objectName: "switchToCustom"
-                        visible: page.tab === 3 && !colorTab.customOn
-                        kind: "primary"
-                        text: qsTr("Switch to Custom")
-                        onClicked: backend.setEffect(backend.customEffect)
-                    }
-
                     // The keymap has layers; the drawing shows the one being edited.
                     Segmented {
                         objectName: "layerSwitch"
@@ -256,13 +238,6 @@ Item {
                 visible: page.tab === 2
                 selection: page.selection
                 onSelectKeys: (ids) => page.select(ids)
-            }
-            ColorTab {
-                id: colorTab
-                objectName: "colorTab"
-                anchors.fill: parent
-                visible: page.tab === 3
-                selection: page.selection
             }
         }
     }

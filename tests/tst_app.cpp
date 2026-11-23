@@ -170,6 +170,12 @@ struct KeysWindow {
         return page && view;
     }
     QQuickItem *item(const char *name) const { return window->findChild<QQuickItem *>(name); }
+    // Shows a page found by name: the sidebar order may change.
+    void show(const char *name) const
+    {
+        auto *p = item(name);
+        window->setProperty("page", p->parentItem()->childItems().indexOf(p));
+    }
     void click(int key, Qt::KeyboardModifiers mods = Qt::NoModifier) const
     {
         QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, key), Q_ARG(int, int(mods)));
@@ -1111,7 +1117,7 @@ private slots:
 
         // The same on every tab with keys selected, and on the other pages.
         w.click(0x01);
-        for (int tab = 0; tab < 4; ++tab) {
+        for (int tab = 0; tab < 3; ++tab) {
             w.page->setProperty("tab", tab);
             const QStringList stops = walk();
             QVERIFY2(!stops.isEmpty() && !stops.first().startsWith("no focus"), qPrintable(stops.join(", ")));
@@ -1266,43 +1272,55 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
-    void keysPageColoursKeys()
+    // Per-key colours are set on the Lighting page: keys picked on its drawing, a colour for them.
+    void lightingPageColoursKeys()
     {
         KeysWindow w;
         QVERIFY(w.open());
-        QTRY_VERIFY(w.backend.keymapReady() && w.backend.colorsReady());
-        w.page->setProperty("tab", 3);
-        auto *tab = w.item("colorTab");
-        QVERIFY(tab);
-        auto *f12 = findItem(w.view, "key_13");
-        QTRY_COMPARE(w.cap(0x0d), QString("F12"));
+        QTRY_VERIFY(w.backend.ready() && w.backend.colorsReady());
+        w.show("lightingPage");
+        auto *page = w.item("lightingPage");
+        auto *preview = w.item("lightingPreview");
+        QVERIFY(page->isVisible() && preview->isVisible());
+        const auto click = [&](int key, Qt::KeyboardModifiers mods = Qt::NoModifier) {
+            QMetaObject::invokeMethod(preview, "keyClicked", Q_ARG(int, key), Q_ARG(int, int(mods)));
+        };
+        const auto shown = [&](int key) { return findItem(preview, "key_" + QByteArray::number(key))->property("color").value<QColor>(); };
+        const QString boardColor = w.backend.color();
 
-        // The effect isn't Custom: normal caps, and one line says so with a way to switch.
+        // Nothing selected: no hint, the controls set the board's colour.
         auto *hint = w.item("customHint");
-        QVERIFY(hint && hint->isVisible());
-        QCOMPARE(f12->property("lit").toString(), QString());
+        QVERIFY(hint && !hint->isVisible());
+        QCOMPARE(page->property("shownColor").toString(), boardColor);
 
-        // F12 and Esc blue: sent, though the drawing waits for Custom to show it.
-        w.click(0x0d);
-        w.click(0x01, Qt::ControlModifier);
-        QMetaObject::invokeMethod(tab, "apply", Q_ARG(QVariant, "#0000ff"));
-        QTRY_COMPARE(tab->property("shared").toString(), QString("#0000ff"));
-        QCOMPARE(f12->property("lit").toString(), QString());
-        w.click(0x02, Qt::ControlModifier);
-        QCOMPARE(tab->property("shared").toString(), QString());  // mixed
+        // F12 and Esc selected, the effect isn't Custom: one line says so with a way to switch.
+        click(0x0d);
+        click(0x01, Qt::ControlModifier);
+        QTRY_VERIFY(hint->isVisible());
+        QVERIFY(findItem(page, "swatch_000000"));  // black: the key stays dark
 
-        // Switch to Custom: one 04 02 with 13, the hint goes, and the legends light up in the
-        // board's read-back.
+        // Blue goes to those two keys only, not to the board.
+        QMetaObject::invokeMethod(page, "apply", Q_ARG(QVariant, "#0000ff"));
+        QTRY_COMPARE(page->property("shared").toString(), QString("#0000ff"));
+        QCOMPARE(w.backend.color(), boardColor);
+        click(0x02, Qt::ControlModifier);
+        QCOMPARE(page->property("shared").toString(), QString());  // mixed
+
+        // Switch to Custom: the hint goes and the drawing shows the board's read-back.
         auto *button = w.item("switchToCustom");
-        QVERIFY(button);
+        QVERIFY(button && button->isVisible());
         QMetaObject::invokeMethod(button, "clicked");
         QTRY_COMPARE(w.backend.effect(), 0x13);
         QTRY_VERIFY(!hint->isVisible());
-        QCOMPARE(QColor(f12->property("lit").toString()), QColor("#0000ff"));
-        QCOMPARE(QColor(findItem(w.view, "key_1")->property("lit").toString()), QColor("#0000ff"));
-        QCOMPARE(QColor(findItem(w.view, "key_2")->property("lit").toString()), QColor("#000000"));
-        // The cap itself stays a cap.
-        QCOMPARE(f12->property("color").value<QColor>(), w.theme.capTop());
+        w.backend.setBrightness(w.backend.maxBrightness());
+        QTRY_COMPARE(shown(0x0d), QColor("#0000ff"));
+        QCOMPARE(shown(0x01), QColor("#0000ff"));
+
+        // Clicking the only selected key again clears the selection: the board's colour again.
+        click(0x0d);
+        click(0x0d);
+        QTRY_COMPARE(page->property("selection").toList().size(), 0);
+        QCOMPARE(page->property("shownColor").toString(), w.backend.color());
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
@@ -1312,7 +1330,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 2);
+        w.show("lightingPage");
         auto *preview = w.item("lightingPreview");
         QVERIFY(preview && preview->isVisible());
         auto *esc = findItem(preview, "key_1");
@@ -1698,7 +1716,7 @@ private slots:
         const QVariantList threeKeys{keys.toList().value(40), keys.toList().value(41), keys.toList().value(42)};
 
         // Keys: each tab with nothing selected, then with one key and three keys selected.
-        for (int tab = 0; tab < 4; ++tab) {
+        for (int tab = 0; tab < 3; ++tab) {
             w.page->setProperty("tab", tab);
             call(w.page, "select", QVariantList{});
             check(QString("keys tab %1").arg(tab), picker);
@@ -1731,8 +1749,10 @@ private slots:
             call(macros, "addKey", usage);
         check("macros, 32 steps", {"macroSteps"});
 
-        w.window->setProperty("page", 2);
+        w.show("lightingPage");
         check("lighting");
+        call(w.item("lightingPage"), "select", threeKeys);
+        check("lighting, three keys");
         w.window->setProperty("page", 3);
         check("settings");
         QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
