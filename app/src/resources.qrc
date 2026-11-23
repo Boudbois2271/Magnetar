@@ -38,7 +38,7 @@
         <file alias="icons/square.svg">icons/square.svg</file>
         <file alias="icons/trash-2.svg">icons/trash-2.svg</file>
         <file alias="icons/plus.svg">icons/plus.svg</file>
-        <file alias="icons/command.svg">icons/command.svg</file>
+        <file alias="icons/keycap.svg">icons/keycap.svg</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
     </qresource>

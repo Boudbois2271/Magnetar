@@ -120,8 +120,8 @@ Reviewed on the desktop after items 1–18. Not fixed yet; one commit per item.
 | R3 | Lighting | Rework the layout: keyboard the same size as on Keys, all options in one column under it (no split). Rows, in order: **Lights** (title with the switch on it; drop the duplicate "Lights on" row) · **Brightness** (slider + level/max) · **Effect** (dropdown; drop the duplicate "Effect" title) · **Speed** (slider + level/max) · **Color** (swatches on the same line) · **Hex color** (text field) · **Rainbow** (switch). Tight, even vertical spacing (today's gaps look random, Lights on→Brightness and Effect→Speed are huge). |
 | R3a | Lighting | Brightness offers only levels **0, 1, 5, 10, 15, 20** (the 20 steps are barely distinguishable). Brightness and Speed sliders short and the same length (Speed has 5 positions). |
 | R3b | UI text | Spelling **"color"**, not "colour" ("Hex color", "Color"). Check every visible string. |
-| R4 | Sidebar | Page order: Keys, Lighting, Macros, Settings. | **Fixed.**
+| R4 | Sidebar | Page order: Keys, Lighting, Macros, Settings. **Fixed.** |
 | R5 | Macros | While recording, new actions go at the top of the list; older ones scroll away below (today new ones disappear below and need scrolling). |
 | R6 | Settings | Same random, too-large vertical spacing. Switches, dropdown and button sit half a screen from their labels: keep them next to the label. Device and About go under the options. |
-| R7 | Sidebar | Replace the Mac ⌘ icon (`command.svg`) on the Shortcuts button with a shortcut/keyboard-style icon. |
+| R7 | Sidebar | Replace the Mac ⌘ icon (`command.svg`) on the Shortcuts button with a shortcut/keyboard-style icon. **Fixed** (`keycap.svg`, a keycap with a return arrow). |
 | R8 | Keys → Colour | Per-key colour moves to the Lighting page (select keys on its keyboard). Keep the "Custom effect is off" line with its switch-to-custom button, shown when keys are selected and the effect isn't custom. Keys keeps Action, Travel, Advanced. |

@@ -180,7 +180,7 @@ ApplicationWindow {
                                 id: shortcutsRow
                                 anchors.centerIn: parent
                                 spacing: 8 * ui.unit
-                                Icon { name: "command"; color: theme.secondary }
+                                Icon { name: "keycap"; color: theme.secondary }
                                 Label { text: shortcutsButton.text; color: theme.secondary }
                             }
                         }
