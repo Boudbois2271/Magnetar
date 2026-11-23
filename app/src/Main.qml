@@ -247,21 +247,73 @@ ApplicationWindow {
                     columnSpacing: 28 * ui.unit
                     rowSpacing: 10 * ui.unit
 
-                    // Key, then what it does, filling the two columns row by row.
+                    // Keys, then what they do. "+" between caps is a separator, not a cap.
+                    readonly property var shortcuts: [
+                        { keys: [qsTr("Space")], label: qsTr("Lights on or off") },
+                        { keys: ["Ctrl", "+", "1", "2", "3"], label: qsTr("Switch profile") },
+                        { keys: ["Ctrl", "+", "R"], label: qsTr("Read the keyboard again") },
+                        { keys: ["?"], label: qsTr("Show or hide shortcuts") },
+                        { keys: ["Q"], label: qsTr("Quit") }
+                    ]
+
                     Repeater {
-                        model: [
-                            "Space", qsTr("Lights on or off"),
-                            "Ctrl+1 … 3", qsTr("Switch profile"),
-                            "Ctrl+R", qsTr("Read the keyboard again"),
-                            "?", qsTr("Show or hide shortcuts"),
-                            "Q", qsTr("Quit")
-                        ]
+                        model: helpGrid.shortcuts
+                        delegate: Row {
+                            id: helpRow
+                            required property int index
+                            required property var modelData
+                            Layout.row: index
+                            Layout.column: 0
+                            spacing: 4 * ui.unit
+
+                            Repeater {
+                                model: helpRow.modelData.keys
+                                delegate: Item {
+                                    id: cap
+                                    required property string modelData
+                                    readonly property bool separator: modelData === "+"
+                                    readonly property real side: Math.max(1, height * 0.08)
+                                    implicitHeight: 28 * ui.unit
+                                    implicitWidth: separator ? legend.implicitWidth
+                                                   : Math.max(implicitHeight, legend.implicitWidth + 14 * ui.unit)
+
+                                    Rectangle {  // skirt
+                                        visible: !cap.separator
+                                        anchors.fill: parent
+                                        radius: Math.min(theme.radius, cap.height * 0.2)
+                                        color: theme.capSkirt
+                                    }
+                                    Rectangle {  // top face
+                                        id: face
+                                        visible: !cap.separator
+                                        anchors.fill: parent
+                                        anchors.leftMargin: cap.side
+                                        anchors.rightMargin: cap.side
+                                        anchors.topMargin: cap.side * 0.5
+                                        anchors.bottomMargin: cap.side * 1.8
+                                        radius: Math.max(0, Math.min(theme.radius, cap.height * 0.2) - cap.side)
+                                        color: theme.capTop
+                                    }
+                                    Label {
+                                        id: legend
+                                        anchors.centerIn: cap.separator ? parent : face
+                                        text: cap.modelData
+                                        color: cap.separator ? theme.secondary : theme.foreground
+                                        font.pixelSize: ui.small
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: helpGrid.shortcuts
                         delegate: Label {
                             required property int index
-                            required property string modelData
-                            text: modelData
-                            font.family: index % 2 === 0 ? "monospace" : Qt.application.font.family
-                            color: index % 2 === 0 ? theme.accent : Material.foreground
+                            required property var modelData
+                            Layout.row: index
+                            Layout.column: 1
+                            Layout.alignment: Qt.AlignVCenter
+                            text: modelData.label
                         }
                     }
                 }
