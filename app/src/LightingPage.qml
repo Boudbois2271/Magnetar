@@ -66,7 +66,7 @@ Item {
         qsTr("Starry night"), qsTr("Snow trail"), qsTr("Endless flow"), qsTr("Flowing water"),
         qsTr("Shadow follow"), qsTr("Sine wave"), qsTr("Left-right scan"), qsTr("Spinning windmill"),
         qsTr("Colorful waterfall"), qsTr("Blossom prosperity"), qsTr("Spinning storm"),
-        qsTr("Custom (per-key colours)")
+        qsTr("Custom (per-key colors)")
     ]
     // Black is "off" for a key; the board's colour has no black.
     readonly property var swatches: [

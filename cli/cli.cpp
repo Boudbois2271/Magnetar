@@ -33,7 +33,7 @@ const char *const kHelp =
     "  status        print state as JSON (default)\n"
     "  profile N     switch onboard profile (1-based)\n"
     "  brightness N  set brightness 0-20\n"
-    "  color VALUE   set colour #rrggbb, or 'rainbow'\n"
+    "  color VALUE   set color #rrggbb, or 'rainbow'\n"
     "  on            lighting on\n"
     "  off           lighting off\n"
     "  toggle        lighting toggle\n"
