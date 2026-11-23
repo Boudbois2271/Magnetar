@@ -129,7 +129,9 @@ reflected in `akko-protocol.md`.
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
 - UI redesign (`docs/ui-plan.md`, items 1–18): checked offscreen only (tests, EN/FR screenshots in
-  a dark and the flexoki-light theme); not looked at on the desktop or used on the board yet. Light
+  a dark and the flexoki-light theme), then reviewed once on the desktop: findings R1–R8 in
+  `docs/ui-plan.md` are open (key deselect, Action tab anchoring, Lighting/Settings layout, sidebar
+  order, macro recording order, icon, per-key colour moving to Lighting). Not used on the board yet. Light
   themes were tried with one theme only. Keyboard focus is tested with Tab offscreen; real keyboard
   use on the desktop isn't. Space toggles the lights only while no control has keyboard focus.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked

@@ -108,3 +108,20 @@ key/value list, labels are sentence case, icons only where they replace words pe
 - Profile picker: "1 2 3" buttons, no dropdown (item 11).
 - The "not affiliated" disclaimer leaves the sidebar; it stays in Settings → About and the README.
 - Icons in the sidebar and on a few buttons (item 5).
+
+## Ilan's desktop review (2026-11-23), to fix
+
+Reviewed on the desktop after items 1–18. Not fixed yet; one commit per item.
+
+| # | Where | Feedback |
+|---|---|---|
+| R1 | Keys | Clicking a selected key again must deselect it (today it stays selected). |
+| R2 | Keys → Action | The controls sit at the bottom of the page instead of right under the keyboard like the other tabs, so they jump when something needs more room. Anchor them under the selection bar. |
+| R3 | Lighting | Rework the layout: keyboard the same size as on Keys, all options in one column under it (no split). Rows, in order: **Lights** (title with the switch on it; drop the duplicate "Lights on" row) · **Brightness** (slider + level/max) · **Effect** (dropdown; drop the duplicate "Effect" title) · **Speed** (slider + level/max) · **Color** (swatches on the same line) · **Hex color** (text field) · **Rainbow** (switch). Tight, even vertical spacing (today's gaps look random, Lights on→Brightness and Effect→Speed are huge). |
+| R3a | Lighting | Brightness offers only levels **0, 1, 5, 10, 15, 20** (the 20 steps are barely distinguishable). Brightness and Speed sliders short and the same length (Speed has 5 positions). |
+| R3b | UI text | Spelling **"color"**, not "colour" ("Hex color", "Color"). Check every visible string. |
+| R4 | Sidebar | Page order: Keys, Lighting, Macros, Settings. |
+| R5 | Macros | While recording, new actions go at the top of the list; older ones scroll away below (today new ones disappear below and need scrolling). |
+| R6 | Settings | Same random, too-large vertical spacing. Switches, dropdown and button sit half a screen from their labels: keep them next to the label. Device and About go under the options. |
+| R7 | Sidebar | Replace the Mac ⌘ icon (`command.svg`) on the Shortcuts button with a shortcut/keyboard-style icon. |
+| R8 | Keys → Colour | Per-key colour moves to the Lighting page (select keys on its keyboard). Keep the "Custom effect is off" line with its switch-to-custom button, shown when keys are selected and the effect isn't custom. Keys keeps Action, Travel, Advanced. |
