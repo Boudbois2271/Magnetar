@@ -154,6 +154,9 @@ Item {
                 labelFor: page.current.labelFor
                 markedFor: page.current.markedFor
                 colorFor: page.current.colorFor || function (id) { return "" }
+                depthFor: page.current.depthFor || function (id) { return -1 }
+                badgeFor: page.current.badgeFor || function (id) { return "" }
+                legendColorFor: page.current.legendColorFor || function (id) { return "" }
                 selectedKeys: page.selection
                 onKeyClicked: (id, modifiers) => page.click(id, modifiers)
                 onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
@@ -196,6 +199,21 @@ Item {
                         font.features: { "tnum": 1 }
                     }
                     Item { Layout.fillWidth: true }
+
+                    // Key colours only show under the Custom effect.
+                    Label {
+                        objectName: "customHint"
+                        visible: page.tab === 3 && !colorTab.customOn
+                        text: qsTr("Custom effect is off")
+                        color: theme.secondary
+                    }
+                    AppButton {
+                        objectName: "switchToCustom"
+                        visible: page.tab === 3 && !colorTab.customOn
+                        kind: "primary"
+                        text: qsTr("Switch to Custom")
+                        onClicked: backend.setEffect(backend.customEffect)
+                    }
 
                     // The keymap has layers; the drawing shows the one being edited.
                     TabBar {

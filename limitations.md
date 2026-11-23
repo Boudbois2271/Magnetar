@@ -114,6 +114,9 @@ reflected in `akko-protocol.md`.
   factory table in `core/keymap.cpp`).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
+- Keys → Colour lights each legend in its LED colour on the theme's cap: on a light theme a white
+  or yellow legend is hard to read (light-theme pass not done). Keys → Travel's depth gauge is
+  linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the

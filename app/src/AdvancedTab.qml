@@ -37,12 +37,13 @@ ColumnLayout {
         }
         return t
     }
+    // The name on the cap: as short as a keycap can take.
     function typeTag(t) {
         switch (t) {
-        case "modTap": return "MT"
-        case "toggle": return "TGL"
-        case "release": return "END"
-        case "multiPoint": return "MPT"
+        case "modTap": return qsTr("Mod-Tap")
+        case "toggle": return qsTr("Toggle")
+        case "release": return qsTr("Release")
+        case "multiPoint": return qsTr("Multi")
         case "dks": return "DKS"
         case "socd": return "SOCD"
         }
@@ -98,10 +99,13 @@ ColumnLayout {
     readonly property bool multi: page.selection.length > 1 && !(page.saved !== null && page.saved.type === "socd")
 
     function labelFor(id) {
-        const r = page.recordFor(id)
-        return r !== null ? page.typeTag(r.type) : page.keyName(id)
+        return page.keyName(id)
     }
-    readonly property var markedFor: function (id) { return false }  // the short name says it
+    function badgeFor(id) {
+        const r = page.recordFor(id)
+        return r !== null ? page.typeTag(r.type) : ""
+    }
+    readonly property var markedFor: function (id) { return false }  // the badge says it
     readonly property bool dirty: page.draft !== null && (page.saved === null || page.canon(page.draft) !== page.canon(page.saved))
 
     function keyName(id) {

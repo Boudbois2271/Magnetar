@@ -30,8 +30,10 @@ ColumnLayout {
         return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
     }
     readonly property var markedFor: function (id) { return false }
-    readonly property var colorFor: function (id) {
-        return tab.colors[String(id)] || ""
+    // The legends lit in each key's LED colour, only under Custom: otherwise the board doesn't
+    // show them, and the page says so in one line (on the selection bar).
+    readonly property var legendColorFor: function (id) {
+        return tab.customOn ? tab.colors[String(id)] || "" : ""
     }
 
     // The colour every selected key has, or "" when they differ.
@@ -48,26 +50,6 @@ ColumnLayout {
         Layout.fillWidth: true
         columns: 3
         columnSpacing: 24 * ui.unit
-
-        // ---- the colours only show under Custom ---------------------------------
-        Card {
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: tab.span(1)
-            Layout.maximumWidth: tab.span(1)
-            objectName: "customHint"
-            visible: !tab.customOn
-            title: qsTr("Custom effect is off")
-
-            RowLayout {
-                spacing: 16 * ui.unit
-                AppButton {
-                    objectName: "switchToCustom"
-                    kind: "primary"
-                    text: qsTr("Switch to Custom")
-                    onClicked: backend.setEffect(backend.customEffect)
-                }
-            }
-        }
 
         Card {
             visible: tab.selection.length > 0
