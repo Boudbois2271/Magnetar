@@ -136,7 +136,7 @@ QColor Theme::capTop() const {
 }
 
 QColor Theme::capSkirt() const {
-    return shade(dark() ? .10 : .16, "#262628");
+    return shade(dark() ? .10 : .20, "#262628");
 }
 
 // `mode` decides; older themes without it are judged by their background.

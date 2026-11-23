@@ -111,14 +111,19 @@ Item {
             readonly property string badge: view.badgeFor(keyId)
             // A cap with its own colour or a lit legend keeps it when selected: a ring marks it.
             readonly property bool ringed: fill !== "" || lit !== ""
+            // A lit legend on a light theme sits on a dark cap, as LEDs show through dark caps:
+            // white or yellow would vanish on the light one.
+            readonly property bool darkCap: lit !== "" && !theme.dark
             // Light colours get dark text, dark ones light text.
             readonly property bool lightFill: fill !== "" && (0.299 * Qt.color(fill).r + 0.587 * Qt.color(fill).g + 0.114 * Qt.color(fill).b) > 0.55
             // The top face: the key's colour when it has one (kept when selected: a ring marks
             // it instead), else the accent when selected, else the theme's cap.
             readonly property color color: fill !== "" ? fill
+                : darkCap ? Qt.tint(theme.foreground, Qt.alpha(theme.background, hovered ? 0.24 : 0.16))
                 : selected && !ringed ? theme.accent
                 : hovered ? Qt.tint(theme.capTop, Qt.alpha(theme.foreground, 0.08)) : theme.capTop
             readonly property color skirt: fill !== "" ? Qt.darker(fill, 1.4)
+                : darkCap ? theme.foreground
                 : selected && !ringed ? Qt.darker(theme.accent, 1.35) : theme.capSkirt
             // The skirt shows a little at the sides and top, more at the front, like a cap seen
             // from above the front edge.

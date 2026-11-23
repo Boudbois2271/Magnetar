@@ -91,8 +91,7 @@ Item {
                             text: qsTr("Lights on")
                         }
                         Item { Layout.fillWidth: true }
-                        Switch {
-                            FocusRing {}
+                        AppSwitch {
                             objectName: "lightsSwitch"
                             checked: backend.lightsOn
                             onToggled: backend.setLightsOn(checked)
@@ -158,8 +157,7 @@ Item {
                             Layout.fillWidth: true
                             from: 0
                             to: 4
-                            stepSize: 1
-                            snapMode: Slider.SnapAlways
+                            // No stepSize: Material would draw a tick dot per step.
                             onMoved: backend.setSpeed(Math.round(value))
                             Binding on value {
                                 when: !speed.pressed
@@ -263,8 +261,7 @@ Item {
                             text: qsTr("Rainbow")
                         }
                         Item { Layout.fillWidth: true }
-                        Switch {
-                            FocusRing {}
+                        AppSwitch {
                             objectName: "rainbowSwitch"
                             checked: backend.rainbow
                             onToggled: backend.setRainbow(checked)

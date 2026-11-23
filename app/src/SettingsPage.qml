@@ -29,9 +29,8 @@ Item {
             spacing: 2 * ui.unit
             Label { Layout.fillWidth: true; text: row.name }
         }
-        Switch {
+        AppSwitch {
             id: toggle
-            FocusRing {}
             objectName: row.objectName + "Switch"
             checked: row.value
             onToggled: {

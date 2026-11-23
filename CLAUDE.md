@@ -110,7 +110,8 @@ The keyboard under test is a daily-use keyboard. Rules:
 - Protocol changes come with a test against a fake device before anything is sent to the board.
 - App: every visible string is `qsTr()` with a French entry in `app/src/i18n/fr.json` (a test fails
   otherwise); the app shows only values read back from the board; pages appear when they work,
-  never as placeholders. Check layout with offscreen screenshots in English and French.
+  never as placeholders. Check layout with offscreen screenshots in English and French, in a
+  dark and a light Omarchy theme.
 - App: the user knows what they're doing. Never grey out, warn about or ask to confirm a choice
   that merely looks odd; block only what can't work on the board.
 - App colours come from `theme` (Omarchy `colors.toml`, light and dark); hard-code only real LED

@@ -64,9 +64,10 @@ public:
     QColor sidebar() const { return shade(.025, "#141417"); }
     QColor card() const { return shade(.04, "#17171b"); }
     QColor overlay() const { return shade(.055, "#1b1b20"); }
-    QColor chip() const { return shade(.08, "#222228"); }
-    QColor chipHover() const { return shade(.12, "#2c2c34"); }
-    QColor plate() const { return shade(.05, "#1a1a1c"); }
+    // Light themes need bigger steps: dark text makes small shades of the paper vanish.
+    QColor chip() const { return shade(dark() ? .08 : .12, "#222228"); }
+    QColor chipHover() const { return shade(dark() ? .12 : .18, "#2c2c34"); }
+    QColor plate() const { return shade(dark() ? .05 : .08, "#1a1a1c"); }
     QColor capTop() const;
     QColor capSkirt() const;
     QColor banner() const { return shade(.06, "#1d1d22"); }

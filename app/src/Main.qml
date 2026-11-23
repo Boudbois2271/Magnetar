@@ -216,7 +216,7 @@ ApplicationWindow {
         Rectangle {
             anchors.fill: parent
             visible: win.helpVisible
-            color: "#cc000000"
+            color: Qt.rgba(0, 0, 0, theme.dark ? 0.8 : 0.45)
 
             MouseArea {
                 anchors.fill: parent

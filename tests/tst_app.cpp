@@ -906,6 +906,9 @@ private slots:
         QVERIFY(lightness(theme.capSkirt()) < lightness(theme.plate()));
         QVERIFY(lightness(theme.plate()) < lightness(theme.background()));
         QVERIFY(lightness(theme.background()) < lightness(theme.capTop()));
+        // Light themes need bigger steps: plate and chips stand apart from the page and each other.
+        QVERIFY(lightness(theme.background()) - lightness(theme.plate()) >= .04);
+        QVERIFY(lightness(theme.plate()) - lightness(theme.chip()) >= .02);
         QCOMPARE(theme.error(), QColor("#ff8a80"));  // red gone: fallback
 
         // No mode key: judged by the background.
@@ -949,6 +952,24 @@ private slots:
                 stale << k;
         QVERIFY2(missing.isEmpty(), qPrintable("missing in fr.json: " + missing.join(" | ")));
         QVERIFY2(stale.isEmpty(), qPrintable("unused in fr.json: " + stale.join(" | ")));
+    }
+
+    // Controls follow the Omarchy theme: no Material switch (its off track is a fixed lilac) and
+    // no slider tick dots (Material draws one per step).
+    void controlsFollowTheTheme()
+    {
+        QDirIterator it(APP_SRC_DIR, {"*.qml"});
+        while (it.hasNext()) {
+            const QString path = it.next();
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::ReadOnly));
+            const QString text = QString::fromUtf8(file.readAll());
+            if (!path.endsWith("AppSwitch.qml"))
+                QVERIFY2(!QRegularExpression(R"(^\s*Switch\s*\{)", QRegularExpression::MultilineOption).match(text).hasMatch(),
+                         qPrintable(path + ": use AppSwitch"));
+            QVERIFY2(!text.contains(QRegularExpression(R"(^\s*stepSize:)", QRegularExpression::MultilineOption)),
+                     qPrintable(path + ": a slider stepSize draws tick dots"));
+        }
     }
 
     void everyIconLoads()

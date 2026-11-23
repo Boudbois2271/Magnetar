@@ -368,8 +368,7 @@ Item {
                         text: page.recording ? qsTr("Stop") : qsTr("Record")
                         onClicked: page.recording ? page.stopRecording() : page.startRecording()
                     }
-                    Switch {
-                        FocusRing {}
+                    AppSwitch {
                         objectName: "standardDelay"
                         text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
                         checked: page.standard
