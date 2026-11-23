@@ -1021,6 +1021,22 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // The sidebar's "1 2 3" switches profile in one click and shows what the board read back.
+    void sidebarSwitchesProfile()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        auto *picker = w.item("profilePicker");
+        QVERIFY(picker);
+        QCOMPARE(picker->property("currentIndex").toInt(), w.backend.profile() - 1);
+        QMetaObject::invokeMethod(findItem(w.window->contentItem(), "profilePicker_1"), "clicked");
+        QTRY_COMPARE(w.backend.profile(), 2);
+        QTRY_COMPARE(picker->property("currentIndex").toInt(), 1);
+        QCOMPARE(w.item("connectionStatus")->property("text").toString(), QString("Connected"));
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void keysPageRemapsKeys()
     {
         KeysWindow w;
@@ -1269,13 +1285,13 @@ private slots:
         QVERIFY(w.backend.calibrating());
         QTRY_VERIFY(w.board.writesOf(0x94, 0x00) >= 1);
         QCOMPARE(button->property("text").toString(), QString("Finish"));
-        QVERIFY(!w.item("profileBox")->isEnabled());
+        QVERIFY(!w.item("profilePicker")->isEnabled());
         QMetaObject::invokeMethod(findItem(calibrationScreen(), "calibrationBack"), "clicked");
         QVERIFY(!w.backend.calibrating());
         QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 1);
         QTRY_COMPARE(w.backend.calibrationSaved(), 0);
         QTRY_COMPARE(stack->property("depth").toInt(), 1);
-        QVERIFY(w.item("profileBox")->isEnabled());
+        QVERIFY(w.item("profilePicker")->isEnabled());
 
         // Leaving Settings from the sidebar finishes too, and Settings comes back without it.
         QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");

@@ -70,6 +70,24 @@ ApplicationWindow {
                         color: theme.secondary
                         font.pixelSize: ui.small
                     }
+                    // Whether the keyboard answers; the banner over the page says why not.
+                    RowLayout {
+                        spacing: 6 * ui.unit
+                        Rectangle {
+                            implicitWidth: 7 * ui.unit
+                            implicitHeight: implicitWidth
+                            radius: width / 2
+                            color: backend.connected ? theme.success : theme.error
+                        }
+                        Label {
+                            objectName: "connectionStatus"
+                            text: backend.connected ? qsTr("Connected")
+                                  : backend.errorKind === "notFound" ? qsTr("Not found")
+                                  : qsTr("Not connected")
+                            color: theme.secondary
+                            font.pixelSize: ui.small
+                        }
+                    }
 
                     Item { implicitHeight: 18 * ui.unit }
 
@@ -78,53 +96,92 @@ ApplicationWindow {
                         color: theme.secondary
                         font.pixelSize: ui.small
                     }
-                    AppComboBox {
-                        id: profileBox
-                        objectName: "profileBox"
-                        Layout.fillWidth: true
+                    Segmented {
+                        objectName: "profilePicker"
                         // A profile switch would wait behind the calibration session.
                         enabled: backend.connected && backend.ready && !backend.calibrating
-                        model: Math.max(backend.profileCount, 1)
-                        currentIndex: backend.profile - 1
-                        displayText: qsTr("Profile %1").arg(backend.profile)
-                        delegate: ItemDelegate {
-                            required property int index
-                            width: ListView.view ? ListView.view.width : implicitWidth
-                            text: qsTr("Profile %1").arg(index + 1)
-                            highlighted: profileBox.highlightedIndex === index
-                        }
+                        model: Array.from({ length: Math.max(backend.profileCount, 1) }, (_, i) => String(i + 1))
+                        currentIndex: backend.ready ? backend.profile - 1 : -1
                         onActivated: (index) => backend.setProfile(index + 1)
                     }
 
                     Item { implicitHeight: 18 * ui.unit }
 
                     Repeater {
-                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings")]
-                        delegate: ItemDelegate {
+                        model: [
+                            { label: qsTr("Keys"), icon: "keyboard" },
+                            { label: qsTr("Macros"), icon: "clapperboard" },
+                            { label: qsTr("Lighting"), icon: "lightbulb" },
+                            { label: qsTr("Settings"), icon: "settings" }
+                        ]
+                        delegate: AbstractButton {
+                            id: navItem
                             required property int index
-                            required property string modelData
+                            required property var modelData
+                            readonly property bool current: win.page === index
+                            readonly property color tint: current ? theme.accent : theme.foreground
+
+                            objectName: "nav_" + index
                             Layout.fillWidth: true
-                            text: modelData
-                            highlighted: win.page === index
+                            implicitHeight: 34 * ui.unit
+                            text: modelData.label
+                            hoverEnabled: true
                             onClicked: win.page = index
+
+                            background: Rectangle {
+                                radius: theme.radius
+                                color: navItem.down || (navItem.hovered && !navItem.current) ? theme.chip : "transparent"
+                                border.width: navItem.visualFocus ? 2 : 0
+                                border.color: theme.accent
+                                // The selected page's bar, on the leading edge.
+                                Rectangle {
+                                    visible: navItem.current
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    anchors.bottom: parent.bottom
+                                    width: 3 * ui.unit
+                                    color: theme.accent
+                                }
+                            }
+                            contentItem: RowLayout {
+                                spacing: 10 * ui.unit
+                                Item { implicitWidth: 3 * ui.unit }
+                                Icon {
+                                    name: navItem.modelData.icon
+                                    color: navItem.tint
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: navItem.text
+                                    color: navItem.tint
+                                    font.weight: navItem.current ? Font.DemiBold : Font.Normal
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
                     Item { Layout.fillHeight: true }
 
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Press ? for shortcuts")
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        font.pixelSize: ui.small
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Unofficial tool, not affiliated with Akko.")
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        font.pixelSize: ui.small
+                    AppButton {
+                        id: shortcutsButton
+                        objectName: "shortcutsButton"
+                        Layout.leftMargin: -12 * ui.unit
+                        kind: "quiet"
+                        text: qsTr("Shortcuts")
+                        implicitWidth: shortcutsRow.implicitWidth + 24 * ui.unit
+                        contentItem: Item {
+                            RowLayout {
+                                id: shortcutsRow
+                                anchors.centerIn: parent
+                                spacing: 8 * ui.unit
+                                Icon { name: "command"; color: theme.secondary }
+                                Label { text: shortcutsButton.text; color: theme.secondary }
+                            }
+                        }
+                        onClicked: win.helpVisible = true
                     }
                 }
             }
@@ -190,21 +247,73 @@ ApplicationWindow {
                     columnSpacing: 28 * ui.unit
                     rowSpacing: 10 * ui.unit
 
-                    // Key, then what it does, filling the two columns row by row.
+                    // Keys, then what they do. "+" between caps is a separator, not a cap.
+                    readonly property var shortcuts: [
+                        { keys: [qsTr("Space")], label: qsTr("Lights on or off") },
+                        { keys: ["Ctrl", "+", "1", "2", "3"], label: qsTr("Switch profile") },
+                        { keys: ["Ctrl", "+", "R"], label: qsTr("Read the keyboard again") },
+                        { keys: ["?"], label: qsTr("Show or hide shortcuts") },
+                        { keys: ["Q"], label: qsTr("Quit") }
+                    ]
+
                     Repeater {
-                        model: [
-                            "Space", qsTr("Lights on or off"),
-                            "Ctrl+1 … 3", qsTr("Switch profile"),
-                            "Ctrl+R", qsTr("Read the keyboard again"),
-                            "?", qsTr("Show or hide shortcuts"),
-                            "Q", qsTr("Quit")
-                        ]
+                        model: helpGrid.shortcuts
+                        delegate: Row {
+                            id: helpRow
+                            required property int index
+                            required property var modelData
+                            Layout.row: index
+                            Layout.column: 0
+                            spacing: 4 * ui.unit
+
+                            Repeater {
+                                model: helpRow.modelData.keys
+                                delegate: Item {
+                                    id: cap
+                                    required property string modelData
+                                    readonly property bool separator: modelData === "+"
+                                    readonly property real side: Math.max(1, height * 0.08)
+                                    implicitHeight: 28 * ui.unit
+                                    implicitWidth: separator ? legend.implicitWidth
+                                                   : Math.max(implicitHeight, legend.implicitWidth + 14 * ui.unit)
+
+                                    Rectangle {  // skirt
+                                        visible: !cap.separator
+                                        anchors.fill: parent
+                                        radius: Math.min(theme.radius, cap.height * 0.2)
+                                        color: theme.capSkirt
+                                    }
+                                    Rectangle {  // top face
+                                        id: face
+                                        visible: !cap.separator
+                                        anchors.fill: parent
+                                        anchors.leftMargin: cap.side
+                                        anchors.rightMargin: cap.side
+                                        anchors.topMargin: cap.side * 0.5
+                                        anchors.bottomMargin: cap.side * 1.8
+                                        radius: Math.max(0, Math.min(theme.radius, cap.height * 0.2) - cap.side)
+                                        color: theme.capTop
+                                    }
+                                    Label {
+                                        id: legend
+                                        anchors.centerIn: cap.separator ? parent : face
+                                        text: cap.modelData
+                                        color: cap.separator ? theme.secondary : theme.foreground
+                                        font.pixelSize: ui.small
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    Repeater {
+                        model: helpGrid.shortcuts
                         delegate: Label {
                             required property int index
-                            required property string modelData
-                            text: modelData
-                            font.family: index % 2 === 0 ? "monospace" : Qt.application.font.family
-                            color: index % 2 === 0 ? theme.accent : Material.foreground
+                            required property var modelData
+                            Layout.row: index
+                            Layout.column: 1
+                            Layout.alignment: Qt.AlignVCenter
+                            text: modelData.label
                         }
                     }
                 }
