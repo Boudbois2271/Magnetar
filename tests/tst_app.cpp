@@ -1205,6 +1205,10 @@ private slots:
         QTRY_VERIFY(w.backend.ready());
         w.window->setProperty("page", 3);
         QVERIFY(w.item("settingsPage")->isVisible());
+        // About is the app's one place for the not-affiliated notice.
+        auto *about = w.item("aboutSection");
+        QVERIFY(about && about->isVisible());
+        QVERIFY(findItem(about, "disclaimer")->property("text").toString().contains("not made, endorsed or supported"));
         auto *winLock = w.item("winKeyLockSwitch");
         auto *combo = w.item("comboOptimizationSwitch");
         auto *rate = w.item("pollingRateBox");
