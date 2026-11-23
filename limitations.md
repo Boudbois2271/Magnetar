@@ -72,6 +72,9 @@ reflected in `akko-protocol.md`.
   batch after the change is dropped. 8000/4000/2000 Hz were written by the vendor app only.
 - Per-key colours (Lighting page): tested against the fake keyboard only, not used on the board yet. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
+- Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
+  `akkoctl` (and shown as read). The Lighting drawing is sized like the Keys one by the same rule,
+  not shared with it: the two can differ by a few pixels.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
 - Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
