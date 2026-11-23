@@ -117,6 +117,10 @@ QColor Theme::shade(double t, const char *fallback) const {
     return mix(background(), foreground(), t);
 }
 
+QColor Theme::secondary() const {
+    return mix(background(), foreground(), .65);
+}
+
 QColor Theme::bannerError() const {
     if (!isHexColor(m_values.value("background")) || !isHexColor(m_values.value("red")))
         return QColor("#3a1d1d");

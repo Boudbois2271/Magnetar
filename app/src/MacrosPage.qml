@@ -186,6 +186,7 @@ Item {
         // ---- list and storage ----------------------------------------------
         Card {
             title: qsTr("Macros of profile %1").arg(backend.profile)
+            filled: true
 
             RowLayout {
                 Layout.fillWidth: true
@@ -199,7 +200,8 @@ Item {
                 Label {
                     objectName: "macroStorageLabel"
                     text: qsTr("%1 / %2 bytes used").arg(backend.macroStorage.used).arg(backend.macroStorage.max)
-                    opacity: 0.7
+                    color: theme.secondary
+                    font.features: { "tnum": 1 }
                 }
             }
 
@@ -218,9 +220,8 @@ Item {
                         onClicked: page.select(index)
                     }
                 }
-                Chip {
+                AppButton {
                     objectName: "newMacro"
-                    on: page.index < 0
                     text: qsTr("+ New macro")
                     onClicked: page.select(-1)
                 }
@@ -238,7 +239,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
                 Label { text: qsTr("Name") }
-                TextField {
+                AppTextField {
                     objectName: "macroName"
                     Layout.fillWidth: true
                     placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
@@ -253,11 +254,10 @@ Item {
             Flow {
                 Layout.fillWidth: true
                 spacing: 16 * ui.unit
-                // A Chip: Material's Button background doesn't paint on the dark theme here.
-                Chip {
+                AppButton {
                     objectName: "recordButton"
                     y: (standardSwitch.height - height) / 2
-                    on: page.recording
+                    kind: page.recording ? "primary" : "secondary"
                     text: page.recording ? qsTr("● Stop") : qsTr("● Record")
                     onClicked: page.recording ? page.stopRecording() : page.startRecording()
                 }
@@ -304,14 +304,15 @@ Item {
                             Label {
                                 Layout.fillWidth: true
                                 text: names.usageName(stepRow.modelData.usage)
-                                font.bold: true
+                                font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
-                            TextField {
+                            AppTextField {
                                 Layout.preferredWidth: 72 * ui.unit
                                 visible: !stepRow.last
                                 enabled: !page.standard
                                 horizontalAlignment: Text.AlignRight
+                                font.features: { "tnum": 1 }
                                 inputMethodHints: Qt.ImhDigitsOnly
                                 validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
                                 text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
@@ -323,28 +324,29 @@ Item {
                                 visible: stepRow.last
                                 horizontalAlignment: Text.AlignRight
                                 text: qsTr("1 ms (end)")
-                                opacity: 0.5
+                                color: theme.secondary
+                                font.features: { "tnum": 1 }
                             }
                             Label {
                                 Layout.preferredWidth: 24 * ui.unit
                                 visible: !stepRow.last
                                 text: "ms"
-                                opacity: 0.6
+                                color: theme.secondary
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "↑"
                                 enabled: stepRow.index > 0
                                 onClicked: page.moveStep(stepRow.index, -1)
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "↓"
                                 enabled: !stepRow.last
                                 onClicked: page.moveStep(stepRow.index, 1)
                             }
-                            ToolButton {
-                                Layout.preferredWidth: 32 * ui.unit
+                            AppButton {
+                                kind: "quiet"
                                 text: "✕"
                                 onClicked: page.removeStep(stepRow.index)
                             }
@@ -357,14 +359,14 @@ Item {
             Flow {
                 Layout.fillWidth: true
                 spacing: 10 * ui.unit
-                ComboBox {
+                AppComboBox {
                     id: addKeyBox
                     width: 200 * ui.unit
                     model: page.addableKeys.map(u => names.usageName(u))
                     currentIndex: -1
                     displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
                 }
-                Button {
+                AppButton {
                     text: qsTr("Add")
                     enabled: addKeyBox.currentIndex >= 0 && !page.recording
                     onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
@@ -383,21 +385,21 @@ Item {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
-                Button {
+                AppButton {
                     objectName: "saveMacro"
+                    kind: "primary"
                     text: qsTr("Save")
-                    highlighted: true
                     enabled: page.canSave
                     onClicked: page.save()
                 }
-                Button {
+                AppButton {
                     objectName: "revertMacro"
                     text: qsTr("Revert")
                     enabled: page.dirty || page.recording
                     onClicked: page.load()
                 }
                 Item { Layout.fillWidth: true }
-                Button {
+                AppButton {
                     objectName: "deleteMacro"
                     visible: page.saved !== null
                     text: qsTr("Delete macro")
@@ -424,7 +426,24 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
-        standardButtons: Dialog.Ok | Dialog.Cancel
+        background: Rectangle {
+            radius: theme.radius
+            color: theme.overlay
+        }
+        Overlay.modal: Rectangle { color: Qt.alpha(theme.background, 0.7) }
+        footer: Item {
+            implicitHeight: deleteDialogButtons.implicitHeight + 24 * ui.unit
+            implicitWidth: deleteDialogButtons.implicitWidth + 48 * ui.unit
+            RowLayout {
+                id: deleteDialogButtons
+                anchors.top: parent.top
+                anchors.right: parent.right
+                anchors.rightMargin: 24 * ui.unit
+                spacing: 8 * ui.unit
+                AppButton { text: qsTr("Cancel"); onClicked: deleteDialog.reject() }
+                AppButton { kind: "primary"; text: qsTr("Delete macro"); onClicked: deleteDialog.accept() }
+            }
+        }
         readonly property int bound: page.saved ? page.boundKeys(page.index) : 0
 
         // The heading sits in the body: a long wrapped Material title makes a sizing loop.
@@ -434,8 +453,8 @@ Item {
                 Layout.preferredWidth: 400 * ui.unit
                 text: qsTr("Delete “%1”?").arg(page.saved ? page.saved.name : "")
                 wrapMode: Text.WordWrap
-                font.pixelSize: Math.round(18 * ui.unit)
-                font.bold: true
+                font.pixelSize: ui.section
+                font.weight: Font.DemiBold
             }
             Label {
                 Layout.preferredWidth: 400 * ui.unit

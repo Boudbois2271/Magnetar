@@ -32,6 +32,8 @@ class Theme : public QObject {
     Q_PROPERTY(bool dark READ dark NOTIFY changed)
     Q_PROPERTY(QColor background READ background NOTIFY changed)
     Q_PROPERTY(QColor foreground READ foreground NOTIFY changed)
+    // Secondary text: foreground mixed 65 % into background, readable where opacity wasn't.
+    Q_PROPERTY(QColor secondary READ secondary NOTIFY changed)
     Q_PROPERTY(QColor sidebar READ sidebar NOTIFY changed)
     Q_PROPERTY(QColor card READ card NOTIFY changed)
     Q_PROPERTY(QColor overlay READ overlay NOTIFY changed)
@@ -58,6 +60,7 @@ public:
     bool dark() const;
     QColor background() const { return color("background", "#0e0e10"); }
     QColor foreground() const { return color("foreground", "#ffffff"); }
+    QColor secondary() const;
     QColor sidebar() const { return shade(.025, "#141417"); }
     QColor card() const { return shade(.04, "#17171b"); }
     QColor overlay() const { return shade(.055, "#1b1b20"); }

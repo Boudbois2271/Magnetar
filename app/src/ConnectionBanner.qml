@@ -37,7 +37,7 @@ Rectangle {
                 Layout.fillWidth: true
                 text: banner.message
                 wrapMode: Text.WordWrap
-                font.bold: true
+                font.weight: Font.DemiBold
             }
             Label {
                 Layout.fillWidth: true
@@ -46,14 +46,13 @@ Rectangle {
                 readonly property bool detailed: ["permission", "noResponse", "other"].indexOf(backend.errorKind) >= 0
                 text: qsTr("Trying again every few seconds.") + (detailed ? "  " + backend.errorDetail : "")
                 wrapMode: Text.WordWrap
-                opacity: 0.6
-                font.pixelSize: Math.round(12 * ui.unit)
+                color: theme.secondary
+                font.pixelSize: ui.small
             }
         }
-        Button {
+        AppButton {
             visible: backend.errorKind !== ""
             text: qsTr("Retry")
-            flat: true
             onClicked: backend.refresh()
         }
     }

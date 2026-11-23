@@ -19,8 +19,8 @@ ColumnLayout {
     Label {
         visible: parent.title !== ""
         text: parent.title
-        font.pixelSize: Math.round(26 * ui.unit)
-        font.bold: true
+        font.pixelSize: ui.title
+        font.weight: Font.DemiBold
     }
     ColumnLayout {
         id: body

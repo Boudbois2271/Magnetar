@@ -298,7 +298,6 @@ ColumnLayout {
         property int index: 0
         objectName: "slot_" + index
         implicitWidth: Math.max(120 * ui.unit, contentItem.implicitWidth + 24 * ui.unit)
-        implicitHeight: 40 * ui.unit
         text: index === 0 && page.draft && page.draft.own ? qsTr("Each key's own action") : page.actionName(page.slotCode(index))
         on: page.slot === index
         onClicked: page.slot = page.slot === index ? -1 : index
@@ -363,7 +362,7 @@ ColumnLayout {
                                                      : qsTr("None of them has an advanced function. Choose one for all of them:"))
                       : page.saved === null ? qsTr("No advanced function. Choose one:")
                                           : qsTr("Now: %1. Change it below, or choose another type:").arg(page.typeName(page.saved.type))
-                opacity: 0.7
+                color: theme.secondary
             }
             Flow {
                 objectName: "typeChips"
@@ -420,6 +419,7 @@ ColumnLayout {
                     Label { Layout.fillWidth: true; text: qsTr("Hold time") }
                     Label {
                         objectName: "holdValue"
+                        font.features: { "tnum": 1 }
                         text: qsTr("%1 ms").arg(page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : 0)
                     }
                 }
@@ -453,8 +453,8 @@ ColumnLayout {
                         spacing: 12 * ui.unit
                         Label { text: page.slotName(10 + point.index) }
                         SlotButton { index: 10 + point.index }
-                        Button {
-                            flat: true
+                        AppButton {
+                            kind: "quiet"
                             text: qsTr("Clear")
                             visible: page.slotCode(10 + point.index) !== ""
                             onClicked: page.setSlot(10 + point.index, "")
@@ -512,7 +512,7 @@ ColumnLayout {
                     spacing: 10 * ui.unit
                     Label { text: page.slotName(20 + row.index) }
                     SlotButton { index: 20 + row.index }
-                    ComboBox {
+                    AppComboBox {
                         objectName: "dksStroke" + row.index
                         Layout.fillWidth: true
                         Layout.maximumWidth: 480 * ui.unit
@@ -551,7 +551,7 @@ ColumnLayout {
                 columnSpacing: 16 * ui.unit
                 rowSpacing: 8 * ui.unit
                 Label { visible: secondKey.visible; text: qsTr("Second key") }
-                ComboBox {
+                AppComboBox {
                     id: secondKey
                     objectName: "socdSecondKey"
                     visible: page.selection.length !== 2
@@ -564,7 +564,7 @@ ColumnLayout {
                     onActivated: (i) => page.edit(d => d.key2 = secondKey.ids[i])
                 }
                 Label { text: qsTr("When both are down") }
-                ComboBox {
+                AppComboBox {
                     id: mode
                     objectName: "socdMode"
                     Layout.fillWidth: true
@@ -592,25 +592,25 @@ ColumnLayout {
                 visible: text !== "" && page.dirty
                 text: page.replaces()
                 wrapMode: Text.WordWrap
-                opacity: 0.7
+                color: theme.secondary
             }
 
             Flow {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
-                Button {
+                AppButton {
                     objectName: "saveAdvanced"
+                    kind: "primary"
                     text: qsTr("Save")
-                    highlighted: true
                     enabled: page.dirty && page.problem() === ""
                     onClicked: page.save()
                 }
-                Button {
+                AppButton {
                     text: qsTr("Discard changes")
                     enabled: page.dirty
                     onClicked: page.load()
                 }
-                Button {
+                AppButton {
                     objectName: "removeAdvanced"
                     visible: page.withRecords.length > 0
                     text: page.saved !== null && page.saved.type === "socd" ? qsTr("Remove the SOCD pair") : qsTr("Remove")

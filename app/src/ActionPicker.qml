@@ -91,7 +91,7 @@ ColumnLayout {
         picker.symbols, picker.functionKeys, picker.navigation, picker.range(0x53, 0x63)))
 
 
-    TextField {
+    AppTextField {
         objectName: "searchField"
         Layout.fillWidth: true
         placeholderText: qsTr("Search, e.g. volume or F5")
@@ -131,7 +131,7 @@ ColumnLayout {
                 onClicked: picker.macroLoop = modelData.loop
             }
         }
-        SpinBox {
+        AppSpinBox {
             objectName: "macroCount"
             visible: picker.macroLoop === "times"
             from: 1
@@ -173,7 +173,7 @@ ColumnLayout {
     Label {
         visible: picker.search.trim() !== "" && picker.shownItems.length === 0
         text: qsTr("Nothing matches.")
-        opacity: 0.6
+        color: theme.secondary
     }
 
     // …or the shortcut builder: one to four modifiers and one or two keys.
@@ -211,7 +211,7 @@ ColumnLayout {
             Row {
                 spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Key") }
-                ComboBox {
+                AppComboBox {
                     id: firstKey
                     width: 160 * ui.unit
                     model: picker.shortcutKeys.map(k => k.label)
@@ -222,7 +222,7 @@ ColumnLayout {
             Row {
                 spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Second key") }
-                ComboBox {
+                AppComboBox {
                     id: secondKey
                     width: 160 * ui.unit
                     model: [qsTr("None")].concat(picker.shortcutKeys.map(k => k.label))
@@ -232,15 +232,15 @@ ColumnLayout {
         }
         RowLayout {
             spacing: 16 * ui.unit
-            Button {
+            AppButton {
+                kind: "primary"
                 text: qsTr("Apply")
-                highlighted: true
                 enabled: builder.modifiers !== 0 && builder.code !== ""
                 onClicked: picker.picked(builder.code)
             }
             Label {
                 text: builder.modifiers !== 0 && builder.code !== "" ? names.name(backend.actionInfo(builder.code)) : ""
-                opacity: 0.7
+                color: theme.secondary
             }
         }
     }

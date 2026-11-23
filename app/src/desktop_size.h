@@ -13,6 +13,7 @@
 #include <QObject>
 #include <QProcess>
 #include <QTimer>
+#include <cmath>
 
 class DesktopSize : public QObject {
     Q_OBJECT
@@ -24,6 +25,12 @@ class DesktopSize : public QObject {
     // One layout pixel: the app's layout was drawn for 14 px body text (Material's size), so
     // `n * ui.unit` is n at that size and shrinks or grows with the desktop's text.
     Q_PROPERTY(qreal unit READ unit NOTIFY changed)
+    // The type scale, in pixels (n at 14 px body): page title 22 and section title 15 (both
+    // semibold in QML), body 14, small 12 for secondary lines.
+    Q_PROPERTY(int title READ titleSize NOTIFY changed)
+    Q_PROPERTY(int section READ sectionSize NOTIFY changed)
+    Q_PROPERTY(int body READ fontSize NOTIFY changed)
+    Q_PROPERTY(int small READ smallSize NOTIFY changed)
 
 public:
     // `gsettings`: the program to ask for the text scaling factor; empty finds it on PATH, a
@@ -34,6 +41,9 @@ public:
     QFont font() const;
     int fontSize() const { return m_fontSize; }
     qreal unit() const { return m_fontSize / 14.0; }
+    int titleSize() const { return scaled(22); }
+    int sectionSize() const { return scaled(15); }
+    int smallSize() const { return scaled(12); }
 
     // Uses this interface font and factor instead of the platform's (tests, screenshots).
     void setBase(const QFont &font, double textScaling);
@@ -47,6 +57,7 @@ signals:
     void changed();
 
 private:
+    int scaled(int n) const { return int(std::lround(n * unit())); }
     void query();
     void update();
 

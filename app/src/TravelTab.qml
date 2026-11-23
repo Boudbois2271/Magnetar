@@ -71,7 +71,7 @@ ColumnLayout {
 
     RowLayout {
         Item { Layout.fillWidth: true }
-        Button {
+        AppButton {
             objectName: "undoTravel"
             text: qsTr("Undo last change")
             enabled: backend.canUndoTravel

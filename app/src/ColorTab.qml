@@ -50,10 +50,10 @@ ColumnLayout {
 
         RowLayout {
             spacing: 16 * ui.unit
-            Button {
+            AppButton {
                 objectName: "switchToCustom"
+                kind: "primary"
                 text: qsTr("Switch to Custom")
-                highlighted: true
                 onClicked: backend.setEffect(backend.customEffect)
             }
         }
@@ -78,8 +78,8 @@ ColumnLayout {
                     anchors.centerIn: parent
                     visible: tab.shared === ""
                     text: qsTr("Mixed")
-                    font.pixelSize: Math.round(11 * ui.unit)
-                    opacity: 0.7
+                    font.pixelSize: ui.small
+                    color: theme.secondary
                 }
             }
 
@@ -117,7 +117,7 @@ ColumnLayout {
                 Layout.preferredWidth: tab.labelWidth
                 text: qsTr("Hex colour")
             }
-            TextField {
+            AppTextField {
                 id: hex
                 objectName: "keyHexField"
                 Layout.preferredWidth: 140 * ui.unit

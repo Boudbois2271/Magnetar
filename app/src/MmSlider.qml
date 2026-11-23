@@ -56,15 +56,16 @@ ColumnLayout {
             Layout.column: 2
             visible: ms.mixed
             text: qsTr("varies")
-            opacity: 0.55
+            color: theme.secondary
         }
-        TextField {
+        AppTextField {
             id: typed
             objectName: ms.objectName + "Field"
             Layout.row: 0
             Layout.column: 3
             Layout.preferredWidth: 76 * ui.unit
             horizontalAlignment: TextInput.AlignRight
+            font.features: { "tnum": 1 }
             enabled: !ms.beyond
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             validator: RegularExpressionValidator { regularExpression: /[0-9]{0,1}([.,][0-9]{0,3})?/ }
@@ -110,6 +111,6 @@ ColumnLayout {
         visible: ms.beyond
         text: qsTr("Some selected keys are set beyond %1 mm, so Magnetar leaves this value as it is.").arg(ms.text(ms.to))
         wrapMode: Text.WordWrap
-        opacity: 0.6
+        color: theme.secondary
     }
 }
