@@ -1469,6 +1469,23 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // A plain click on the only selected key clears it; on one of several, it keeps only that one.
+    void keysPageClickOnASelectedKeyDeselects()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        auto selection = [&] { return w.page->property("selection").toList(); };
+        w.click(0x62);
+        QCOMPARE(selection().size(), 1);
+        w.click(0x62);
+        QVERIFY(selection().isEmpty());
+        w.click(0x62);
+        w.click(0x63, Qt::ControlModifier);
+        w.click(0x63);
+        QCOMPARE(selection(), QVariantList{0x63});
+    }
+
     void keysPageSelectsWithABox()
     {
         KeysWindow w;
