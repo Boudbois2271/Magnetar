@@ -113,8 +113,8 @@ ApplicationWindow {
                     Repeater {
                         model: [
                             { label: qsTr("Keys"), icon: "keyboard" },
-                            { label: qsTr("Macros"), icon: "clapperboard" },
                             { label: qsTr("Lighting"), icon: "lightbulb" },
+                            { label: qsTr("Macros"), icon: "clapperboard" },
                             { label: qsTr("Settings"), icon: "settings" }
                         ]
                         delegate: AbstractButton {
@@ -205,8 +205,8 @@ ApplicationWindow {
                     currentIndex: win.page
 
                     KeysPage { objectName: "keysPage" }
+                    LightingPage { objectName: "lightingPage" }
                     MacrosPage { objectName: "macrosPage" }
-                    LightingPage {}
                     SettingsPage { objectName: "settingsPage" }
                 }
             }

@@ -140,6 +140,9 @@ QStringList overflows(QQuickItem *item, QQuickItem *root, const QStringList &scr
 
 }  // namespace
 
+// Sidebar order; pages are told apart by these, never by bare numbers.
+enum Page { PageKeys, PageLighting, PageMacros, PageSettings };
+
 // The window on the Keys page with a fake keyboard, read and ready.
 struct KeysWindow {
     FakeBoard board;
@@ -164,7 +167,7 @@ struct KeysWindow {
         window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window)
             return false;
-        window->setProperty("page", 0);
+        window->setProperty("page", PageKeys);
         page = window->findChild<QQuickItem *>("keysPage");
         view = window->findChild<QQuickItem *>("keysKeyboard");
         return page && view;
@@ -1116,12 +1119,12 @@ private slots:
             const QStringList stops = walk();
             QVERIFY2(!stops.isEmpty() && !stops.first().startsWith("no focus"), qPrintable(stops.join(", ")));
         }
-        for (int page = 1; page < 4; ++page) {
+        for (int page = PageLighting; page <= PageSettings; ++page) {
             w.window->setProperty("page", page);
             const QStringList stops = walk();
             QVERIFY2(!stops.isEmpty() && !stops.first().startsWith("no focus"), qPrintable(stops.join(", ")));
         }
-        w.window->setProperty("page", 0);
+        w.window->setProperty("page", PageKeys);
         w.page->setProperty("tab", 0);
         QMetaObject::invokeMethod(w.page, "select", Q_ARG(QVariant, QVariantList{}));
 
@@ -1312,7 +1315,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 2);
+        w.window->setProperty("page", PageLighting);
         auto *preview = w.item("lightingPreview");
         QVERIFY(preview && preview->isVisible());
         auto *esc = findItem(preview, "key_1");
@@ -1340,7 +1343,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 3);
+        w.window->setProperty("page", PageSettings);
         QVERIFY(w.item("settingsPage")->isVisible());
         // About is the app's one place for the not-affiliated notice.
         auto *about = w.item("aboutSection");
@@ -1392,7 +1395,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.window->setProperty("page", 3);
+        w.window->setProperty("page", PageSettings);
         auto *stack = w.item("settingsStack");
         QVERIFY(stack);
         const auto calibrationScreen = [&] { return qvariant_cast<QQuickItem *>(stack->property("currentItem")); };
@@ -1420,7 +1423,7 @@ private slots:
         QMetaObject::invokeMethod(findItem(calibrationScreen(), "calibrationButton"), "clicked");
         QVERIFY(w.backend.calibrating());
         QTRY_VERIFY(w.board.writesOf(0x94, 0x00) >= 2);
-        w.window->setProperty("page", 0);
+        w.window->setProperty("page", PageKeys);
         QVERIFY(!w.backend.calibrating());
         QTRY_COMPARE(w.board.writesOf(0x94, 0x04), 2);
         QCOMPARE(stack->property("depth").toInt(), 1);
@@ -1557,7 +1560,7 @@ private slots:
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.keymapReady() && w.backend.macrosReady());
-        w.window->setProperty("page", 1);
+        w.window->setProperty("page", PageMacros);
         auto *page = w.item("macrosPage");
         QVERIFY(page);
         auto call = [&](const char *fn, QVariantList args = {}) {
@@ -1631,7 +1634,7 @@ private slots:
         QMetaObject::invokeMethod(need("revertMacro"), "clicked");
 
         // Bound to Insert, played three times: the drawing and the Keys page name it.
-        w.window->setProperty("page", 0);
+        w.window->setProperty("page", PageKeys);
         w.click(0x62);
         QMetaObject::invokeMethod(need("actionTab"), "assign", Q_ARG(QVariant, w.backend.macroCode(0, "times", 3)));
         QTRY_COMPARE(w.cap(0x62), QString("ab"));
@@ -1641,7 +1644,7 @@ private slots:
         QVERIFY(need("macroCount")->isVisible());
 
         // Deleting it unbinds the key.
-        w.window->setProperty("page", 1);
+        w.window->setProperty("page", PageMacros);
         QCOMPARE(w.window->findChild<QObject *>("deleteMacroDialog")->property("bound").toInt(), 1);
         call("remove");
         QTRY_COMPARE(w.backend.macros().size(), 0);
@@ -1723,7 +1726,7 @@ private slots:
         advanced->setProperty("slot", -1);
 
         // Macros, with a long macro: its steps scroll in their box.
-        w.window->setProperty("page", 1);
+        w.window->setProperty("page", PageMacros);
         check("macros");
         auto *macros = w.item("macrosPage");
         call(macros, "select", -1);
@@ -1731,9 +1734,9 @@ private slots:
             call(macros, "addKey", usage);
         check("macros, 32 steps", {"macroSteps"});
 
-        w.window->setProperty("page", 2);
+        w.window->setProperty("page", PageLighting);
         check("lighting");
-        w.window->setProperty("page", 3);
+        w.window->setProperty("page", PageSettings);
         check("settings");
         QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
         QTest::qWait(400);  // the push transition
