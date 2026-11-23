@@ -854,7 +854,9 @@ private slots:
         QCOMPARE(theme.foreground(), QColor("#ffffff"));
         QCOMPARE(theme.sidebar(), QColor("#141417"));
         QCOMPARE(theme.card(), QColor("#17171b"));
-        QCOMPARE(theme.key(), QColor("#202026"));
+        QCOMPARE(theme.plate(), QColor("#1a1a1c"));
+        QCOMPARE(theme.capSkirt(), QColor("#262628"));
+        QCOMPARE(theme.capTop(), QColor("#3e3e40"));
         QCOMPARE(theme.error(), QColor("#ff8a80"));
 
         // A dark theme appears: keys parsed, surfaces between background and foreground.
@@ -876,9 +878,10 @@ private slots:
         QCOMPARE(theme.warning(), QColor("#8a6a1c"));  // missing key: fallback
         auto lightness = [](const QColor &c) { return c.lightnessF(); };
         QVERIFY(lightness(theme.background()) < lightness(theme.card()));
-        QVERIFY(lightness(theme.card()) < lightness(theme.key()));
-        QVERIFY(lightness(theme.key()) < lightness(theme.keyBorder()));
-        QVERIFY(lightness(theme.keyBorder()) < lightness(theme.foreground()));
+        QVERIFY(lightness(theme.background()) < lightness(theme.plate()));
+        QVERIFY(lightness(theme.plate()) < lightness(theme.capSkirt()));
+        QVERIFY(lightness(theme.capSkirt()) < lightness(theme.capTop()));
+        QVERIFY(lightness(theme.capTop()) < lightness(theme.foreground()));
 
         // Live switch to a light theme: Material goes light, surfaces darken toward the text.
         write("mode = \"light\"\naccent = \"#1e66f5\"\nbackground = \"#eff1f5\"\nforeground = \"#4c4f69\"\n");
@@ -886,7 +889,9 @@ private slots:
         QCOMPARE(theme.accent(), QString("#1e66f5"));
         QCOMPARE(theme.background(), QColor("#eff1f5"));
         QVERIFY(lightness(theme.card()) < lightness(theme.background()));
-        QVERIFY(lightness(theme.key()) < lightness(theme.card()));
+        QVERIFY(lightness(theme.capSkirt()) < lightness(theme.plate()));
+        QVERIFY(lightness(theme.plate()) < lightness(theme.background()));
+        QVERIFY(lightness(theme.background()) < lightness(theme.capTop()));
         QCOMPARE(theme.error(), QColor("#ff8a80"));  // red gone: fallback
 
         // No mode key: judged by the background.
@@ -1315,7 +1320,7 @@ private slots:
 
         // A drag may start in the margin around the keyboard and selects the keys it crosses.
         const QRectF top = keyRect(0x01);
-        const QPoint outside = top.center().toPoint() - QPoint(0, int(top.height() / 2) + 8);  // just above Esc
+        const QPoint outside(int(top.center().x()), int(w.view->mapToScene(QPointF(0, 0)).y()) - 8);  // above Esc, off the plate
         QVERIFY(!w.view->contains(w.view->mapFromScene(outside)));
         const QPoint end = centre(0x0d);
         const QSet<int> fromMargin = touched(outside, end);

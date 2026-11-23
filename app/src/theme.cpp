@@ -123,6 +123,18 @@ QColor Theme::bannerError() const {
     return mix(background(), error(), .25);
 }
 
+// Caps on a dark theme: a light top face on a darker skirt, both lighter than the plate.
+// On a light theme: the top face lighter than the page, the skirt darker than the plate.
+QColor Theme::capTop() const {
+    if (dark() || !isHexColor(m_values.value("background")))
+        return shade(.20, "#3e3e40");
+    return mix(background(), QColor("#ffffff"), .5);
+}
+
+QColor Theme::capSkirt() const {
+    return shade(dark() ? .10 : .16, "#262628");
+}
+
 // `mode` decides; older themes without it are judged by their background.
 bool Theme::dark() const {
     const auto mode = m_values.value("mode");
