@@ -1356,6 +1356,13 @@ private slots:
         QCOMPARE(winLock->property("checked").toBool(), false);
         QCOMPARE(combo->property("checked").toBool(), true);
         QCOMPARE(rate->property("displayText").toString(), QString("1000 Hz"));
+        // One narrow column: controls near their labels, Device and About under the options.
+        auto *settings = w.item("settingsPage");
+        auto right = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(i->width(), 0)).x(); };
+        auto top = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(0, 0)).y(); };
+        QVERIFY(right(winLock) < settings->width() / 2);
+        QVERIFY(top(w.item("firmwareLabel")) > top(rate));
+        QVERIFY(top(about) > top(w.item("firmwareLabel")));
 
         // A click writes, and the switch shows the board's read-back.
         winLock->setProperty("checked", true);
@@ -1594,7 +1601,22 @@ private slots:
         call("recordEvent", {true, 84 + 8, 1130.0});   // no key
         call("recordEvent", {false, 30 + 8, 1200.0});
         call("recordEvent", {false, 42 + 8, 1260.0});
+        // While recording the list shows the newest step first; the draft stays in time order.
+        auto *rows = w.window->findChild<QObject *>("macroStepRows");
+        QVERIFY(rows);
+        auto row = [&](int i) {
+            QQuickItem *r = nullptr;
+            QMetaObject::invokeMethod(rows, "itemAt", Q_RETURN_ARG(QQuickItem *, r), Q_ARG(int, i));
+            return r;
+        };
+        QTRY_VERIFY(row(0));
+        QCOMPARE(row(0)->property("step").toInt(), 3);
+        QCOMPARE(row(0)->property("modelData").toMap().value("usage").toInt(), 0xe1);
+        QCOMPARE(row(0)->property("modelData").toMap().value("press").toBool(), false);
+        QCOMPARE(steps()[0].toMap().value("press").toBool(), true);
         call("stopRecording");
+        QTRY_COMPARE(row(0)->property("step").toInt(), 0);
+        QCOMPARE(row(0)->property("modelData").toMap().value("press").toBool(), true);
         call("recordEvent", {true, 30 + 8, 1300.0});   // after Stop
         QCOMPARE(steps().size(), 4);
         QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0xe1);
