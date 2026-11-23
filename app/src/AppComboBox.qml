@@ -11,4 +11,5 @@ ComboBox {
         color: theme.overlay
         border.color: theme.chipHover
     }
+    FocusRing {}
 }

@@ -92,6 +92,7 @@ Item {
                         }
                         Item { Layout.fillWidth: true }
                         Switch {
+                            FocusRing {}
                             objectName: "lightsSwitch"
                             checked: backend.lightsOn
                             onToggled: backend.setLightsOn(checked)
@@ -105,6 +106,7 @@ Item {
                         }
                         Slider {
                             id: brightness
+                            FocusRing {}
                             objectName: "brightnessSlider"
                             Layout.fillWidth: true
                             from: 0
@@ -151,6 +153,7 @@ Item {
                         }
                         Slider {
                             id: speed
+                            FocusRing {}
                             objectName: "speedSlider"
                             Layout.fillWidth: true
                             from: 0
@@ -220,6 +223,10 @@ Item {
                                     color: modelData
                                     border.width: current ? 3 : 1
                                     border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.19)
+                                    activeFocusOnTab: true
+                                    Keys.onSpacePressed: backend.setColor(modelData)
+                                    Keys.onReturnPressed: backend.setColor(modelData)
+                                    FocusRing { anchors.margins: -4 * ui.unit }
                                     MouseArea {
                                         anchors.fill: parent
                                         cursorShape: Qt.PointingHandCursor
@@ -257,6 +264,7 @@ Item {
                         }
                         Item { Layout.fillWidth: true }
                         Switch {
+                            FocusRing {}
                             objectName: "rainbowSwitch"
                             checked: backend.rainbow
                             onToggled: backend.setRainbow(checked)

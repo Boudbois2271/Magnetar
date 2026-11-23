@@ -123,6 +123,8 @@ ColumnLayout {
             readonly property bool linked: !separate && sameValues
 
             Switch {
+
+                FocusRing {}
                 Layout.fillWidth: true
                 objectName: "rapidTriggerSwitch"
                 text: rtCard.onCount > 0 && !rtCard.on
@@ -132,6 +134,7 @@ ColumnLayout {
                 onToggled: page.change({ rapidTrigger: checked })
             }
             Switch {
+                FocusRing {}
                 Layout.fillWidth: true
                 text: qsTr("Separate press and release sensitivity")
                 enabled: rtCard.on
@@ -204,6 +207,8 @@ ColumnLayout {
             readonly property bool on: onCount === page.selection.length
 
             Switch {
+
+                FocusRing {}
                 Layout.fillWidth: true
                 objectName: "deadZoneSwitch"
                 text: dzCard.onCount > 0 && !dzCard.on

@@ -120,6 +120,7 @@ Item {
 
             KeyboardView {
                 objectName: "calibrationKeyboard"
+                interactive: false
                 Layout.fillWidth: true
                 Layout.maximumWidth: implicitWidth
                 Layout.alignment: Qt.AlignHCenter

@@ -465,6 +465,7 @@ ColumnLayout {
                     }
                     Slider {
                         id: holdSlider
+                        FocusRing {}
                         objectName: "holdSlider"
                         Layout.fillWidth: true
                         from: page.limits.minHoldMs

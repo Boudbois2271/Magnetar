@@ -89,6 +89,7 @@ ColumnLayout {
         }
         Slider {
             id: slider
+            FocusRing {}
             objectName: ms.objectName + "Bar"
             Layout.fillWidth: true
             Layout.row: ms.oneRow ? 0 : 1

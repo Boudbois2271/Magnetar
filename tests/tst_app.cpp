@@ -1038,6 +1038,88 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // Tab walks sidebar -> page header -> keyboard -> controls, and whatever has the focus draws
+    // its outline. On the drawing, the arrows move the ring and Space clicks the ringed key.
+    void tabMovesAVisibleFocus()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady()
+                    && w.backend.colorsReady());
+        w.window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(w.window));
+        const auto ringShown = [](QQuickItem *item) {
+            std::function<bool(QQuickItem *)> find = [&](QQuickItem *i) {
+                for (auto *c : i->childItems())
+                    if ((c->objectName() == "focusRing" && c->isVisible()) || find(c))
+                        return true;
+                return false;
+            };
+            if (find(item))
+                return true;
+            auto *background = item->property("background").value<QQuickItem *>();
+            auto *border = background ? background->property("border").value<QObject *>() : nullptr;
+            return border && border->property("width").toReal() > 0;
+        };
+        // Every focus stop on the page shown, in Tab order, each checked for its outline.
+        const auto walk = [&]() {
+            QStringList order;
+            QQuickItem *first = nullptr;
+            for (int i = 0; i < 400; ++i) {
+                QTest::keyClick(w.window, Qt::Key_Tab);
+                auto *focused = w.window->activeFocusItem();
+                if (!focused || focused == first)
+                    break;
+                if (!first)
+                    first = focused;
+                const QString name = focused->objectName().isEmpty() ? focused->metaObject()->className() : focused->objectName();
+                if (!ringShown(focused))
+                    return QStringList{"no focus outline on " + name};
+                order << name;
+            }
+            return order;
+        };
+        const QStringList order = walk();
+        const QStringList landmarks{"profilePicker_0", "nav_0", "keysTab_0", "keysKeyboard", "layerSwitch_0"};
+        qsizetype previous = -1;
+        for (const auto &mark : landmarks) {
+            const qsizetype at = order.indexOf(mark);
+            QVERIFY2(at > previous, qPrintable(mark + " out of order: " + order.join(", ")));
+            previous = at;
+        }
+
+        // The same on every tab with keys selected, and on the other pages.
+        w.click(0x01);
+        for (int tab = 0; tab < 4; ++tab) {
+            w.page->setProperty("tab", tab);
+            const QStringList stops = walk();
+            QVERIFY2(!stops.isEmpty() && !stops.first().startsWith("no focus"), qPrintable(stops.join(", ")));
+        }
+        for (int page = 1; page < 4; ++page) {
+            w.window->setProperty("page", page);
+            const QStringList stops = walk();
+            QVERIFY2(!stops.isEmpty() && !stops.first().startsWith("no focus"), qPrintable(stops.join(", ")));
+        }
+        w.window->setProperty("page", 0);
+        w.page->setProperty("tab", 0);
+        QMetaObject::invokeMethod(w.page, "select", Q_ARG(QVariant, QVariantList{}));
+
+        // On the drawing: the ring starts on the first key, Right moves it, Space selects.
+        while (w.window->activeFocusItem() != w.view)
+            QTest::keyClick(w.window, Qt::Key_Tab);
+        const int start = w.view->property("ringedKey").toInt();
+        QCOMPARE(start, w.backend.layout().first().toMap().value("id").toInt());
+        QTest::keyClick(w.window, Qt::Key_Right);
+        const int next = w.view->property("ringedKey").toInt();
+        QVERIFY(next != start);
+        QVERIFY(findItem(findItem(w.view, "key_" + QByteArray::number(next)), "focusRing")->isVisible());
+        const bool lights = w.backend.property("lightsOn").toBool();
+        QTest::keyClick(w.window, Qt::Key_Space);
+        QCOMPARE(w.item("actionTab")->property("selection").toList(), QVariantList{next});
+        QCOMPARE(w.backend.property("lightsOn").toBool(), lights);  // Space went to the key
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void keysPageRemapsKeys()
     {
         KeysWindow w;

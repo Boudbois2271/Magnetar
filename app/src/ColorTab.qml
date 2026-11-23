@@ -96,6 +96,10 @@ ColumnLayout {
                             border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.31)
                             ToolTip.visible: modelData === "#000000" && swatchMouse.containsMouse
                             ToolTip.text: qsTr("Black: the key stays dark")
+                            activeFocusOnTab: true
+                            Keys.onSpacePressed: tab.apply(modelData)
+                            Keys.onReturnPressed: tab.apply(modelData)
+                            FocusRing { radius: parent.radius; anchors.margins: -4 * ui.unit }
                             MouseArea {
                                 id: swatchMouse
                                 anchors.fill: parent

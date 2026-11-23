@@ -31,6 +31,7 @@ Item {
         }
         Switch {
             id: toggle
+            FocusRing {}
             objectName: row.objectName + "Switch"
             checked: row.value
             onToggled: {

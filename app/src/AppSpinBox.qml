@@ -7,4 +7,5 @@ SpinBox {
     implicitHeight: 34 * ui.unit
     topPadding: 0
     bottomPadding: 0
+    FocusRing {}
 }

@@ -33,7 +33,10 @@ ApplicationWindow {
     Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
     Shortcut { sequence: "Q"; context: Qt.ApplicationShortcut; onActivated: Qt.quit() }
-    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected; onActivated: backend.toggleLights() }
+    // Space presses the control reached with Tab; otherwise it switches the lights.
+    readonly property bool keyboardFocus: !!activeFocusItem && (activeFocusItem.visualFocus === true
+        || (activeFocusItem.visualFocus === undefined && activeFocusItem.activeFocusOnTab === true))
+    Shortcut { sequence: "Space"; context: Qt.ApplicationShortcut; enabled: backend.connected && !win.keyboardFocus; onActivated: backend.toggleLights() }
     Shortcut { sequence: "Ctrl+R"; context: Qt.ApplicationShortcut; onActivated: backend.reload() }
     Shortcut { sequence: "Ctrl+1"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(1) }
     Shortcut { sequence: "Ctrl+2"; context: Qt.ApplicationShortcut; enabled: !backend.calibrating; onActivated: backend.setProfile(2) }

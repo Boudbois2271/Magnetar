@@ -107,10 +107,10 @@ Item {
                 Layout.alignment: Qt.AlignBottom
                 currentIndex: page.tab
                 onCurrentIndexChanged: page.tab = currentIndex
-                TabButton { text: qsTr("Action"); width: implicitWidth }
-                TabButton { text: qsTr("Travel"); width: implicitWidth }
-                TabButton { text: qsTr("Advanced"); width: implicitWidth }
-                TabButton { text: qsTr("Colour"); width: implicitWidth }
+                TabButton { objectName: "keysTab_0"; text: qsTr("Action"); width: implicitWidth; FocusRing {} }
+                TabButton { objectName: "keysTab_1"; text: qsTr("Travel"); width: implicitWidth; FocusRing {} }
+                TabButton { objectName: "keysTab_2"; text: qsTr("Advanced"); width: implicitWidth; FocusRing {} }
+                TabButton { objectName: "keysTab_3"; text: qsTr("Colour"); width: implicitWidth; FocusRing {} }
             }
             Item { Layout.fillWidth: true }
             IconButton {

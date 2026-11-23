@@ -292,6 +292,7 @@ Item {
                                     }
                                 }
                                 onClicked: page.select(index)
+                                FocusRing { border.color: macroRow.current ? theme.accentForeground : theme.accent }
                                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                             }
                         }
@@ -368,6 +369,7 @@ Item {
                         onClicked: page.recording ? page.stopRecording() : page.startRecording()
                     }
                     Switch {
+                        FocusRing {}
                         objectName: "standardDelay"
                         text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
                         checked: page.standard

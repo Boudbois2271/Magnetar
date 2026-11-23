@@ -5,6 +5,8 @@
 // selected. A click reports the keyboard modifiers held (Ctrl/Shift add to the selection).
 // Dragging draws a box and reports every key it touches, with the modifiers held at the end of
 // the drag. With interactive off it is a picture: no hover, clicks or box.
+// From the keyboard: Tab reaches the drawing, the arrows move a focus ring between keys, Space or
+// Enter clicks the ringed key (with Ctrl/Shift held, as with the mouse).
 // Data on the caps, all optional: a depth fill from the top (how far the key goes down before it
 // acts), a short badge at the cap's foot, and a legend lit in a key's LED colour.
 import QtQuick
@@ -34,6 +36,41 @@ Item {
     readonly property bool boxing: mouse.boxing
     readonly property var shownKeys: boxing ? (boxAdds ? selectedKeys.concat(boxKeys) : boxKeys) : selectedKeys
     property int hoveredKey: -1
+    property int focusKey: -1  // the key the arrows have reached; -1: the first key
+
+    activeFocusOnTab: interactive
+    readonly property int ringedKey: activeFocus ? (focusKey >= 0 ? focusKey : (keys.length > 0 ? keys[0].id : -1)) : -1
+
+    // The nearest key in a direction, by the caps' centres; the key itself when there is none.
+    function keyToward(id, dx, dy) {
+        const from = keys.find(k => k.id === id)
+        if (!from)
+            return id
+        const fc = Qt.point(from.x + from.w / 2, from.y + 2)
+        let best = id, bestScore = Infinity
+        for (const k of keys) {
+            const c = Qt.point(k.x + k.w / 2, k.y + 2)
+            const along = (c.x - fc.x) * dx + (c.y - fc.y) * dy  // distance in the direction
+            const across = Math.abs((c.x - fc.x) * dy) + Math.abs((c.y - fc.y) * dx)
+            if (k.id === id || along <= 0.5)
+                continue
+            const score = along + 2 * across
+            if (score < bestScore) { bestScore = score; best = k.id }
+        }
+        return best
+    }
+    Keys.onPressed: (event) => {
+        const moves = { [Qt.Key_Left]: [-1, 0], [Qt.Key_Right]: [1, 0], [Qt.Key_Up]: [0, -1], [Qt.Key_Down]: [0, 1] }
+        const move = moves[event.key]
+        if (move) {
+            view.focusKey = view.keyToward(view.ringedKey, move[0], move[1])
+            event.accepted = true
+        } else if (event.key === Qt.Key_Space || event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
+            if (view.ringedKey >= 0)
+                view.keyClicked(view.ringedKey, event.modifiers & (Qt.ControlModifier | Qt.ShiftModifier))
+            event.accepted = true
+        }
+    }
 
     readonly property int columns: 66  // 16.5 keys
     readonly property int rows: 26     // 6 rows and the gaps
@@ -193,6 +230,18 @@ Item {
                     border.width: 1
                     border.color: theme.accentForeground
                 }
+            }
+
+            Rectangle {  // the keyboard focus
+                objectName: "focusRing"
+                visible: view.ringedKey === cap.keyId
+                z: 3
+                anchors.fill: parent
+                anchors.margins: -Math.max(2, Math.round(2 * ui.unit)) - 1
+                radius: Math.min(theme.radius, cap.height * 0.2)
+                color: "transparent"
+                border.width: Math.max(2, Math.round(2 * ui.unit))
+                border.color: theme.accent
             }
 
             Rectangle {
