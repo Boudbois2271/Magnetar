@@ -31,10 +31,12 @@ tool for scripts and status bars.
 |---|---|
 | **Keys** | Click keys on the drawing (or drag a box, Ctrl+drag to add) and edit them together in four tabs: **Action** (what the key sends, on all three layers), **Travel** (actuation point, Rapid Trigger, dead zones), **Advanced** (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD) and **Colour** (per-key colours for the Custom lighting effect). |
 | **Macros** | Record key presses and releases with their timing, edit the steps and delays (or use the standard 50 ms), save them to the keyboard's 4096-byte storage. Macros are per profile; bind one to a key on Keys → Action → Macros, played a number of times, until a key is pressed, or while held. |
-| **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow. |
-| **Settings** | Win Key Lock, Combo Optimization, Adaptive Calibration; **Calibrate** opens key calibration (press keys all the way down and watch each one fill in, then Finish to save; the keys don't type during a session); polling rate (125–8000 Hz; the keyboard restarts for about a second when it changes); device info (model, firmware, connection status). |
+| **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow, with a preview of the keyboard. |
+| **Settings** | Win Key Lock, Combo Optimization, Adaptive Calibration; **Calibrate** opens key calibration (press keys all the way down and watch each one fill in, then Finish to save; the keys don't type during a session); polling rate (125–8000 Hz; the keyboard restarts for about a second when it changes); device info (model, firmware, connection status); About. |
 
-The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3.
+The onboard profile (1–3) is picked at the top of the sidebar, or with Ctrl+1/2/3. Everything
+works from the keyboard too: Tab moves between controls; on the keyboard drawing the arrows move
+between keys and Space selects (Ctrl+Space adds).
 
 Magnetar follows the current Omarchy theme live (light or dark, background, text, accent, window
 rounding), the desktop's text size (`omarchy display text size`, i.e. GNOME's text scaling factor)

@@ -114,8 +114,8 @@ reflected in `akko-protocol.md`.
   factory table in `core/keymap.cpp`).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
-- Keys → Colour lights each legend in its LED colour on the theme's cap: on a light theme a white
-  or yellow legend is hard to read (light-theme pass not done). Keys → Travel's depth gauge is
+- Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
+  blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
@@ -128,6 +128,10 @@ reflected in `akko-protocol.md`.
 - Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
+- UI redesign (`docs/ui-plan.md`, items 1–18): checked offscreen only (tests, EN/FR screenshots in
+  a dark and the flexoki-light theme); not looked at on the desktop or used on the board yet. Light
+  themes were tried with one theme only. Keyboard focus is tested with Tab offscreen; real keyboard
+  use on the desktop isn't. Space toggles the lights only while no control has keyboard focus.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
   at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits,
   Keys with every tab and Advanced editor (picker open too): the keyboard is sized so the controls

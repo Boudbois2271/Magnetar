@@ -4,6 +4,19 @@ Audit of the app at b0ddf24, from offscreen screenshots at the default window (1
 text, English and French, the live Omarchy theme). Each numbered item is one commit, checked with
 offscreen screenshots in both languages and `bin/test`.
 
+## Status
+
+Done on `main` (one commit per item), except:
+
+| Item | State |
+|---|---|
+| 6 | Done without the 100 ms selection fade (it would make tests that read colours racy). |
+| 10 | Skipped by Ilan: no empty-state or instructional sentences anywhere. |
+| 14 | Done without the empty-list sentence, for the same reason. |
+
+Checked offscreen only (tests, EN/FR screenshots in a dark and a light theme), not yet on the
+desktop or the board.
+
 ## What holds it back today
 
 | # | Problem | Where |
@@ -66,7 +79,7 @@ key/value list, labels are sentence case, icons only where they replace words pe
    stands out from 2.0 mm ones; Advanced = short function name on the cap; Colour = the cap
    legend lit in the LED colour, normal caps plus one line "Custom effect is off" when it is.
 9. **Layer switch** as a segmented control (same as the profile picker, item 10).
-10. **Empty states**: nothing selected → "Click a key, or drag across several."; no advanced
+10. ~~**Empty states**~~ (skipped): nothing selected → "Click a key, or drag across several."; no advanced
     keys → "None yet."
 
 ### Shell
