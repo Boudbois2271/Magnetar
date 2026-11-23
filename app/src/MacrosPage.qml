@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Macros of the active profile: the list with the storage they use, and an editor that records
-// key presses and releases with their delays. The list shows what the board read back; the
+// Macros of the active profile: the list with the storage they use, and, for a selected or new
+// macro, an editor that records key presses and releases with their delays. The list shows what the board read back; the
 // editor's draft follows the read-back until it is changed.
 import QtQuick
 import QtQuick.Controls
@@ -11,6 +11,7 @@ Item {
     id: page
 
     property int index: -1             // the macro being edited, -1 = a new one
+    property bool editing: false       // the editor is open (a macro selected, or a new one)
     property var draft: page.blank()   // {name, steps: [{press, usage, delay}]}
     property bool standard: false      // every delay is the standard one
     property bool recording: false
@@ -70,6 +71,13 @@ Item {
     }
     function select(i) {
         page.index = i
+        page.editing = true
+        page.load()
+    }
+    // Back to no macro selected: the editor closes.
+    function close() {
+        page.index = -1
+        page.editing = false
         page.load()
     }
     function setSteps(steps) {
@@ -106,6 +114,7 @@ Item {
         page.setSteps([])
         page.held = []
         page.lastEvent = 0
+        page.editing = true
         page.recording = true
         recorder.forceActiveFocus()
     }
@@ -139,8 +148,7 @@ Item {
         if (page.index < 0)
             return
         backend.deleteMacro(page.index)
-        page.index = -1
-        page.load()
+        page.close()
     }
 
     // A new macro, once saved, is selected; when the board's copy of the edited macro changes
@@ -150,7 +158,7 @@ Item {
             page.selectNew = false
             page.select(page.macros.length - 1)
         } else if (page.index >= page.macros.length) {
-            page.select(-1)
+            page.close()
         } else if (JSON.stringify(page.saved) !== page.loadedFrom) {
             page.load()
         }
@@ -177,20 +185,127 @@ Item {
         }
     }
 
+    // An AppButton with a Lucide icon before its text.
+    component IconButton: AppButton {
+        id: iconButton
+        property string iconName
+        implicitWidth: iconRow.implicitWidth + 24 * ui.unit
+        contentItem: Item {
+            Row {
+                id: iconRow
+                anchors.centerIn: parent
+                spacing: 8 * ui.unit
+                Icon {
+                    anchors.verticalCenter: parent.verticalCenter
+                    name: iconButton.iconName
+                    color: iconLabel.color
+                }
+                Label {
+                    id: iconLabel
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: iconButton.text
+                    color: iconButton.primary ? theme.accentForeground : theme.foreground
+                }
+            }
+        }
+    }
+
     PageLayout {
         title: qsTr("Macros")
         // Nothing to show until the macros have been read: no made-up values.
         visible: backend.macrosReady
         enabled: backend.connected
 
-        // ---- list and storage ----------------------------------------------
-        Card {
-            title: qsTr("Macros of profile %1").arg(backend.profile)
-            filled: true
+        RowLayout {
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            spacing: 32 * ui.unit
 
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12 * ui.unit
+            // ---- list and storage ------------------------------------------
+            ColumnLayout {
+                Layout.fillWidth: false
+                Layout.preferredWidth: 300 * ui.unit
+                Layout.fillHeight: true
+                spacing: 10 * ui.unit
+
+                Label {
+                    Layout.fillWidth: true
+                    text: qsTr("Macros of profile %1").arg(backend.profile)
+                    elide: Text.ElideRight
+                    font.pixelSize: ui.section
+                    font.weight: Font.DemiBold
+                }
+
+                // The list grows with the macros and scrolls in its box; "New macro" stays at
+                // the bottom of it.
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    radius: theme.radius
+                    color: theme.card
+
+                    ColumnLayout {
+                        anchors.fill: parent
+                        anchors.margins: 6 * ui.unit
+                        spacing: 6 * ui.unit
+
+                        ListView {
+                            objectName: "macroList"
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            clip: true
+                            spacing: 2 * ui.unit
+                            boundsBehavior: Flickable.StopAtBounds
+                            ScrollBar.vertical: ScrollBar {}
+                            model: page.macros
+                            delegate: AbstractButton {
+                                id: macroRow
+                                required property int index
+                                required property var modelData
+                                readonly property bool current: page.editing && page.index === index
+                                readonly property color ink: current ? theme.accentForeground : theme.foreground
+                                objectName: "macro_" + index
+                                width: ListView.view.width
+                                implicitHeight: 34 * ui.unit
+                                hoverEnabled: true
+                                leftPadding: 12 * ui.unit
+                                rightPadding: 12 * ui.unit
+                                background: Rectangle {
+                                    radius: theme.radius
+                                    color: macroRow.current ? theme.accent
+                                           : macroRow.down || macroRow.hovered ? theme.chipHover : "transparent"
+                                }
+                                contentItem: RowLayout {
+                                    spacing: 12 * ui.unit
+                                    Label {
+                                        Layout.fillWidth: true
+                                        text: macroRow.modelData.name
+                                        color: macroRow.ink
+                                        elide: Text.ElideRight
+                                    }
+                                    Label {
+                                        text: macroRow.modelData.steps.length === 1 ? qsTr("1 step")
+                                              : qsTr("%1 steps").arg(macroRow.modelData.steps.length)
+                                        color: macroRow.current ? macroRow.ink : theme.secondary
+                                        font.pixelSize: ui.small
+                                        font.features: { "tnum": 1 }
+                                    }
+                                }
+                                onClicked: page.select(index)
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            }
+                        }
+
+                        IconButton {
+                            objectName: "newMacro"
+                            kind: page.editing && page.index < 0 ? "primary" : "quiet"
+                            iconName: "plus"
+                            text: qsTr("New macro")
+                            onClicked: page.select(-1)
+                        }
+                    }
+                }
+
                 ProgressBar {
                     Layout.fillWidth: true
                     from: 0
@@ -201,214 +316,222 @@ Item {
                     objectName: "macroStorageLabel"
                     text: qsTr("%1 / %2 bytes used").arg(backend.macroStorage.used).arg(backend.macroStorage.max)
                     color: theme.secondary
+                    font.pixelSize: ui.small
                     font.features: { "tnum": 1 }
                 }
             }
 
-            Flow {
+            // ---- editor ----------------------------------------------------
+            // Only for a selected or new macro. Takes the height left, up to what it needs; the
+            // steps scroll inside it.
+            ColumnLayout {
                 Layout.fillWidth: true
-                spacing: 6 * ui.unit
-                Repeater {
-                    model: page.macros
-                    delegate: Chip {
-                        required property int index
-                        required property var modelData
-                        objectName: "macro_" + index
-                        on: page.index === index
-                        text: modelData.steps.length === 1 ? qsTr("%1 · 1 step").arg(modelData.name)
-                              : qsTr("%1 · %2 steps").arg(modelData.name).arg(modelData.steps.length)
-                        onClicked: page.select(index)
-                    }
-                }
-                AppButton {
-                    objectName: "newMacro"
-                    text: qsTr("+ New macro")
-                    onClicked: page.select(-1)
-                }
-            }
-        }
-
-        // ---- editor --------------------------------------------------------
-        // Takes the height left, up to what it needs; the steps scroll inside it.
-        Card {
-            Layout.fillHeight: true
-            Layout.maximumHeight: implicitHeight
-            title: page.saved ? qsTr("Edit macro %1").arg(page.index + 1) : qsTr("New macro")
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12 * ui.unit
-                Label { text: qsTr("Name") }
-                AppTextField {
-                    objectName: "macroName"
-                    Layout.fillWidth: true
-                    placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
-                    text: page.draft.name
-                    maximumLength: page.limits.maxName
-                    // The board stores names as plain ASCII.
-                    validator: RegularExpressionValidator { regularExpression: /[\x20-\x7e]*/ }
-                    onTextEdited: page.setName(text)
-                }
-            }
-
-            Flow {
-                Layout.fillWidth: true
-                spacing: 16 * ui.unit
-                AppButton {
-                    objectName: "recordButton"
-                    y: (standardSwitch.height - height) / 2
-                    kind: page.recording ? "primary" : "secondary"
-                    text: page.recording ? qsTr("● Stop") : qsTr("● Record")
-                    onClicked: page.recording ? page.stopRecording() : page.startRecording()
-                }
-                Switch {
-                    id: standardSwitch
-                    objectName: "standardDelay"
-                    text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
-                    checked: page.standard
-                    onToggled: page.standard = checked
-                }
-            }
-
-
-            // One row per step: what happens, then the wait before the next step. A long
-            // macro scrolls here; the rest of the page stays put.
-            ScrollView {
-                objectName: "macroSteps"
-                Layout.fillWidth: true
+                Layout.maximumWidth: 640 * ui.unit
                 Layout.fillHeight: true
-                Layout.preferredHeight: steps.implicitHeight
-                Layout.minimumHeight: Math.min(steps.implicitHeight, 80 * ui.unit)
-                contentWidth: availableWidth
-                visible: page.draft.steps.length > 0
+                Layout.alignment: Qt.AlignTop
+                visible: page.editing
+                spacing: 16 * ui.unit
 
-                ColumnLayout {
-                    id: steps
-                    width: parent.width
-                    spacing: 8 * ui.unit
-                    Repeater {
-                        model: page.draft.steps
-                        delegate: RowLayout {
-                            id: stepRow
-                            required property int index
-                            required property var modelData
-                            readonly property bool last: index === page.draft.steps.length - 1
-                            Layout.fillWidth: true
-                            spacing: 6 * ui.unit
+                Label {
+                    Layout.fillWidth: true
+                    text: page.saved ? qsTr("Edit macro %1").arg(page.index + 1) : qsTr("New macro")
+                    elide: Text.ElideRight
+                    font.pixelSize: ui.section
+                    font.weight: Font.DemiBold
+                }
 
-                            Chip {
-                                Layout.preferredWidth: 90 * ui.unit
-                                text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
-                                onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
-                            }
-                            Label {
-                                Layout.fillWidth: true
-                                text: names.usageName(stepRow.modelData.usage)
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
-                            }
-                            AppTextField {
-                                Layout.preferredWidth: 72 * ui.unit
-                                visible: !stepRow.last
-                                enabled: !page.standard
-                                horizontalAlignment: Text.AlignRight
-                                font.features: { "tnum": 1 }
-                                inputMethodHints: Qt.ImhDigitsOnly
-                                validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
-                                text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
-                                onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
-                                                       page.setStep(stepRow.index, { delay: Number(text) })
-                            }
-                            Label {
-                                Layout.preferredWidth: (72 + 6 + 24) * ui.unit
-                                visible: stepRow.last
-                                horizontalAlignment: Text.AlignRight
-                                text: qsTr("1 ms (end)")
-                                color: theme.secondary
-                                font.features: { "tnum": 1 }
-                            }
-                            Label {
-                                Layout.preferredWidth: 24 * ui.unit
-                                visible: !stepRow.last
-                                text: "ms"
-                                color: theme.secondary
-                            }
-                            AppButton {
-                                kind: "quiet"
-                                text: "↑"
-                                enabled: stepRow.index > 0
-                                onClicked: page.moveStep(stepRow.index, -1)
-                            }
-                            AppButton {
-                                kind: "quiet"
-                                text: "↓"
-                                enabled: !stepRow.last
-                                onClicked: page.moveStep(stepRow.index, 1)
-                            }
-                            AppButton {
-                                kind: "quiet"
-                                text: "✕"
-                                onClicked: page.removeStep(stepRow.index)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12 * ui.unit
+                    Label { text: qsTr("Name") }
+                    AppTextField {
+                        objectName: "macroName"
+                        Layout.preferredWidth: 260 * ui.unit
+                        placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
+                        text: page.draft.name
+                        maximumLength: page.limits.maxName
+                        // The board stores names as plain ASCII.
+                        validator: RegularExpressionValidator { regularExpression: /[\x20-\x7e]*/ }
+                        onTextEdited: page.setName(text)
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 16 * ui.unit
+                    IconButton {
+                        objectName: "recordButton"
+                        kind: page.recording ? "primary" : "secondary"
+                        iconName: page.recording ? "square" : "circle"
+                        text: page.recording ? qsTr("Stop") : qsTr("Record")
+                        onClicked: page.recording ? page.stopRecording() : page.startRecording()
+                    }
+                    Switch {
+                        objectName: "standardDelay"
+                        text: qsTr("Standard delay (%1 ms)").arg(page.limits.standardDelay)
+                        checked: page.standard
+                        onToggled: page.standard = checked
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                // One row per step: what happens, then the wait before the next step. A long
+                // macro scrolls in this box; the rest of the page stays put.
+                Rectangle {
+                    id: stepsBox
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    Layout.preferredHeight: steps.implicitHeight + 2 * stepsBox.pad
+                    Layout.maximumHeight: steps.implicitHeight + 2 * stepsBox.pad
+                    Layout.minimumHeight: Math.min(steps.implicitHeight, 80 * ui.unit) + 2 * stepsBox.pad
+                    readonly property real pad: 6 * ui.unit
+                    visible: page.draft.steps.length > 0
+                    radius: theme.radius
+                    color: theme.card
+
+                    ScrollView {
+                        objectName: "macroSteps"
+                        anchors.fill: parent
+                        anchors.margins: stepsBox.pad
+                        contentWidth: availableWidth
+
+                        ColumnLayout {
+                            id: steps
+                            width: parent.width
+                            spacing: 2 * ui.unit
+                            Repeater {
+                                model: page.draft.steps
+                                delegate: RowLayout {
+                                    id: stepRow
+                                    required property int index
+                                    required property var modelData
+                                    readonly property bool last: index === page.draft.steps.length - 1
+                                    Layout.fillWidth: true
+                                    spacing: 6 * ui.unit
+
+                                    Chip {
+                                        Layout.preferredWidth: 90 * ui.unit
+                                        text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
+                                        onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
+                                    }
+                                    Label {
+                                        Layout.fillWidth: true
+                                        leftPadding: 6 * ui.unit
+                                        text: names.usageName(stepRow.modelData.usage)
+                                        font.weight: Font.DemiBold
+                                        elide: Text.ElideRight
+                                    }
+                                    AppTextField {
+                                        Layout.preferredWidth: 72 * ui.unit
+                                        visible: !stepRow.last
+                                        enabled: !page.standard
+                                        horizontalAlignment: Text.AlignRight
+                                        font.features: { "tnum": 1 }
+                                        inputMethodHints: Qt.ImhDigitsOnly
+                                        validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
+                                        text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
+                                        onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
+                                                               page.setStep(stepRow.index, { delay: Number(text) })
+                                    }
+                                    Label {
+                                        Layout.preferredWidth: (72 + 6 + 24) * ui.unit
+                                        visible: stepRow.last
+                                        horizontalAlignment: Text.AlignRight
+                                        text: qsTr("1 ms (end)")
+                                        color: theme.secondary
+                                        font.features: { "tnum": 1 }
+                                    }
+                                    Label {
+                                        Layout.preferredWidth: 24 * ui.unit
+                                        visible: !stepRow.last
+                                        text: "ms"
+                                        color: theme.secondary
+                                    }
+                                    AppButton {
+                                        kind: "quiet"
+                                        text: "↑"
+                                        enabled: stepRow.index > 0
+                                        onClicked: page.moveStep(stepRow.index, -1)
+                                    }
+                                    AppButton {
+                                        kind: "quiet"
+                                        text: "↓"
+                                        enabled: !stepRow.last
+                                        onClicked: page.moveStep(stepRow.index, 1)
+                                    }
+                                    AppButton {
+                                        kind: "quiet"
+                                        text: "✕"
+                                        onClicked: page.removeStep(stepRow.index)
+                                    }
+                                }
                             }
                         }
                     }
                 }
+
+                // Adds a press and a release of one key, for editing by hand.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10 * ui.unit
+                    AppComboBox {
+                        id: addKeyBox
+                        Layout.preferredWidth: 200 * ui.unit
+                        model: page.addableKeys.map(u => names.usageName(u))
+                        currentIndex: -1
+                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
+                    }
+                    AppButton {
+                        text: qsTr("Add")
+                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
+                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
+                Label {
+                    visible: !page.fits
+                    Layout.fillWidth: true
+                    wrapMode: Text.WordWrap
+                    color: theme.error
+                    text: qsTr("This macro doesn't fit: the keyboard holds %1 bytes of macros, and saving it would use %2.")
+                          .arg(backend.macroStorage.max).arg(page.usedAfterSave)
+                }
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 12 * ui.unit
+                    AppButton {
+                        objectName: "saveMacro"
+                        kind: "primary"
+                        text: qsTr("Save")
+                        enabled: page.canSave
+                        onClicked: page.save()
+                    }
+                    AppButton {
+                        objectName: "revertMacro"
+                        text: qsTr("Revert")
+                        enabled: page.dirty || page.recording
+                        onClicked: page.load()
+                    }
+                    Item { Layout.fillWidth: true }
+                    IconButton {
+                        objectName: "deleteMacro"
+                        visible: page.saved !== null
+                        kind: "quiet"
+                        iconName: "trash-2"
+                        text: qsTr("Delete macro")
+                        onClicked: deleteDialog.open()
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
             }
 
-            // Adds a press and a release of one key, for editing by hand.
-            Flow {
-                Layout.fillWidth: true
-                spacing: 10 * ui.unit
-                AppComboBox {
-                    id: addKeyBox
-                    width: 200 * ui.unit
-                    model: page.addableKeys.map(u => names.usageName(u))
-                    currentIndex: -1
-                    displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
-                }
-                AppButton {
-                    text: qsTr("Add")
-                    enabled: addKeyBox.currentIndex >= 0 && !page.recording
-                    onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
-                }
-            }
-
-            Label {
-                visible: !page.fits
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: theme.error
-                text: qsTr("This macro doesn't fit: the keyboard holds %1 bytes of macros, and saving it would use %2.")
-                      .arg(backend.macroStorage.max).arg(page.usedAfterSave)
-            }
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12 * ui.unit
-                AppButton {
-                    objectName: "saveMacro"
-                    kind: "primary"
-                    text: qsTr("Save")
-                    enabled: page.canSave
-                    onClicked: page.save()
-                }
-                AppButton {
-                    objectName: "revertMacro"
-                    text: qsTr("Revert")
-                    enabled: page.dirty || page.recording
-                    onClicked: page.load()
-                }
-                Item { Layout.fillWidth: true }
-                AppButton {
-                    objectName: "deleteMacro"
-                    visible: page.saved !== null
-                    text: qsTr("Delete macro")
-                    onClicked: deleteDialog.open()
-                }
-            }
+            // Keeps the list on the left when the editor is hidden or narrower than the page.
+            Item { Layout.fillWidth: true }
         }
-
-        Item { Layout.fillHeight: true }
     }
 
     // Keys the "Add a key" list offers: letters, digits, symbols, F1–F12, editing, arrows, modifiers.
