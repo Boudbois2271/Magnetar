@@ -132,6 +132,8 @@ ColumnLayout {
             }
         }
     }
+    // Takes the room the cards don't need, so they stay right under the keyboard.
+    Item { Layout.fillHeight: true }
 
     Dialog {
         id: confirmDialog

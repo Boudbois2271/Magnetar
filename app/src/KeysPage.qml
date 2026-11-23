@@ -18,7 +18,8 @@ Item {
     readonly property var current: page.tabs[page.tab]
 
     // ---- selection --------------------------------------------------------
-    // A click selects only that key; Ctrl or Shift adds it, or takes it out.
+    // A click selects only that key, or clears it when it is the only one selected; Ctrl or
+    // Shift adds it, or takes it out.
     function click(id, modifiers) {
         if (modifiers & (Qt.ControlModifier | Qt.ShiftModifier)) {
             const i = page.selection.indexOf(id)
@@ -28,7 +29,9 @@ Item {
             else
                 s.push(id)
             page.selection = s
-        } else if (page.selection.length !== 1 || page.selection[0] !== id) {
+        } else if (page.selection.length === 1 && page.selection[0] === id) {
+            page.selection = []
+        } else {
             page.selection = [id]
         }
     }
