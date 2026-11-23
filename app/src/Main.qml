@@ -70,6 +70,24 @@ ApplicationWindow {
                         color: theme.secondary
                         font.pixelSize: ui.small
                     }
+                    // Whether the keyboard answers; the banner over the page says why not.
+                    RowLayout {
+                        spacing: 6 * ui.unit
+                        Rectangle {
+                            implicitWidth: 7 * ui.unit
+                            implicitHeight: implicitWidth
+                            radius: width / 2
+                            color: backend.connected ? theme.success : theme.error
+                        }
+                        Label {
+                            objectName: "connectionStatus"
+                            text: backend.connected ? qsTr("Connected")
+                                  : backend.errorKind === "notFound" ? qsTr("Not found")
+                                  : qsTr("Not connected")
+                            color: theme.secondary
+                            font.pixelSize: ui.small
+                        }
+                    }
 
                     Item { implicitHeight: 18 * ui.unit }
 
@@ -78,53 +96,92 @@ ApplicationWindow {
                         color: theme.secondary
                         font.pixelSize: ui.small
                     }
-                    AppComboBox {
-                        id: profileBox
-                        objectName: "profileBox"
-                        Layout.fillWidth: true
+                    Segmented {
+                        objectName: "profilePicker"
                         // A profile switch would wait behind the calibration session.
                         enabled: backend.connected && backend.ready && !backend.calibrating
-                        model: Math.max(backend.profileCount, 1)
-                        currentIndex: backend.profile - 1
-                        displayText: qsTr("Profile %1").arg(backend.profile)
-                        delegate: ItemDelegate {
-                            required property int index
-                            width: ListView.view ? ListView.view.width : implicitWidth
-                            text: qsTr("Profile %1").arg(index + 1)
-                            highlighted: profileBox.highlightedIndex === index
-                        }
+                        model: Array.from({ length: Math.max(backend.profileCount, 1) }, (_, i) => String(i + 1))
+                        currentIndex: backend.ready ? backend.profile - 1 : -1
                         onActivated: (index) => backend.setProfile(index + 1)
                     }
 
                     Item { implicitHeight: 18 * ui.unit }
 
                     Repeater {
-                        model: [qsTr("Keys"), qsTr("Macros"), qsTr("Lighting"), qsTr("Settings")]
-                        delegate: ItemDelegate {
+                        model: [
+                            { label: qsTr("Keys"), icon: "keyboard" },
+                            { label: qsTr("Macros"), icon: "clapperboard" },
+                            { label: qsTr("Lighting"), icon: "lightbulb" },
+                            { label: qsTr("Settings"), icon: "settings" }
+                        ]
+                        delegate: AbstractButton {
+                            id: navItem
                             required property int index
-                            required property string modelData
+                            required property var modelData
+                            readonly property bool current: win.page === index
+                            readonly property color tint: current ? theme.accent : theme.foreground
+
+                            objectName: "nav_" + index
                             Layout.fillWidth: true
-                            text: modelData
-                            highlighted: win.page === index
+                            implicitHeight: 34 * ui.unit
+                            text: modelData.label
+                            hoverEnabled: true
                             onClicked: win.page = index
+
+                            background: Rectangle {
+                                radius: theme.radius
+                                color: navItem.down || (navItem.hovered && !navItem.current) ? theme.chip : "transparent"
+                                border.width: navItem.visualFocus ? 2 : 0
+                                border.color: theme.accent
+                                // The selected page's bar, on the leading edge.
+                                Rectangle {
+                                    visible: navItem.current
+                                    anchors.left: parent.left
+                                    anchors.top: parent.top
+                                    anchors.bottom: parent.bottom
+                                    width: 3 * ui.unit
+                                    color: theme.accent
+                                }
+                            }
+                            contentItem: RowLayout {
+                                spacing: 10 * ui.unit
+                                Item { implicitWidth: 3 * ui.unit }
+                                Icon {
+                                    name: navItem.modelData.icon
+                                    color: navItem.tint
+                                }
+                                Label {
+                                    Layout.fillWidth: true
+                                    text: navItem.text
+                                    color: navItem.tint
+                                    font.weight: navItem.current ? Font.DemiBold : Font.Normal
+                                    elide: Text.ElideRight
+                                }
+                            }
+
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
                         }
                     }
 
                     Item { Layout.fillHeight: true }
 
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Press ? for shortcuts")
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        font.pixelSize: ui.small
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        text: qsTr("Unofficial tool, not affiliated with Akko.")
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        font.pixelSize: ui.small
+                    AppButton {
+                        id: shortcutsButton
+                        objectName: "shortcutsButton"
+                        Layout.leftMargin: -12 * ui.unit
+                        kind: "quiet"
+                        text: qsTr("Shortcuts")
+                        implicitWidth: shortcutsRow.implicitWidth + 24 * ui.unit
+                        contentItem: Item {
+                            RowLayout {
+                                id: shortcutsRow
+                                anchors.centerIn: parent
+                                spacing: 8 * ui.unit
+                                Icon { name: "command"; color: theme.secondary }
+                                Label { text: shortcutsButton.text; color: theme.secondary }
+                            }
+                        }
+                        onClicked: win.helpVisible = true
                     }
                 }
             }
