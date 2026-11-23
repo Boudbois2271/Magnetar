@@ -186,6 +186,7 @@ Item {
         // ---- list and storage ----------------------------------------------
         Card {
             title: qsTr("Macros of profile %1").arg(backend.profile)
+            filled: true
 
             RowLayout {
                 Layout.fillWidth: true
@@ -425,6 +426,11 @@ Item {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
+        background: Rectangle {
+            radius: theme.radius
+            color: theme.overlay
+        }
+        Overlay.modal: Rectangle { color: Qt.alpha(theme.background, 0.7) }
         footer: Item {
             implicitHeight: deleteDialogButtons.implicitHeight + 24 * ui.unit
             implicitWidth: deleteDialogButtons.implicitWidth + 48 * ui.unit

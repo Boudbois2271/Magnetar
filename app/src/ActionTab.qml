@@ -144,6 +144,11 @@ ColumnLayout {
         parent: Overlay.overlay
         anchors.centerIn: parent
         modal: true
+        background: Rectangle {
+            radius: theme.radius
+            color: theme.overlay
+        }
+        Overlay.modal: Rectangle { color: Qt.alpha(theme.background, 0.7) }
         footer: Item {
             implicitHeight: confirmDialogButtons.implicitHeight + 24 * ui.unit
             implicitWidth: confirmDialogButtons.implicitWidth + 48 * ui.unit
