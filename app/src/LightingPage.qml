@@ -75,7 +75,18 @@ Item {
     ].concat(page.perKey ? ["#000000"] : [])
     readonly property real labelWidth: 140 * ui.unit  // fits "Key color" in French
     readonly property real rowHeight: 34 * ui.unit  // the app's control height
-    readonly property real sliderWidth: 220 * ui.unit  // Brightness and Speed alike
+    readonly property real sliderWidth: 160 * ui.unit  // Brightness and Speed alike
+
+    // The brightness levels offered: the board's 20 steps are barely told apart. A level the
+    // board reports outside the list shows on the nearest one, and is left as it is.
+    readonly property var levels: [0, 1, 5, 10, 15, 20].filter(v => v <= backend.maxBrightness)
+    function nearestLevel(value) {
+        let best = 0
+        for (let i = 1; i < page.levels.length; ++i)
+            if (Math.abs(page.levels[i] - value) < Math.abs(page.levels[best] - value))
+                best = i
+        return best
+    }
 
     // The drawing is as large as on the Keys page: as wide as the page allows, up to the same
     // largest keys, leaving room for the options under it.
@@ -253,18 +264,21 @@ Item {
                     Layout.preferredWidth: page.sliderWidth
                     Layout.preferredHeight: page.rowHeight
                     Layout.leftMargin: -leftPadding - handle.width / 2  // the track lines up
+                    // A position per level.
                     from: 0
-                    to: backend.maxBrightness
+                    to: page.levels.length - 1
+                    readonly property int level: page.levels[Math.round(value)]
                     // No stepSize: Material would draw a tick dot per step.
-                    onMoved: backend.setBrightness(Math.round(value))
+                    onMoved: if (level !== backend.brightness) backend.setBrightness(level)
                     Binding on value {
                         when: !brightness.pressed
-                        value: backend.brightness
+                        value: page.nearestLevel(backend.brightness)
                         restoreMode: Binding.RestoreNone
                     }
                 }
                 Label {
-                    text: Math.round(brightness.value) + " / " + backend.maxBrightness
+                    objectName: "brightnessValue"
+                    text: (brightness.pressed ? brightness.level : backend.brightness) + " / " + backend.maxBrightness
                     font.features: { "tnum": 1 }
                 }
             }

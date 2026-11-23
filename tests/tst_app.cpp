@@ -1353,6 +1353,34 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // Brightness offers six levels; a level the board has outside them shows on the nearest one
+    // and isn't written back.
+    void lightingBrightnessLevels()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.show("lightingPage");
+        auto *slider = w.item("brightnessSlider");
+        auto *shown = w.item("brightnessValue");
+        QCOMPARE(slider->property("to").toInt(), 5);
+        QTRY_COMPARE(slider->property("value").toInt(), 5);  // 20
+
+        slider->setProperty("value", 2.8);  // snaps to 10
+        QMetaObject::invokeMethod(slider, "moved");
+        QTRY_COMPARE(w.backend.brightness(), 10);
+
+        w.backend.setBrightness(7);
+        QTRY_COMPARE(shown->property("text").toString(), QString("7 / 20"));
+        QTRY_COMPARE(slider->property("value").toInt(), 2);  // nearest: 5
+        const int writes = w.board.writesOf(0x04, 0x01);
+        QTest::qWait(200);
+        QCOMPARE(w.board.writesOf(0x04, 0x01), writes);
+        QCOMPARE(w.backend.brightness(), 7);
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void settingsPageShowsTheReadBack()
     {
         KeysWindow w;
