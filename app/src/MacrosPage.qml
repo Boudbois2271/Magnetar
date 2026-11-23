@@ -33,6 +33,12 @@ Item {
             press: s.press, usage: s.usage,
             delay: i === n - 1 ? 1 : page.standard ? page.limits.standardDelay : s.delay })) }
     }
+    // The steps as listed: newest first while recording, so each new one shows at the top; the
+    // draft (and the board) keep them in time order.
+    readonly property var shownSteps: page.recording ? page.draft.steps.slice().reverse() : page.draft.steps
+    function stepAt(row) {
+        return page.recording ? page.draft.steps.length - 1 - row : row
+    }
     readonly property bool dirty: page.key(page.record) !== page.key(page.saved || page.blank())
     // Compares macros by content (the board's records list their fields in another order).
     function key(m) {
@@ -136,6 +142,8 @@ Item {
         steps.push({ press: press, usage: usage, delay: page.limits.standardDelay })
         page.lastEvent = now
         page.setSteps(steps)
+        // The newest step is the top row: keep it in view.
+        stepsView.contentItem.contentY = 0
     }
 
     function save() {
@@ -392,6 +400,7 @@ Item {
                     color: theme.card
 
                     ScrollView {
+                        id: stepsView
                         objectName: "macroSteps"
                         anchors.fill: parent
                         anchors.margins: stepsBox.pad
@@ -402,19 +411,22 @@ Item {
                             width: parent.width
                             spacing: 2 * ui.unit
                             Repeater {
-                                model: page.draft.steps
+                                objectName: "macroStepRows"
+                                model: page.shownSteps
                                 delegate: RowLayout {
                                     id: stepRow
+                                    // index = row on screen; step = its place in the macro.
                                     required property int index
                                     required property var modelData
-                                    readonly property bool last: index === page.draft.steps.length - 1
+                                    readonly property int step: page.stepAt(index)
+                                    readonly property bool last: step === page.draft.steps.length - 1
                                     Layout.fillWidth: true
                                     spacing: 6 * ui.unit
 
                                     Chip {
                                         Layout.preferredWidth: 90 * ui.unit
                                         text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
-                                        onClicked: page.setStep(stepRow.index, { press: !stepRow.modelData.press })
+                                        onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
                                     }
                                     Label {
                                         Layout.fillWidth: true
@@ -433,7 +445,7 @@ Item {
                                         validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
                                         text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
                                         onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
-                                                               page.setStep(stepRow.index, { delay: Number(text) })
+                                                               page.setStep(stepRow.step, { delay: Number(text) })
                                     }
                                     Label {
                                         Layout.preferredWidth: (72 + 6 + 24) * ui.unit
@@ -453,18 +465,18 @@ Item {
                                         kind: "quiet"
                                         text: "↑"
                                         enabled: stepRow.index > 0
-                                        onClicked: page.moveStep(stepRow.index, -1)
+                                        onClicked: page.moveStep(stepRow.step, page.recording ? 1 : -1)
                                     }
                                     AppButton {
                                         kind: "quiet"
                                         text: "↓"
-                                        enabled: !stepRow.last
-                                        onClicked: page.moveStep(stepRow.index, 1)
+                                        enabled: stepRow.index < page.draft.steps.length - 1
+                                        onClicked: page.moveStep(stepRow.step, page.recording ? -1 : 1)
                                     }
                                     AppButton {
                                         kind: "quiet"
                                         text: "✕"
-                                        onClicked: page.removeStep(stepRow.index)
+                                        onClicked: page.removeStep(stepRow.step)
                                     }
                                 }
                             }
