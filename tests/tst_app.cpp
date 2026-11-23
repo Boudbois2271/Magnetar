@@ -1522,16 +1522,19 @@ private slots:
             QVariant r;
             QMetaObject::invokeMethod(o, method, Q_RETURN_ARG(QVariant, r), Q_ARG(QVariant, arg));
         };
-        const QStringList picker{"pickerItems"};
+        const QStringList picker{"pickerItems", "advancedListBox"};
         QVariant keys;
         QMetaObject::invokeMethod(w.page, "allKeys", Q_RETURN_ARG(QVariant, keys));
         const auto someKey = keys.toList().value(40);
+        const QVariantList threeKeys{keys.toList().value(40), keys.toList().value(41), keys.toList().value(42)};
 
-        // Keys: each tab with nothing selected, then with a key selected.
+        // Keys: each tab with nothing selected, then with one key and three keys selected.
         for (int tab = 0; tab < 4; ++tab) {
             w.page->setProperty("tab", tab);
             call(w.page, "select", QVariantList{});
             check(QString("keys tab %1").arg(tab), picker);
+            call(w.page, "select", threeKeys);
+            check(QString("keys tab %1, three keys").arg(tab), picker);
             call(w.page, "select", QVariantList{someKey});
             check(QString("keys tab %1, one key").arg(tab), picker);
         }
@@ -1543,9 +1546,9 @@ private slots:
             advanced->setProperty("slot", -1);
             check(QString("advanced %1").arg(type), picker);
         }
-        for (const char *type : {"modTap", "toggle"}) {
+        for (const auto &[type, slot] : {std::pair{"modTap", 0}, {"toggle", 0}, {"multiPoint", 10}, {"dks", 20}}) {
             call(advanced, "chooseType", QString(type));
-            advanced->setProperty("slot", 0);
+            advanced->setProperty("slot", slot);
             check(QString("advanced %1, picker").arg(type), picker);
         }
         advanced->setProperty("slot", -1);

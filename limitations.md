@@ -126,9 +126,9 @@ reflected in `akko-protocol.md`.
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
-  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits
-  except Keys → Advanced with a Multi-point or DKS editor and the action picker open: the tab panel
-  scrolls (the drawing stays). At 1920 × 1030 everything fits. A tiled window below the minimum size
+  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits,
+  Keys with every tab and Advanced editor (picker open too): the keyboard is sized so the controls
+  under it get a fixed height. At 1920 × 1030 everything fits. A tiled window below the minimum size
   (three columns on a 1080p screen) cuts pages off instead of scrolling.
 
 ## Firmware behaviour

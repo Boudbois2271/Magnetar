@@ -18,6 +18,7 @@ Item {
     property var colorFor: function (id) { return "" }  // the cap's colour when not ""
     property var selectedKeys: []
     property bool interactive: true
+    property bool squareBottom: false  // the plate goes on below it (a bar attached under it)
     signal keyClicked(int id, int modifiers)
     signal boxSelected(var ids, int modifiers)
 
@@ -41,11 +42,16 @@ Item {
     property real maxKeySize: 56 * ui.unit
     implicitWidth: (columns + 2 * bezel) * maxKeySize / 4
     implicitHeight: (rows + 2 * bezel) * unit
+    readonly property real dragMargin: mouse.margin  // a drag may start this far outside the plate
+    readonly property real aspect: (columns + 2 * bezel) / (rows + 2 * bezel)  // width / height
 
     Rectangle {
         objectName: "plate"
         anchors.fill: parent
-        radius: theme.radius
+        topLeftRadius: theme.radius
+        topRightRadius: theme.radius
+        bottomLeftRadius: view.squareBottom ? 0 : theme.radius
+        bottomRightRadius: view.squareBottom ? 0 : theme.radius
         color: theme.plate
     }
 
