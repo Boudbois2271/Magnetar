@@ -932,6 +932,18 @@ private slots:
         QVERIFY2(stale.isEmpty(), qPrintable("unused in fr.json: " + stale.join(" | ")));
     }
 
+    void everyIconLoads()
+    {
+        int count = 0;
+        QDirIterator it(":/icons", {"*.svg"});
+        while (it.hasNext()) {
+            const QString path = it.next();
+            QVERIFY2(!QImage(path).isNull(), qPrintable(path + " does not load"));
+            ++count;
+        }
+        QVERIFY(count >= 12);
+    }
+
     // ---- the window ----------------------------------------------------------
     void windowLoadsWithoutWarnings()
     {

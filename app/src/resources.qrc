@@ -19,6 +19,19 @@
         <file alias="MacrosPage.qml">MacrosPage.qml</file>
         <file alias="SettingsPage.qml">SettingsPage.qml</file>
         <file alias="CalibrationPage.qml">CalibrationPage.qml</file>
+        <file alias="Icon.qml">Icon.qml</file>
+        <file alias="icons/keyboard.svg">icons/keyboard.svg</file>
+        <file alias="icons/clapperboard.svg">icons/clapperboard.svg</file>
+        <file alias="icons/lightbulb.svg">icons/lightbulb.svg</file>
+        <file alias="icons/settings.svg">icons/settings.svg</file>
+        <file alias="icons/arrow-left.svg">icons/arrow-left.svg</file>
+        <file alias="icons/undo-2.svg">icons/undo-2.svg</file>
+        <file alias="icons/rotate-ccw.svg">icons/rotate-ccw.svg</file>
+        <file alias="icons/circle.svg">icons/circle.svg</file>
+        <file alias="icons/square.svg">icons/square.svg</file>
+        <file alias="icons/trash-2.svg">icons/trash-2.svg</file>
+        <file alias="icons/plus.svg">icons/plus.svg</file>
+        <file alias="icons/command.svg">icons/command.svg</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
     </qresource>

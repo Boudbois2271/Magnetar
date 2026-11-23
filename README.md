@@ -92,3 +92,5 @@ copy the vendor's code or firmware: only observed traffic.
 ## License
 
 [GPL-3.0-or-later](LICENSE).
+
+The icons in `app/src/icons/` are from [Lucide](https://lucide.dev) (ISC; some derived from Feather, MIT), see `app/src/icons/LICENSE`.
