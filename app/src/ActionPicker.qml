@@ -20,8 +20,8 @@ ColumnLayout {
 
     spacing: 12 * ui.unit
 
-    // How much shorter than its implicit height the picker can get: its list scrolls instead.
-    readonly property real slack: itemsBox.visible ? itemsBox.Layout.preferredHeight - itemsBox.Layout.minimumHeight : 0
+    // For a narrow column: the categories are a list beside the search box, not a row of chips.
+    property bool compact: false
 
     KeyNames { id: names }
 
@@ -91,17 +91,30 @@ ColumnLayout {
         picker.symbols, picker.functionKeys, picker.navigation, picker.range(0x53, 0x63)))
 
 
-    AppTextField {
-        objectName: "searchField"
+    RowLayout {
         Layout.fillWidth: true
-        placeholderText: qsTr("Search, e.g. volume or F5")
-        text: picker.search
-        onTextEdited: picker.search = text
+        spacing: 8 * ui.unit
+        AppTextField {
+            objectName: "searchField"
+            Layout.fillWidth: true
+            placeholderText: qsTr("Search, e.g. volume or F5")
+            text: picker.search
+            onTextEdited: picker.search = text
+        }
+        AppComboBox {
+            objectName: "categoryBox"
+            visible: picker.compact
+            Layout.preferredWidth: 150 * ui.unit
+            enabled: picker.search.trim() === ""
+            model: picker.categories.map(c => c.name)
+            currentIndex: picker.category
+            onActivated: (i) => picker.category = i
+        }
     }
 
     Flow {
         Layout.fillWidth: true
-        visible: picker.search.trim() === ""
+        visible: picker.search.trim() === "" && !picker.compact
         spacing: 6 * ui.unit
         Repeater {
             model: picker.categories

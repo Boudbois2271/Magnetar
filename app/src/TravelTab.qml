@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Keys page, Travel tab: the actuation point, Rapid Trigger and dead zones of the selected keys.
 // Every value shown is what the keyboard read back; a change is sent when a slider is let go (or
-// a value typed), and the last one can be undone.
+// a value typed), and the last one can be undone (the page's Undo).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -15,6 +15,9 @@ ColumnLayout {
     readonly property var travel: backend.travelReady ? backend.travel : ({})
     readonly property var limits: backend.travelLimits
     readonly property bool french: translator.language.indexOf("fr") === 0
+    // The page's controls sit in three equal columns.
+    readonly property real column: (width - 48 * ui.unit) / 3
+    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     // ---- values of the selected keys --------------------------------------
     function values(field) {
@@ -55,8 +58,12 @@ ColumnLayout {
         return t === undefined ? "" : page.mm(t.actuation, 2)
     }
 
-    readonly property string drawingTitle: qsTr("Actuation point of each key")
     readonly property var labelFor: page.capLabel
+    // The actuation point as a share of the deepest one the board takes: 0.30 mm stands out.
+    readonly property var depthFor: function (id) {
+        const t = page.travel[String(id)]
+        return t === undefined ? -1 : t.actuation / page.limits.maxActuation
+    }
     readonly property var markedFor: page.hasExtras
 
     function hasExtras(id) {
@@ -69,32 +76,24 @@ ColumnLayout {
             backend.changeTravel(page.selection, fields)
     }
 
-    RowLayout {
-        Item { Layout.fillWidth: true }
-        AppButton {
-            objectName: "undoTravel"
-            text: qsTr("Undo last change")
-            enabled: backend.canUndoTravel
-            onClicked: backend.undoTravel()
-        }
-    }
-
     GridLayout {
         visible: page.selection.length > 0
         Layout.fillWidth: true
         // Side by side, so the tab fits under the drawing.
-        columns: page.width >= 600 * ui.unit ? 3 : 1
-        uniformCellWidths: true
-        columnSpacing: 16 * ui.unit
+        columns: 3
+        columnSpacing: 24 * ui.unit
         rowSpacing: 16 * ui.unit
 
         // ---- actuation -------------------------------------------------
         Card {
             Layout.alignment: Qt.AlignTop
+            Layout.preferredWidth: page.span(1)
+            Layout.maximumWidth: page.span(1)
             title: qsTr("Actuation point")
 
             MmSlider {
                 objectName: "actuationSlider"
+                labelWidth: 90 * ui.unit
                 label: qsTr("Actuation")
                 shown: page.common("actuation")
                 mixed: page.mixed("actuation")
@@ -112,6 +111,8 @@ ColumnLayout {
         Card {
             id: rtCard
             Layout.alignment: Qt.AlignTop
+            Layout.preferredWidth: page.span(1)
+            Layout.maximumWidth: page.span(1)
             title: qsTr("Rapid Trigger")
 
             property bool separate: false
@@ -146,6 +147,7 @@ ColumnLayout {
             }
             MmSlider {
                 objectName: "sensitivitySlider"
+                labelWidth: 90 * ui.unit
                 visible: rtCard.linked
                 enabled: rtCard.on
                 label: qsTr("Sensitivity")
@@ -160,6 +162,7 @@ ColumnLayout {
             }
             MmSlider {
                 objectName: "pressSlider"
+                labelWidth: 180 * ui.unit
                 visible: !rtCard.linked
                 enabled: rtCard.on
                 label: qsTr("Press (types again after)")
@@ -174,6 +177,7 @@ ColumnLayout {
             }
             MmSlider {
                 objectName: "releaseSlider"
+                labelWidth: 180 * ui.unit
                 visible: !rtCard.linked
                 enabled: rtCard.on
                 label: qsTr("Release (lets go after)")
@@ -192,6 +196,8 @@ ColumnLayout {
         Card {
             id: dzCard
             Layout.alignment: Qt.AlignTop
+            Layout.preferredWidth: page.span(1)
+            Layout.maximumWidth: page.span(1)
             title: qsTr("Dead zones")
 
             readonly property int onCount: page.count("deadZones")
@@ -208,6 +214,7 @@ ColumnLayout {
             }
             MmSlider {
                 objectName: "deadTopSlider"
+                labelWidth: 90 * ui.unit
                 enabled: dzCard.on
                 label: qsTr("Top")
                 shown: page.common("deadTop")
@@ -221,6 +228,7 @@ ColumnLayout {
             }
             MmSlider {
                 objectName: "deadBottomSlider"
+                labelWidth: 90 * ui.unit
                 enabled: dzCard.on
                 label: qsTr("Bottom")
                 shown: page.common("deadBottom")

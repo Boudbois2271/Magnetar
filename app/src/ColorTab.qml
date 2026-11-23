@@ -20,16 +20,20 @@ ColumnLayout {
         "#0000ff", "#8000ff", "#ff00c8", "#ffffff", "#000000"
     ]
     readonly property real labelWidth: 120 * ui.unit
+    // The page's controls sit in three equal columns.
+    readonly property real column: (width - 48 * ui.unit) / 3
+    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     KeyNames { id: names }
 
-    readonly property string drawingTitle: qsTr("Colour of each key")
     readonly property var labelFor: function (id) {
         return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
     }
     readonly property var markedFor: function (id) { return false }
-    readonly property var colorFor: function (id) {
-        return tab.colors[String(id)] || ""
+    // The legends lit in each key's LED colour, only under Custom: otherwise the board doesn't
+    // show them, and the page says so in one line (on the selection bar).
+    readonly property var legendColorFor: function (id) {
+        return tab.customOn ? tab.colors[String(id)] || "" : ""
     }
 
     // The colour every selected key has, or "" when they differ.
@@ -42,95 +46,89 @@ ColumnLayout {
         return false
     }
 
-    // ---- the colours only show under Custom ---------------------------------
-    Card {
-        objectName: "customHint"
-        visible: !tab.customOn
-        title: qsTr("Custom effect is off")
+    GridLayout {
+        Layout.fillWidth: true
+        columns: 3
+        columnSpacing: 24 * ui.unit
 
-        RowLayout {
-            spacing: 16 * ui.unit
-            AppButton {
-                objectName: "switchToCustom"
-                kind: "primary"
-                text: qsTr("Switch to Custom")
-                onClicked: backend.setEffect(backend.customEffect)
-            }
-        }
-    }
+        Card {
+            visible: tab.selection.length > 0
+            Layout.columnSpan: 2
+            Layout.preferredWidth: tab.span(2)
+            Layout.maximumWidth: tab.span(2)
+            Layout.alignment: Qt.AlignTop
+            title: qsTr("Colour")
 
-    Card {
-        visible: tab.selection.length > 0
-        title: qsTr("Colour")
+            RowLayout {
+                spacing: 16 * ui.unit
 
-        RowLayout {
-            spacing: 16 * ui.unit
+                // What the selected keys have now; striped when they differ.
+                Rectangle {
+                    objectName: "selectedColor"
+                    implicitWidth: 56 * ui.unit
+                    implicitHeight: 56 * ui.unit
+                    radius: Math.min(4, theme.radius)
+                    color: tab.shared !== "" ? tab.shared : "transparent"
+                    border.color: Qt.alpha(theme.foreground, 0.19)
+                    Label {
+                        anchors.centerIn: parent
+                        visible: tab.shared === ""
+                        text: qsTr("Mixed")
+                        font.pixelSize: ui.small
+                        color: theme.secondary
+                    }
+                }
 
-            // What the selected keys have now; striped when they differ.
-            Rectangle {
-                objectName: "selectedColor"
-                implicitWidth: 56 * ui.unit
-                implicitHeight: 56 * ui.unit
-                radius: Math.min(4, theme.radius)
-                color: tab.shared !== "" ? tab.shared : "transparent"
-                border.color: Qt.alpha(theme.foreground, 0.19)
-                Label {
-                    anchors.centerIn: parent
-                    visible: tab.shared === ""
-                    text: qsTr("Mixed")
-                    font.pixelSize: ui.small
-                    color: theme.secondary
+                Flow {
+                    Layout.fillWidth: true
+                    spacing: 10 * ui.unit
+                    Repeater {
+                        model: tab.swatches
+                        delegate: Rectangle {
+                            required property string modelData
+                            readonly property bool current: tab.shared === modelData
+                            objectName: "swatch_" + modelData.slice(1)
+                            width: 30 * ui.unit
+                            height: 30 * ui.unit
+                            radius: width / 2
+                            color: modelData
+                            border.width: current ? 3 : 1
+                            border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.31)
+                            ToolTip.visible: modelData === "#000000" && swatchMouse.containsMouse
+                            ToolTip.text: qsTr("Black: the key stays dark")
+                            MouseArea {
+                                id: swatchMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: tab.apply(parent.modelData)
+                            }
+                        }
+                    }
                 }
             }
 
-            Flow {
-                Layout.fillWidth: true
-                spacing: 10 * ui.unit
-                Repeater {
-                    model: tab.swatches
-                    delegate: Rectangle {
-                        required property string modelData
-                        readonly property bool current: tab.shared === modelData
-                        objectName: "swatch_" + modelData.slice(1)
-                        width: 30 * ui.unit
-                        height: 30 * ui.unit
-                        radius: width / 2
-                        color: modelData
-                        border.width: current ? 3 : 1
-                        border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.31)
-                        ToolTip.visible: modelData === "#000000" && swatchMouse.containsMouse
-                        ToolTip.text: qsTr("Black: the key stays dark")
-                        MouseArea {
-                            id: swatchMouse
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: tab.apply(parent.modelData)
-                        }
+            RowLayout {
+                Label {
+                    Layout.preferredWidth: tab.labelWidth
+                    text: qsTr("Hex colour")
+                }
+                AppTextField {
+                    id: hex
+                    objectName: "keyHexField"
+                    Layout.preferredWidth: 140 * ui.unit
+                    font.family: "monospace"
+                    validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
+                    onAccepted: if (!tab.apply(text)) hex.text = tab.shared
+                    Binding on text {
+                        when: !hex.activeFocus
+                        value: tab.shared
+                        restoreMode: Binding.RestoreNone
                     }
                 }
             }
         }
 
-        RowLayout {
-            Label {
-                Layout.preferredWidth: tab.labelWidth
-                text: qsTr("Hex colour")
-            }
-            AppTextField {
-                id: hex
-                objectName: "keyHexField"
-                Layout.preferredWidth: 140 * ui.unit
-                font.family: "monospace"
-                validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
-                onAccepted: if (!tab.apply(text)) hex.text = tab.shared
-                Binding on text {
-                    when: !hex.activeFocus
-                    value: tab.shared
-                    restoreMode: Binding.RestoreNone
-                }
-            }
-        }
     }
 
     Item { Layout.fillHeight: true }

@@ -37,7 +37,8 @@ ColumnLayout {
     }
 
     // Name, slider, value and unit on one row when there is room; the slider below otherwise.
-    readonly property bool oneRow: ms.width >= 420 * ui.unit
+    property real labelWidth: 150 * ui.unit
+    readonly property bool oneRow: ms.width >= ms.labelWidth + 200 * ui.unit
     GridLayout {
         Layout.fillWidth: true
         columns: 5
@@ -47,7 +48,7 @@ ColumnLayout {
             Layout.row: 0
             Layout.column: 0
             Layout.fillWidth: !ms.oneRow
-            Layout.preferredWidth: ms.oneRow ? 150 * ui.unit : -1
+            Layout.preferredWidth: ms.oneRow ? ms.labelWidth : -1
             text: ms.label
             elide: Text.ElideRight
         }
@@ -93,6 +94,7 @@ ColumnLayout {
             Layout.row: ms.oneRow ? 0 : 1
             Layout.column: ms.oneRow ? 1 : 0
             Layout.columnSpan: ms.oneRow ? 1 : 5
+            Layout.maximumHeight: 34 * ui.unit  // the row's height, not Material's touch height
             from: ms.from
             to: ms.to
             // No stepSize: Material draws a tick per step. send() rounds to the step instead.

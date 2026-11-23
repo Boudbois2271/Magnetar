@@ -15,14 +15,11 @@ ColumnLayout {
     property int activeLayer: 0
     property string pendingCode: ""  // waiting for the "last Fn key" confirmation
     property string pendingLayer: ""  // the layer key's name, for the dialog
+    // The page's controls sit in three equal columns.
+    readonly property real column: (width - 48 * ui.unit) / 3
+    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     KeyNames { id: names }
-
-    // How much shorter than its implicit height the tab can get (the picker's list scrolls).
-    readonly property real slack: tab.selection.length > 0 ? picker.slack : 0
-
-    readonly property string drawingTitle: tab.activeLayer === 0 ? qsTr("What each key does")
-        : qsTr("What each key does while %1 is held").arg(tab.activeLayer === 1 ? "Fn" : "Fn1")
 
     readonly property var layerMap: backend.keymapReady && backend.keymap.length > tab.activeLayer
                                     ? backend.keymap[tab.activeLayer] : ({})
@@ -84,59 +81,57 @@ ColumnLayout {
             backend.restoreKeyDefault(tab.activeLayer, id)
     }
 
-    // ---- selected keys -----------------------------------------------------
-    Card {
-        title: tab.selection.length > 1 ? qsTr("%1 keys selected").arg(tab.selection.length) : qsTr("Selected key")
-
-        RowLayout {
-            visible: tab.selection.length > 0
-            spacing: 16 * ui.unit
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 4 * ui.unit
-                Label {
-                    objectName: "currentAction"
-                    text: tab.current ? names.name(tab.current) : qsTr("Different actions")
-                    font.pixelSize: ui.section
-                    font.weight: Font.DemiBold
-                }
-                Label {
-                    readonly property var factory: tab.selection.length === 1
-                        ? backend.factoryAction(tab.activeLayer, tab.selection[0]) : undefined
-                    text: tab.notFactory.length === 0 ? (tab.selection.length > 1 ? qsTr("These are the factory settings.")
-                                                                                 : qsTr("This is the factory setting."))
-                          : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
-                          : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
-                    color: theme.secondary
-                }
-            }
-            AppButton {
-                objectName: "restoreButton"
-                text: qsTr("Restore default")
-                enabled: tab.notFactory.length > 0
-                onClicked: tab.restoreDefaults()
-            }
-        }
-    }
-
-    // ---- picker --------------------------------------------------------------
-    Card {
-        title: qsTr("Change it to")
+    // ---- what they do now | what to change it to --------------------------------
+    GridLayout {
         visible: tab.selection.length > 0
+        Layout.fillWidth: true
         Layout.fillHeight: true
-        Layout.maximumHeight: implicitHeight
+        columns: 3
+        columnSpacing: 24 * ui.unit
+        rowSpacing: 16 * ui.unit
 
-        ActionPicker {
-            id: picker
-            Layout.fillWidth: true
+        Card {
+            Layout.alignment: Qt.AlignTop
+            Layout.preferredWidth: tab.span(1)
+            Layout.maximumWidth: tab.span(1)
+            title: qsTr("Current action")
+
+            Label {
+                objectName: "currentAction"
+                Layout.fillWidth: true
+                text: tab.current ? names.name(tab.current) : qsTr("Different actions")
+                elide: Text.ElideRight
+            }
+            Label {
+                readonly property var factory: tab.selection.length === 1
+                    ? backend.factoryAction(tab.activeLayer, tab.selection[0]) : undefined
+                Layout.fillWidth: true
+                text: tab.notFactory.length === 0 ? (tab.selection.length > 1 ? qsTr("These are the factory settings.")
+                                                                             : qsTr("This is the factory setting."))
+                      : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
+                      : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
+                wrapMode: Text.WordWrap
+                color: theme.secondary
+            }
+        }
+
+        Card {
+            title: qsTr("Change it to")
+            Layout.columnSpan: 2
+            Layout.preferredWidth: tab.span(2)
+            Layout.maximumWidth: tab.span(2)
+            Layout.alignment: Qt.AlignTop
             Layout.fillHeight: true
-            currentCode: tab.current !== undefined ? tab.current.code : ""
-            onPicked: (code) => tab.assign(code)
+            Layout.maximumHeight: implicitHeight
+
+            ActionPicker {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                currentCode: tab.current !== undefined ? tab.current.code : ""
+                onPicked: (code) => tab.assign(code)
+            }
         }
     }
-
-    Item { Layout.fillHeight: true }
 
     Dialog {
         id: confirmDialog

@@ -5,6 +5,8 @@
 // selected. A click reports the keyboard modifiers held (Ctrl/Shift add to the selection).
 // Dragging draws a box and reports every key it touches, with the modifiers held at the end of
 // the drag. With interactive off it is a picture: no hover, clicks or box.
+// Data on the caps, all optional: a depth fill from the top (how far the key goes down before it
+// acts), a short badge at the cap's foot, and a legend lit in a key's LED colour.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -16,8 +18,12 @@ Item {
     property var labelFor: function (id) { return "" }  // text on a key
     property var markedFor: function (id) { return false }  // small dot: differs from factory
     property var colorFor: function (id) { return "" }  // the cap's colour when not ""
+    property var depthFor: function (id) { return -1 }  // 0..1 of the travel, filled from the top; < 0: none
+    property var badgeFor: function (id) { return "" }  // short text at the cap's foot
+    property var legendColorFor: function (id) { return "" }  // the legend lit in this colour when not ""
     property var selectedKeys: []
     property bool interactive: true
+    property bool squareBottom: false  // the plate goes on below it (a bar attached under it)
     signal keyClicked(int id, int modifiers)
     signal boxSelected(var ids, int modifiers)
 
@@ -41,11 +47,16 @@ Item {
     property real maxKeySize: 56 * ui.unit
     implicitWidth: (columns + 2 * bezel) * maxKeySize / 4
     implicitHeight: (rows + 2 * bezel) * unit
+    readonly property real dragMargin: mouse.margin  // a drag may start this far outside the plate
+    readonly property real aspect: (columns + 2 * bezel) / (rows + 2 * bezel)  // width / height
 
     Rectangle {
         objectName: "plate"
         anchors.fill: parent
-        radius: theme.radius
+        topLeftRadius: theme.radius
+        topRightRadius: theme.radius
+        bottomLeftRadius: view.squareBottom ? 0 : theme.radius
+        bottomRightRadius: view.squareBottom ? 0 : theme.radius
         color: theme.plate
     }
 
@@ -58,15 +69,20 @@ Item {
             readonly property bool selected: view.shownKeys.indexOf(keyId) >= 0
             readonly property bool hovered: view.hoveredKey === keyId
             readonly property string fill: view.colorFor(keyId)
+            readonly property string lit: view.legendColorFor(keyId)
+            readonly property real depth: view.depthFor(keyId)
+            readonly property string badge: view.badgeFor(keyId)
+            // A cap with its own colour or a lit legend keeps it when selected: a ring marks it.
+            readonly property bool ringed: fill !== "" || lit !== ""
             // Light colours get dark text, dark ones light text.
             readonly property bool lightFill: fill !== "" && (0.299 * Qt.color(fill).r + 0.587 * Qt.color(fill).g + 0.114 * Qt.color(fill).b) > 0.55
             // The top face: the key's colour when it has one (kept when selected: a ring marks
             // it instead), else the accent when selected, else the theme's cap.
             readonly property color color: fill !== "" ? fill
-                : selected ? theme.accent
+                : selected && !ringed ? theme.accent
                 : hovered ? Qt.tint(theme.capTop, Qt.alpha(theme.foreground, 0.08)) : theme.capTop
             readonly property color skirt: fill !== "" ? Qt.darker(fill, 1.4)
-                : selected ? Qt.darker(theme.accent, 1.35) : theme.capSkirt
+                : selected && !ringed ? Qt.darker(theme.accent, 1.35) : theme.capSkirt
             // The skirt shows a little at the sides and top, more at the front, like a cap seen
             // from above the front edge.
             readonly property real side: Math.max(1, height * 0.08)
@@ -83,7 +99,10 @@ Item {
                 anchors.fill: face
                 anchors.margins: Math.max(1, cap.height * 0.06)
                 text: view.labelFor(cap.keyId)
-                color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0") : cap.selected ? theme.accentForeground : Material.foreground
+                color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0")
+                     : cap.lit !== "" ? (Qt.color(cap.lit).hslLightness > 0 ? cap.lit : theme.secondary)  // black: the key is dark
+                     : cap.selected ? theme.accentForeground : Material.foreground
+                font.weight: cap.lit !== "" && Qt.color(cap.lit).hslLightness > 0 ? Font.DemiBold : Font.Normal
                 // Sized from the key (about a quarter of the cap's height, like printed legends),
                 // so it grows with the drawing; long names shrink on their own, then are cut.
                 font.pixelSize: Math.max(Math.round(9 * ui.unit), Math.round(view.unit * 1.1))
@@ -101,7 +120,7 @@ Item {
                 radius: Math.min(theme.radius, cap.height * 0.2)
                 color: cap.skirt
                 // A coloured cap hovered gets an outline, so its colour stays true.
-                border.width: cap.fill !== "" && cap.hovered && !cap.selected ? 1 : 0
+                border.width: cap.ringed && cap.hovered && !cap.selected ? 1 : 0
                 border.color: theme.foreground
             }
 
@@ -114,10 +133,51 @@ Item {
                 anchors.bottomMargin: cap.side * 1.8
                 radius: Math.max(0, Math.min(theme.radius, cap.height * 0.2) - cap.side)
                 color: cap.color
+
+                // How deep the key acts: a gauge at the right edge, filled from the top like the
+                // key going down, ending on a tick at the actuation point.
+                Item {
+                    objectName: "depth"
+                    visible: cap.depth >= 0
+                    readonly property color ink: cap.selected && !cap.ringed ? theme.accentForeground : theme.accent
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    anchors.margins: Math.max(2, cap.height * 0.08)
+                    width: Math.max(3, view.unit * 0.35)
+                    Rectangle {  // the whole travel
+                        anchors.fill: parent
+                        color: Qt.alpha(parent.ink, 0.2)
+                    }
+                    Rectangle {
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        height: parent.height * Math.min(1, Math.max(0, cap.depth))
+                        color: parent.ink
+                    }
+                }
+            }
+
+            Label {
+                objectName: "badge"
+                visible: cap.badge !== ""
+                z: 1
+                anchors.left: face.left
+                anchors.right: face.right
+                anchors.bottom: face.bottom
+                anchors.margins: Math.max(1, cap.height * 0.06)
+                text: cap.badge
+                color: cap.selected && !cap.ringed ? theme.accentForeground : theme.accent
+                font.pixelSize: Math.max(Math.round(9 * ui.unit), Math.round(view.unit * 0.9))
+                font.weight: Font.DemiBold
+                fontSizeMode: Text.HorizontalFit
+                minimumPixelSize: Math.round(6 * ui.unit)
+                elide: Text.ElideRight
             }
 
             Rectangle {  // a coloured cap keeps its colour when selected: a ring marks it instead
-                visible: cap.fill !== "" && cap.selected
+                visible: cap.ringed && cap.selected
                 z: 2
                 anchors.fill: parent
                 radius: Math.min(theme.radius, cap.height * 0.2)
@@ -140,10 +200,13 @@ Item {
                 anchors.top: face.top
                 anchors.right: face.right
                 anchors.margins: Math.max(2, cap.height * 0.08)
+                // Left of the depth gauge when there is one.
+                anchors.rightMargin: cap.depth >= 0 ? 2 * Math.max(2, cap.height * 0.08) + Math.max(3, view.unit * 0.35)
+                                                    : Math.max(2, cap.height * 0.08)
                 width: Math.max(4, cap.height * 0.12)
                 height: width
                 radius: width / 2
-                color: cap.selected ? theme.accentForeground : theme.accent
+                color: cap.selected && !cap.ringed ? theme.accentForeground : theme.accent
             }
         }
     }

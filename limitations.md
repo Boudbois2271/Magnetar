@@ -114,6 +114,9 @@ reflected in `akko-protocol.md`.
   factory table in `core/keymap.cpp`).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
+- Keys → Colour lights each legend in its LED colour on the theme's cap: on a light theme a white
+  or yellow legend is hard to read (light-theme pass not done). Keys → Travel's depth gauge is
+  linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the
@@ -126,9 +129,9 @@ reflected in `akko-protocol.md`.
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
-  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits
-  except Keys → Advanced with a Multi-point or DKS editor and the action picker open: the tab panel
-  scrolls (the drawing stays). At 1920 × 1030 everything fits. A tiled window below the minimum size
+  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits,
+  Keys with every tab and Advanced editor (picker open too): the keyboard is sized so the controls
+  under it get a fixed height. At 1920 × 1030 everything fits. A tiled window below the minimum size
   (three columns on a 1080p screen) cuts pages off instead of scrolling.
 
 ## Firmware behaviour

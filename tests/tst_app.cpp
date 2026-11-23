@@ -175,6 +175,7 @@ struct KeysWindow {
         QMetaObject::invokeMethod(view, "keyClicked", Q_ARG(int, key), Q_ARG(int, int(mods)));
     }
     QString cap(int key) const { return findItem(view, "key_" + QByteArray::number(key))->findChild<QQuickItem *>()->property("text").toString(); }
+    QString badge(int key) const { return findItem(findItem(view, "key_" + QByteArray::number(key)), "badge")->property("text").toString(); }
     QString warningText() const
     {
         QString text;
@@ -1073,6 +1074,15 @@ private slots:
         QTRY_VERIFY(w.cap(0x62) == "Ins" && w.cap(0x63) != "A");
         QCOMPARE(w.cap(0x64), QString("A"));
 
+        // The layer switch: Fn shows the Fn layer, and the drawing follows.
+        auto *fnSegment = findItem(w.window->contentItem(), "layerSwitch_1");
+        QVERIFY(fnSegment && fnSegment->isVisible());
+        QMetaObject::invokeMethod(fnSegment, "clicked");
+        QCOMPARE(tab->property("activeLayer").toInt(), 1);
+        QCOMPARE(w.item("layerSwitch")->property("currentIndex").toInt(), 1);
+        tab->setProperty("activeLayer", 0);
+        QCOMPARE(w.item("layerSwitch")->property("currentIndex").toInt(), 0);
+
         // Moving the only Fn key asks first, and sends nothing until confirmed.
         w.click(0x48);
         const int writes = w.board.writesOf(0x03, 0x00);
@@ -1094,6 +1104,7 @@ private slots:
         auto *tab = w.item("advancedTab");
         QVERIFY(tab);
         QTRY_COMPARE(w.cap(0x26), QString("P"));
+        QCOMPARE(w.badge(0x26), QString());
 
         // P, Mod-Tap, hold R, tap T: Save stays off until both actions are there.
         w.click(0x26);
@@ -1106,7 +1117,8 @@ private slots:
         QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, w.backend.keyCode(0x17)));
         QTRY_VERIFY(save->property("enabled").toBool());
         QMetaObject::invokeMethod(save, "clicked");
-        QTRY_COMPARE(w.cap(0x26), QString("MT"));
+        QTRY_COMPARE(w.badge(0x26), QString("Mod-Tap"));
+        QCOMPARE(w.cap(0x26), QString("P"));  // the key keeps its name
         // The read-back becomes the draft: nothing left to save.
         QTRY_VERIFY(!tab->property("dirty").toBool());
 
@@ -1119,7 +1131,7 @@ private slots:
         QMetaObject::invokeMethod(tab, "setSlot", Q_ARG(QVariant, 1), Q_ARG(QVariant, w.backend.keyCode(0x17)));
         QTRY_VERIFY(save->property("enabled").toBool());
         QMetaObject::invokeMethod(save, "clicked");
-        QTRY_VERIFY(w.cap(0x31) == "MT" && w.cap(0x38) == "MT");
+        QTRY_VERIFY(w.badge(0x31) == "Mod-Tap" && w.badge(0x38) == "Mod-Tap");
         QCOMPARE(w.backend.advancedKeys().size(), 3);
         // Now they share one record: the editor shows it, nothing to save.
         QTRY_VERIFY(!tab->property("saved").isNull());
@@ -1145,7 +1157,8 @@ private slots:
         QTRY_VERIFY(remove->property("visible").toBool());
         QMetaObject::invokeMethod(remove, "clicked");
         QTRY_COMPARE(w.backend.advancedKeys().size(), 2);
-        QCOMPARE(w.cap(0x38), QString("MT"));
+        QCOMPARE(w.badge(0x38), QString("Mod-Tap"));
+        QCOMPARE(w.badge(0x26), QString());
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
@@ -1159,29 +1172,34 @@ private slots:
         auto *tab = w.item("colorTab");
         QVERIFY(tab);
         auto *f12 = findItem(w.view, "key_13");
-        QTRY_COMPARE(f12->property("color").value<QColor>(), QColor("#000000"));
-        QCOMPARE(w.cap(0x0d), QString("F12"));
+        QTRY_COMPARE(w.cap(0x0d), QString("F12"));
 
-        // The effect isn't Custom: the page says so and offers to switch.
+        // The effect isn't Custom: normal caps, and one line says so with a way to switch.
         auto *hint = w.item("customHint");
         QVERIFY(hint && hint->isVisible());
+        QCOMPARE(f12->property("lit").toString(), QString());
 
-        // F12 and Esc blue: the drawing shows the board's read-back.
+        // F12 and Esc blue: sent, though the drawing waits for Custom to show it.
         w.click(0x0d);
         w.click(0x01, Qt::ControlModifier);
         QMetaObject::invokeMethod(tab, "apply", Q_ARG(QVariant, "#0000ff"));
-        QTRY_COMPARE(f12->property("color").value<QColor>(), QColor("#0000ff"));
-        QCOMPARE(findItem(w.view, "key_1")->property("color").value<QColor>(), QColor("#0000ff"));
-        QCOMPARE(tab->property("shared").toString(), QString("#0000ff"));
+        QTRY_COMPARE(tab->property("shared").toString(), QString("#0000ff"));
+        QCOMPARE(f12->property("lit").toString(), QString());
         w.click(0x02, Qt::ControlModifier);
         QCOMPARE(tab->property("shared").toString(), QString());  // mixed
 
-        // Switch to Custom: one 04 02 with 13, and the hint goes.
+        // Switch to Custom: one 04 02 with 13, the hint goes, and the legends light up in the
+        // board's read-back.
         auto *button = w.item("switchToCustom");
         QVERIFY(button);
         QMetaObject::invokeMethod(button, "clicked");
         QTRY_COMPARE(w.backend.effect(), 0x13);
         QTRY_VERIFY(!hint->isVisible());
+        QCOMPARE(QColor(f12->property("lit").toString()), QColor("#0000ff"));
+        QCOMPARE(QColor(findItem(w.view, "key_1")->property("lit").toString()), QColor("#0000ff"));
+        QCOMPARE(QColor(findItem(w.view, "key_2")->property("lit").toString()), QColor("#000000"));
+        // The cap itself stays a cap.
+        QCOMPARE(f12->property("color").value<QColor>(), w.theme.capTop());
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
@@ -1570,16 +1588,19 @@ private slots:
             QVariant r;
             QMetaObject::invokeMethod(o, method, Q_RETURN_ARG(QVariant, r), Q_ARG(QVariant, arg));
         };
-        const QStringList picker{"pickerItems"};
+        const QStringList picker{"pickerItems", "advancedListBox"};
         QVariant keys;
         QMetaObject::invokeMethod(w.page, "allKeys", Q_RETURN_ARG(QVariant, keys));
         const auto someKey = keys.toList().value(40);
+        const QVariantList threeKeys{keys.toList().value(40), keys.toList().value(41), keys.toList().value(42)};
 
-        // Keys: each tab with nothing selected, then with a key selected.
+        // Keys: each tab with nothing selected, then with one key and three keys selected.
         for (int tab = 0; tab < 4; ++tab) {
             w.page->setProperty("tab", tab);
             call(w.page, "select", QVariantList{});
             check(QString("keys tab %1").arg(tab), picker);
+            call(w.page, "select", threeKeys);
+            check(QString("keys tab %1, three keys").arg(tab), picker);
             call(w.page, "select", QVariantList{someKey});
             check(QString("keys tab %1, one key").arg(tab), picker);
         }
@@ -1591,9 +1612,9 @@ private slots:
             advanced->setProperty("slot", -1);
             check(QString("advanced %1").arg(type), picker);
         }
-        for (const char *type : {"modTap", "toggle"}) {
+        for (const auto &[type, slot] : {std::pair{"modTap", 0}, {"toggle", 0}, {"multiPoint", 10}, {"dks", 20}}) {
             call(advanced, "chooseType", QString(type));
-            advanced->setProperty("slot", 0);
+            advanced->setProperty("slot", slot);
             check(QString("advanced %1, picker").arg(type), picker);
         }
         advanced->setProperty("slot", -1);
