@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Settings: base functions (Win Key Lock, Combo Optimization, Adaptive Calibration), the way into
-// key calibration, polling rate, and what the app knows about the keyboard.
+// key calibration, polling rate, and what the app knows about the keyboard,
+// and About (the not-affiliated notice and the licence).
 // Controls show what the keyboard reported; after a change they go back to that read-back.
 // Calibration opens as its own screen pushed over Settings; leaving Settings closes it.
 import QtQuick
@@ -108,6 +109,7 @@ Item {
                             }
                             AppButton {
                                 objectName: "openCalibrationButton"
+                                kind: "secondary"
                                 text: qsTr("Calibrate")
                                 onClicked: stack.push(calibrationScreen)
                             }
@@ -188,10 +190,16 @@ Item {
                             Label { text: qsTr("Status"); color: theme.secondary }
                             Label { text: backend.connected ? qsTr("Connected") : qsTr("Not connected") }
                         }
+                    }
+
+                    // The app's one statement that it is unofficial (the README has it too).
+                    Card {
+                        objectName: "aboutSection"
+                        title: qsTr("About")
 
                         Label {
+                            objectName: "disclaimer"
                             Layout.fillWidth: true
-                            Layout.topMargin: 8 * ui.unit
                             wrapMode: Text.WordWrap
                             color: theme.secondary
                             text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")

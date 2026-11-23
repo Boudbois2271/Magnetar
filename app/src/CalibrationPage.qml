@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// Key calibration: Start, press keys all the way down, Finish. While the session runs, each key
+// Key calibration, in three numbered steps: Start, press keys all the way down, Finish. While the session runs, each key
 // shows how far down it has been, as a share of the travel the keyboard has stored for it.
 // Opened from Settings, pushed on its StackView. Leaving it (Back, or another page in the sidebar)
 // finishes the session, as the vendor app does (it has no cancel either).
@@ -28,9 +28,27 @@ Item {
             Layout.leftMargin: -12 * ui.unit  // the back arrow lines up with the margin
             spacing: 8 * ui.unit
             AppButton {
+                id: back
                 objectName: "calibrationBack"
                 kind: "quiet"
-                text: "←  " + qsTr("Back")
+                text: qsTr("Back")
+                implicitWidth: backContent.implicitWidth + 24 * ui.unit
+                contentItem: Item {
+                    implicitWidth: backContent.implicitWidth
+                    Row {
+                        id: backContent
+                        anchors.centerIn: parent
+                        spacing: 6 * ui.unit
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "arrow-left"
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: back.text
+                        }
+                    }
+                }
                 onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
             }
             Label {
@@ -43,11 +61,38 @@ Item {
         Card {
             title: qsTr("Key travel")
 
-            Label {
-                Layout.fillWidth: true
-                wrapMode: Text.WordWrap
-                color: theme.secondary
-                text: qsTr("Teaches the keyboard where each key's travel ends. Start, press each key you want to calibrate all the way down, then Finish. Finish saves the lowest point each pressed key reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration. The keys don't type until you finish.")
+            // The sequence, as numbered steps; lines kept under about 70 characters.
+            TextMetrics { id: line70; font: ui.font; text: "the quick brown fox jumps over a lazy dog ".repeat(2).slice(0, 70) }
+            ColumnLayout {
+                objectName: "calibrationSteps"
+                Layout.maximumWidth: line70.advanceWidth + 30 * ui.unit  // and the step number
+                spacing: 6 * ui.unit
+
+                Repeater {
+                    model: [
+                        qsTr("Start calibration. The keys don't type until you finish."),
+                        qsTr("Press each key you want to calibrate all the way down."),
+                        qsTr("Finish. Each pressed key saves the lowest point it reached, so a key pressed only partway gets a shallower bottom. Keys you don't touch keep their calibration.")
+                    ]
+                    delegate: RowLayout {
+                        required property int index
+                        required property string modelData
+                        Layout.fillWidth: true
+                        spacing: 10 * ui.unit
+                        Label {
+                            Layout.alignment: Qt.AlignTop
+                            text: index + 1
+                            font.weight: Font.DemiBold
+                            font.features: { "tnum": 1 }
+                            color: theme.secondary
+                        }
+                        Label {
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            text: modelData
+                        }
+                    }
+                }
             }
 
             RowLayout {
