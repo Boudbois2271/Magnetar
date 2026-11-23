@@ -238,7 +238,7 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12 * ui.unit
                 Label { text: qsTr("Name") }
-                TextField {
+                AppTextField {
                     objectName: "macroName"
                     Layout.fillWidth: true
                     placeholderText: qsTr("At least %1 characters").arg(page.limits.minName)
@@ -306,7 +306,7 @@ Item {
                                 font.weight: Font.DemiBold
                                 elide: Text.ElideRight
                             }
-                            TextField {
+                            AppTextField {
                                 Layout.preferredWidth: 72 * ui.unit
                                 visible: !stepRow.last
                                 enabled: !page.standard
@@ -358,7 +358,7 @@ Item {
             Flow {
                 Layout.fillWidth: true
                 spacing: 10 * ui.unit
-                ComboBox {
+                AppComboBox {
                     id: addKeyBox
                     width: 200 * ui.unit
                     model: page.addableKeys.map(u => names.usageName(u))

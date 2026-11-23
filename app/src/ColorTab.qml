@@ -117,7 +117,7 @@ ColumnLayout {
                 Layout.preferredWidth: tab.labelWidth
                 text: qsTr("Hex colour")
             }
-            TextField {
+            AppTextField {
                 id: hex
                 objectName: "keyHexField"
                 Layout.preferredWidth: 140 * ui.unit

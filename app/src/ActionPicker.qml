@@ -91,7 +91,7 @@ ColumnLayout {
         picker.symbols, picker.functionKeys, picker.navigation, picker.range(0x53, 0x63)))
 
 
-    TextField {
+    AppTextField {
         objectName: "searchField"
         Layout.fillWidth: true
         placeholderText: qsTr("Search, e.g. volume or F5")
@@ -131,7 +131,7 @@ ColumnLayout {
                 onClicked: picker.macroLoop = modelData.loop
             }
         }
-        SpinBox {
+        AppSpinBox {
             objectName: "macroCount"
             visible: picker.macroLoop === "times"
             from: 1
@@ -211,7 +211,7 @@ ColumnLayout {
             Row {
                 spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Key") }
-                ComboBox {
+                AppComboBox {
                     id: firstKey
                     width: 160 * ui.unit
                     model: picker.shortcutKeys.map(k => k.label)
@@ -222,7 +222,7 @@ ColumnLayout {
             Row {
                 spacing: 10 * ui.unit
                 Label { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Second key") }
-                ComboBox {
+                AppComboBox {
                     id: secondKey
                     width: 160 * ui.unit
                     model: [qsTr("None")].concat(picker.shortcutKeys.map(k => k.label))

@@ -298,7 +298,6 @@ ColumnLayout {
         property int index: 0
         objectName: "slot_" + index
         implicitWidth: Math.max(120 * ui.unit, contentItem.implicitWidth + 24 * ui.unit)
-        implicitHeight: 40 * ui.unit
         text: index === 0 && page.draft && page.draft.own ? qsTr("Each key's own action") : page.actionName(page.slotCode(index))
         on: page.slot === index
         onClicked: page.slot = page.slot === index ? -1 : index
@@ -513,7 +512,7 @@ ColumnLayout {
                     spacing: 10 * ui.unit
                     Label { text: page.slotName(20 + row.index) }
                     SlotButton { index: 20 + row.index }
-                    ComboBox {
+                    AppComboBox {
                         objectName: "dksStroke" + row.index
                         Layout.fillWidth: true
                         Layout.maximumWidth: 480 * ui.unit
@@ -552,7 +551,7 @@ ColumnLayout {
                 columnSpacing: 16 * ui.unit
                 rowSpacing: 8 * ui.unit
                 Label { visible: secondKey.visible; text: qsTr("Second key") }
-                ComboBox {
+                AppComboBox {
                     id: secondKey
                     objectName: "socdSecondKey"
                     visible: page.selection.length !== 2
@@ -565,7 +564,7 @@ ColumnLayout {
                     onActivated: (i) => page.edit(d => d.key2 = secondKey.ids[i])
                 }
                 Label { text: qsTr("When both are down") }
-                ComboBox {
+                AppComboBox {
                     id: mode
                     objectName: "socdMode"
                     Layout.fillWidth: true

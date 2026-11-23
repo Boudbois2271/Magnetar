@@ -8,6 +8,9 @@
         <file alias="Chip.qml">Chip.qml</file>
         <file alias="AppButton.qml">AppButton.qml</file>
         <file alias="Segmented.qml">Segmented.qml</file>
+        <file alias="AppTextField.qml">AppTextField.qml</file>
+        <file alias="AppComboBox.qml">AppComboBox.qml</file>
+        <file alias="AppSpinBox.qml">AppSpinBox.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
         <file alias="KeysPage.qml">KeysPage.qml</file>
         <file alias="ActionTab.qml">ActionTab.qml</file>

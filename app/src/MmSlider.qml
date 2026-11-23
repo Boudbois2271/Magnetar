@@ -58,7 +58,7 @@ ColumnLayout {
             text: qsTr("varies")
             color: theme.secondary
         }
-        TextField {
+        AppTextField {
             id: typed
             objectName: ms.objectName + "Field"
             Layout.row: 0

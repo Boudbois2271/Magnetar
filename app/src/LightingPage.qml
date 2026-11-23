@@ -94,7 +94,7 @@ Item {
                             Layout.preferredWidth: page.labelWidth
                             text: qsTr("Effect")
                         }
-                        ComboBox {
+                        AppComboBox {
                             objectName: "effectBox"
                             Layout.fillWidth: true
                             Layout.maximumWidth: 300 * ui.unit
@@ -196,7 +196,7 @@ Item {
                             Layout.preferredWidth: page.labelWidth
                             text: qsTr("Hex colour")
                         }
-                        TextField {
+                        AppTextField {
                             id: hex
                             objectName: "hexField"
                             Layout.preferredWidth: 140 * ui.unit

@@ -134,7 +134,7 @@ Item {
                                     text: qsTr("Restarting the keyboard…")
                                 }
                             }
-                            ComboBox {
+                            AppComboBox {
                                 id: rateBox
                                 objectName: "pollingRateBox"
                                 Layout.preferredWidth: 150 * ui.unit

@@ -78,7 +78,7 @@ ApplicationWindow {
                         color: theme.secondary
                         font.pixelSize: ui.small
                     }
-                    ComboBox {
+                    AppComboBox {
                         id: profileBox
                         objectName: "profileBox"
                         Layout.fillWidth: true
