@@ -719,11 +719,20 @@ private slots:
         QTRY_COMPARE(b.macros()[0].toMap().value("name").toString(), QString("gh"));
         QCOMPARE(b.macros().size(), 2);
 
+        // A macro with a name and no steps is saved as just its name.
+        const QVariantMap emptyRecord{{"name", "kl"}, {"steps", QVariantList{}}};
+        QVERIFY(b.macroValid(emptyRecord));
+        QVERIFY(b.saveMacro(-1, emptyRecord));
+        QTRY_COMPARE(b.macros().size(), 3);
+        QCOMPARE(b.macros()[2].toMap().value("name").toString(), QString("kl"));
+        QCOMPARE(b.macros()[2].toMap().value("steps").toList().size(), 0);
+        QVERIFY(b.deleteMacro(2));
+        QTRY_COMPARE(b.macros().size(), 2);
+
         // Refused, nothing sent: bad records, a missing index, more than the storage.
         const int writes = board.writesOf(0x05, 0x00);
         QVERIFY(!b.macroValid(record("a", 0x04)));
         QVERIFY(!b.saveMacro(-1, record("a", 0x04)));
-        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{}}}));
         QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0, 50)}}}));
         QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0x100, 50)}}}));
         QVERIFY(!b.saveMacro(2, record("ij", 0x04)));
@@ -1710,6 +1719,13 @@ private slots:
         QVERIFY(!save->property("enabled").toBool());
         call("setName", {"ab"});
         QVERIFY(save->property("enabled").toBool());
+        // "New macro" closes the open form; opening it again brings the unsaved draft back.
+        QMetaObject::invokeMethod(need("newMacro"), "clicked");
+        QVERIFY(!page->property("editing").toBool());
+        QMetaObject::invokeMethod(need("newMacro"), "clicked");
+        QVERIFY(page->property("editing").toBool());
+        QCOMPARE(steps().size(), 4);
+        QCOMPARE(page->property("draft").toMap().value("name").toString(), QString("ab"));
         QMetaObject::invokeMethod(save, "clicked");
         QTRY_COMPARE(w.backend.macros().size(), 1);
         // The new macro is selected and shows the read-back: nothing left to save.
@@ -1720,11 +1736,11 @@ private slots:
         QCOMPARE(saved[3].toMap().value("delay").toInt(), 1);
         QCOMPARE(need("macroStorageLabel")->property("text").toString(), QString("23 / 4096 bytes used"));
 
-        // Standard delay: every step waits 50 ms; Revert puts the board's delays back.
+        // Standard delay: every step waits 50 ms; selecting the macro again puts the board's delays back.
         page->setProperty("standard", true);
         QVERIFY(page->property("dirty").toBool());
         QCOMPARE(page->property("record").toMap().value("steps").toList()[1].toMap().value("delay").toInt(), 50);
-        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+        call("select", {0});
         QVERIFY(!page->property("dirty").toBool());
         QVERIFY(!page->property("standard").toBool());
         // A re-read (window focus) keeps an edited draft.
@@ -1733,7 +1749,58 @@ private slots:
         w.backend.refresh();
         QTest::qWait(100);
         QCOMPARE(steps().size(), 6);
-        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+        // Clear empties the steps and keeps the name.
+        QMetaObject::invokeMethod(need("clearMacro"), "clicked");
+        QCOMPARE(steps().size(), 0);
+        QCOMPARE(page->property("draft").toMap().value("name").toString(), QString("ab"));
+        QVERIFY(!need("clearMacro")->property("enabled").toBool());
+        // Recording again adds to the steps there: a key added by hand, then a recorded take.
+        call("addKey", {0x05});
+        call("startRecording");
+        call("recordEvent", {true, 30 + 8, 5000.0});
+        call("recordEvent", {false, 30 + 8, 5040.0});
+        call("stopRecording");
+        call("startRecording");
+        call("recordEvent", {true, 31 + 8, 9000.0});
+        call("recordEvent", {false, 31 + 8, 9030.0});
+        call("stopRecording");
+        QCOMPARE(steps().size(), 6);
+        QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0x05);
+        QCOMPARE(steps()[1].toMap().value("delay").toInt(), 50);   // before the first take
+        QCOMPARE(steps()[2].toMap().value("usage").toInt(), 0x04);
+        QCOMPARE(steps()[2].toMap().value("delay").toInt(), 40);
+        QCOMPARE(steps()[3].toMap().value("delay").toInt(), 50);   // before the second take
+        QCOMPARE(steps()[4].toMap().value("usage").toInt(), 0x16);
+        QCOMPARE(steps()[4].toMap().value("delay").toInt(), 30);
+        // Dragging the first row by its handle to under the third: the rows between slide up
+        // and an outlined slot marks where it lands.
+        QTRY_COMPARE(row(0)->property("step").toInt(), 0);
+        QTRY_VERIFY(row(2)->y() > row(1)->y() && row(1)->y() > row(0)->y());   // laid out
+        auto *handle = findItem(row(0), "stepHandle");
+        QVERIFY(handle);
+        const QPoint from = handle->mapToScene(QPointF(handle->width() / 2, handle->height() / 2)).toPoint();
+        const QPoint to(from.x(), qRound(row(2)->mapToScene(QPointF(0, row(2)->height() * 0.8)).y()));
+        QTest::mousePress(w.window, Qt::LeftButton, {}, from);
+        for (int i = 1; i <= 5; ++i)
+            QTest::mouseMove(w.window, from + (to - from) * i / 5);
+        QCOMPARE(page->property("dropGap").toInt(), 3);
+        QVERIFY(findItem(row(0), "dropSlot")->isVisible());
+        QCOMPARE(page->property("dropTarget").toInt(), 2);
+        QTRY_VERIFY(row(2)->property("shift").toDouble() < 0);
+        QTest::mouseRelease(w.window, Qt::LeftButton, {}, to);
+        QCOMPARE(page->property("dragFrom").toInt(), -1);
+        QCOMPARE(steps().size(), 6);
+        QCOMPARE(steps()[0].toMap().value("press").toBool(), false);   // 05 release
+        QCOMPARE(steps()[1].toMap().value("usage").toInt(), 0x04);
+        QCOMPARE(steps()[2].toMap().value("usage").toInt(), 0x05);
+        QCOMPARE(steps()[2].toMap().value("press").toBool(), true);
+        // While recording the rows are newest first: a row moved on screen moves the other way.
+        page->setProperty("newestFirst", true);
+        QMetaObject::invokeMethod(page, "moveRow", Q_ARG(QVariant, 0), Q_ARG(QVariant, 1));   // the last step goes one up
+        QCOMPARE(steps()[4].toMap().value("press").toBool(), false);
+        QCOMPARE(steps()[5].toMap().value("press").toBool(), true);
+        page->setProperty("newestFirst", false);
+        call("select", {0});
 
         // Bound to Insert, played three times: the drawing and the Keys page name it.
         w.window->setProperty("page", PageKeys);

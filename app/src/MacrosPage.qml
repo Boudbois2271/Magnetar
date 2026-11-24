@@ -15,10 +15,11 @@ Item {
     property var draft: page.blank()   // {name, steps: [{press, usage, delay}]}
     property bool standard: false      // every delay is the standard one
     property bool recording: false
-    property double lastEvent: 0       // ms timestamp of the last recorded step
+    property double lastEvent: -1      // ms timestamp of the last recorded step, -1 before the first
     property var held: []              // usages pressed during this recording
     property bool selectNew: false     // select the macro a save adds, once it is read back
     property string loadedFrom: "null" // the read-back the draft was loaded from
+    property var newDraft: null        // an unsaved new macro, kept while its form is closed
 
     KeyNames { id: names }
 
@@ -34,10 +35,27 @@ Item {
             delay: i === n - 1 ? 1 : page.standard ? page.limits.standardDelay : s.delay })) }
     }
     // The steps as listed: newest first while recording, so each new one shows at the top; the
-    // draft (and the board) keep them in time order.
-    readonly property var shownSteps: page.recording ? page.draft.steps.slice().reverse() : page.draft.steps
+    // draft (and the board) keep them in time order. The list fades out and back in around the
+    // switch, so the rows don't jump.
+    property bool newestFirst: false
+    readonly property var shownSteps: page.newestFirst ? page.draft.steps.slice().reverse() : page.draft.steps
     function stepAt(row) {
-        return page.recording ? page.draft.steps.length - 1 - row : row
+        return page.newestFirst ? page.draft.steps.length - 1 - row : row
+    }
+    onRecordingChanged: {
+        if (page.newestFirst === page.recording)
+            return
+        if (page.draft.steps.length < 2) {
+            page.newestFirst = page.recording
+            return
+        }
+        resort.restart()
+    }
+    SequentialAnimation {
+        id: resort
+        NumberAnimation { target: stepsView; property: "opacity"; to: 0; duration: 150; easing.type: Easing.InQuad }
+        ScriptAction { script: page.newestFirst = page.recording }
+        NumberAnimation { target: stepsView; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutQuad }
     }
     readonly property bool dirty: page.key(page.record) !== page.key(page.saved || page.blank())
     // Compares macros by content (the board's records list their fields in another order).
@@ -70,21 +88,45 @@ Item {
     }
     function load() {
         page.recording = false
+        // Another macro shows at once, in time order.
+        resort.stop()
+        stepsView.opacity = 1
+        page.newestFirst = false
         page.loadedFrom = JSON.stringify(page.saved)
         page.draft = page.saved ? page.copy(page.saved) : page.blank()
         const steps = page.draft.steps
         page.standard = steps.length > 1 && steps.slice(0, -1).every(s => s.delay === page.limits.standardDelay)
     }
     function select(i) {
+        page.keepNewDraft()
         page.index = i
         page.editing = true
         page.load()
+        // Reopening the new macro form brings back what was left in it.
+        if (i < 0 && page.newDraft) {
+            page.draft = page.copy(page.newDraft.draft)
+            page.standard = page.newDraft.standard
+        }
     }
     // Back to no macro selected: the editor closes.
     function close() {
+        page.keepNewDraft()
         page.index = -1
         page.editing = false
         page.load()
+    }
+    // "New macro" opens the form, and closes it when it is already open.
+    function toggleNew() {
+        if (page.editing && page.index < 0)
+            page.close()
+        else
+            page.select(-1)
+    }
+    // Leaving the new macro form keeps its unsaved draft for the next time it opens: nothing typed
+    // or recorded is lost, and nothing asks.
+    function keepNewDraft() {
+        if (page.editing && page.index < 0)
+            page.newDraft = page.dirty ? { draft: page.copy(page.draft), standard: page.standard } : null
     }
     function setSteps(steps) {
         page.draft = { name: page.draft.name, steps: steps }
@@ -103,10 +145,81 @@ Item {
         steps.splice(i + by, 0, s)
         page.setSteps(steps)
     }
+    // Moves the row shown at `from` so it is shown at `to` (rows in the order on screen).
+    function moveRow(from, to) {
+        let rows = page.shownSteps.slice()
+        const s = rows.splice(from, 1)[0]
+        rows.splice(to, 0, s)
+        page.setSteps(page.newestFirst ? rows.reverse() : rows)
+    }
+
+    // ---- dragging a step -------------------------------------------------------
+    // Positions are scene points, read in the steps' own coordinates, so they stay right while
+    // the list scrolls under the pointer.
+    property int dragFrom: -1          // row being dragged, -1 = none
+    property real dragStart: 0         // pointer y in the steps when the drag started
+    property real dragY: 0             // how far the dragged row has moved
+    property int dropGap: -1           // gap it would land in: 0 = above the first row
+    property point dragScene
+    readonly property bool dropShown: page.dragFrom >= 0 && page.dropGap >= 0
+                                      && page.dropGap !== page.dragFrom && page.dropGap !== page.dragFrom + 1
+    // The row it would land on, and the distance from one row to the next.
+    readonly property int dropTarget: page.dropGap > page.dragFrom ? page.dropGap - 1 : page.dropGap
+    readonly property real dragPitch: stepRows.count > 1 && stepRows.itemAt(1) ? stepRows.itemAt(1).y - stepRows.itemAt(0).y : 0
+    function startDrag(row, sceneX, sceneY) {
+        page.dragFrom = row
+        page.dragStart = steps.mapFromItem(null, sceneX, sceneY).y
+        page.dragTo(sceneX, sceneY)
+    }
+    function dragTo(sceneX, sceneY) {
+        page.dragScene = Qt.point(sceneX, sceneY)
+        const y = steps.mapFromItem(null, sceneX, sceneY).y
+        page.dragY = y - page.dragStart
+        let gap = 0
+        for (let i = 0; i < stepRows.count; ++i) {
+            const r = stepRows.itemAt(i)
+            if (r && r.y + r.height / 2 < y)
+                gap = i + 1
+        }
+        page.dropGap = gap
+    }
+    function endDrag(drop) {
+        const from = page.dragFrom, gap = page.dropGap, move = drop && page.dropShown
+        page.dragFrom = -1
+        page.dragY = 0
+        page.dropGap = -1
+        if (move)
+            page.moveRow(from, gap > from ? gap - 1 : gap)
+    }
+    // Near the top or bottom of the steps box, the list scrolls under the dragged row.
+    Timer {
+        interval: 16
+        repeat: true
+        running: page.dragFrom >= 0
+        onTriggered: {
+            const flick = stepsView.contentItem
+            const v = stepsView.mapFromItem(null, page.dragScene.x, page.dragScene.y).y
+            const edge = 32 * ui.unit, most = 14 * ui.unit
+            const by = v < edge ? -most * Math.min(1, (edge - v) / edge)
+                     : v > stepsView.height - edge ? most * Math.min(1, (v - stepsView.height + edge) / edge) : 0
+            const y = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + by))
+            if (y !== flick.contentY) {
+                flick.contentY = y
+                page.dragTo(page.dragScene.x, page.dragScene.y)
+            }
+        }
+    }
+
     function removeStep(i) {
         let steps = page.draft.steps.slice()
         steps.splice(i, 1)
         page.setSteps(steps)
+    }
+    // Removes every step, the name stays. While recording, the take starts over.
+    function clearSteps() {
+        page.setSteps([])
+        page.held = []
+        page.lastEvent = -1
     }
     function addKey(usage) {
         const d = page.limits.standardDelay
@@ -115,11 +228,11 @@ Item {
     }
 
     // ---- recording -----------------------------------------------------------
-    // Recording replaces the steps; each step's delay is the time until the next one.
+    // Recording adds to the steps already there (only Clear removes them); each recorded step's
+    // delay is the time until the next one, and the step before the take waits the standard delay.
     function startRecording() {
-        page.setSteps([])
         page.held = []
-        page.lastEvent = 0
+        page.lastEvent = -1
         page.editing = true
         page.recording = true
         recorder.forceActiveFocus()
@@ -138,7 +251,8 @@ Item {
         let steps = page.draft.steps.slice()
         if (steps.length > 0)
             steps[steps.length - 1] = Object.assign({}, steps[steps.length - 1], {
-                delay: Math.max(0, Math.min(page.limits.maxDelay, Math.round(now - page.lastEvent))) })
+                delay: page.lastEvent < 0 ? page.limits.standardDelay
+                       : Math.max(0, Math.min(page.limits.maxDelay, Math.round(now - page.lastEvent))) })
         steps.push({ press: press, usage: usage, delay: page.limits.standardDelay })
         page.lastEvent = now
         page.setSteps(steps)
@@ -165,6 +279,7 @@ Item {
         if (page.selectNew && page.macros.length > 0) {
             page.selectNew = false
             page.select(page.macros.length - 1)
+            page.newDraft = null  // it was saved
         } else if (page.index >= page.macros.length) {
             page.close()
         } else if (JSON.stringify(page.saved) !== page.loadedFrom) {
@@ -310,7 +425,7 @@ Item {
                             kind: page.editing && page.index < 0 ? "primary" : "quiet"
                             iconName: "plus"
                             text: qsTr("New macro")
-                            onClicked: page.select(-1)
+                            onClicked: page.toggleNew()
                         }
                     }
                 }
@@ -385,6 +500,26 @@ Item {
                     Item { Layout.fillWidth: true }
                 }
 
+                // Adds a press and a release of one key, for editing by hand. Above the steps, so it stays put
+                // as the list grows.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10 * ui.unit
+                    AppComboBox {
+                        id: addKeyBox
+                        Layout.preferredWidth: 200 * ui.unit
+                        model: page.addableKeys.map(u => names.usageName(u))
+                        currentIndex: -1
+                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
+                    }
+                    AppButton {
+                        text: qsTr("Add")
+                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
+                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
                 // One row per step: what happens, then the wait before the next step. A long
                 // macro scrolls in this box; the rest of the page stays put.
                 Rectangle {
@@ -411,96 +546,152 @@ Item {
                             width: parent.width
                             spacing: 2 * ui.unit
                             Repeater {
+                                id: stepRows
                                 objectName: "macroStepRows"
                                 model: page.shownSteps
-                                delegate: RowLayout {
+                                delegate: Item {
                                     id: stepRow
                                     // index = row on screen; step = its place in the macro.
                                     required property int index
                                     required property var modelData
                                     readonly property int step: page.stepAt(index)
                                     readonly property bool last: step === page.draft.steps.length - 1
+                                    readonly property bool dragged: page.dragFrom === index
                                     Layout.fillWidth: true
-                                    spacing: 6 * ui.unit
+                                    implicitHeight: stepLine.implicitHeight
+                                    // While a row is dragged it follows the pointer above the
+                                    // others, and the rows between its place and where it would
+                                    // land slide over to make room.
+                                    readonly property real shift: {
+                                        const f = page.dragFrom, t = page.dropTarget, i = stepRow.index
+                                        if (f < 0 || stepRow.dragged)
+                                            return 0
+                                        return f < i && i <= t ? -page.dragPitch : t <= i && i < f ? page.dragPitch : 0
+                                    }
+                                    z: dragged ? 2 : 0
+                                    transform: Translate {
+                                        y: stepRow.dragged ? page.dragY : stepRow.shift
+                                        Behavior on y {
+                                            enabled: page.dragFrom >= 0 && !stepRow.dragged
+                                            NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                                        }
+                                    }
 
-                                    Chip {
-                                        Layout.preferredWidth: 90 * ui.unit
-                                        text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
-                                        onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
+                                    // The room it would land in, outlined (drawn from the dragged
+                                    // row, so it stays put while the row moves).
+                                    Rectangle {
+                                        objectName: "dropSlot"
+                                        visible: stepRow.dragged
+                                        width: parent.width
+                                        height: parent.height
+                                        y: (page.dropTarget - stepRow.index) * page.dragPitch - page.dragY
+                                        radius: theme.radius
+                                        color: "transparent"
+                                        border.width: Math.max(1, Math.round(ui.unit))
+                                        border.color: theme.accent
                                     }
-                                    Label {
-                                        Layout.fillWidth: true
-                                        leftPadding: 6 * ui.unit
-                                        text: names.usageName(stepRow.modelData.usage)
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        visible: stepRow.dragged
+                                        radius: theme.radius
+                                        color: theme.chipHover
                                     }
-                                    AppTextField {
-                                        Layout.preferredWidth: 72 * ui.unit
-                                        visible: !stepRow.last
-                                        enabled: !page.standard
-                                        horizontalAlignment: Text.AlignRight
-                                        font.features: { "tnum": 1 }
-                                        inputMethodHints: Qt.ImhDigitsOnly
-                                        validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
-                                        text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
-                                        onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
-                                                               page.setStep(stepRow.step, { delay: Number(text) })
-                                    }
-                                    Label {
-                                        Layout.preferredWidth: (72 + 6 + 24) * ui.unit
-                                        visible: stepRow.last
-                                        horizontalAlignment: Text.AlignRight
-                                        text: qsTr("1 ms (end)")
-                                        color: theme.secondary
-                                        font.features: { "tnum": 1 }
-                                    }
-                                    Label {
-                                        Layout.preferredWidth: 24 * ui.unit
-                                        visible: !stepRow.last
-                                        text: "ms"
-                                        color: theme.secondary
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "↑"
-                                        enabled: stepRow.index > 0
-                                        onClicked: page.moveStep(stepRow.step, page.recording ? 1 : -1)
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "↓"
-                                        enabled: stepRow.index < page.draft.steps.length - 1
-                                        onClicked: page.moveStep(stepRow.step, page.recording ? -1 : 1)
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "✕"
-                                        onClicked: page.removeStep(stepRow.step)
+
+                                    RowLayout {
+                                        id: stepLine
+                                        width: parent.width
+                                        spacing: 6 * ui.unit
+
+                                        // Drag handle: press and move to put the step elsewhere.
+                                        Item {
+                                            objectName: "stepHandle"
+                                            implicitWidth: 20 * ui.unit
+                                            implicitHeight: 34 * ui.unit
+                                            Icon {
+                                                anchors.centerIn: parent
+                                                name: "grip-vertical"
+                                                color: grip.containsMouse || grip.pressed ? theme.foreground : theme.secondary
+                                            }
+                                            MouseArea {
+                                                id: grip
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                preventStealing: true
+                                                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                                onPressed: (mouse) => {
+                                                    const p = mapToItem(null, mouse.x, mouse.y)
+                                                    page.startDrag(stepRow.index, p.x, p.y)
+                                                }
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        const p = mapToItem(null, mouse.x, mouse.y)
+                                                        page.dragTo(p.x, p.y)
+                                                    }
+                                                }
+                                                onReleased: page.endDrag(true)
+                                                onCanceled: page.endDrag(false)
+                                            }
+                                        }
+                                        Chip {
+                                            Layout.preferredWidth: 90 * ui.unit
+                                            text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
+                                            onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
+                                        }
+                                        Label {
+                                            Layout.fillWidth: true
+                                            leftPadding: 6 * ui.unit
+                                            text: names.usageName(stepRow.modelData.usage)
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+                                        AppTextField {
+                                            Layout.preferredWidth: 72 * ui.unit
+                                            visible: !stepRow.last
+                                            enabled: !page.standard
+                                            horizontalAlignment: Text.AlignRight
+                                            font.features: { "tnum": 1 }
+                                            inputMethodHints: Qt.ImhDigitsOnly
+                                            validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
+                                            text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
+                                            onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
+                                                                   page.setStep(stepRow.step, { delay: Number(text) })
+                                        }
+                                        Label {
+                                            Layout.preferredWidth: (72 + 6 + 24) * ui.unit
+                                            visible: stepRow.last
+                                            horizontalAlignment: Text.AlignRight
+                                            text: qsTr("1 ms (end)")
+                                            color: theme.secondary
+                                            font.features: { "tnum": 1 }
+                                        }
+                                        Label {
+                                            Layout.preferredWidth: 24 * ui.unit
+                                            visible: !stepRow.last
+                                            text: "ms"
+                                            color: theme.secondary
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "↑"
+                                            enabled: stepRow.index > 0
+                                            onClicked: page.moveStep(stepRow.step, page.newestFirst ? 1 : -1)
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "↓"
+                                            enabled: stepRow.index < page.draft.steps.length - 1
+                                            onClicked: page.moveStep(stepRow.step, page.newestFirst ? -1 : 1)
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "✕"
+                                            onClicked: page.removeStep(stepRow.step)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-
-                // Adds a press and a release of one key, for editing by hand.
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10 * ui.unit
-                    AppComboBox {
-                        id: addKeyBox
-                        Layout.preferredWidth: 200 * ui.unit
-                        model: page.addableKeys.map(u => names.usageName(u))
-                        currentIndex: -1
-                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
-                    }
-                    AppButton {
-                        text: qsTr("Add")
-                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
-                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
-                    }
-                    Item { Layout.fillWidth: true }
                 }
 
                 Label {
@@ -523,10 +714,10 @@ Item {
                         onClicked: page.save()
                     }
                     AppButton {
-                        objectName: "revertMacro"
-                        text: qsTr("Revert")
-                        enabled: page.dirty || page.recording
-                        onClicked: page.load()
+                        objectName: "clearMacro"
+                        text: qsTr("Clear")
+                        enabled: page.draft.steps.length > 0
+                        onClicked: page.clearSteps()
                     }
                     Item { Layout.fillWidth: true }
                     IconButton {

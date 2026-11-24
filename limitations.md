@@ -96,6 +96,8 @@ reflected in `akko-protocol.md`.
 - Macros page: steps can only use keyboard usages (no mouse
   or media steps: never captured). A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
+- Macros page: a macro with a name and no steps can be saved (the blob format allows it); never
+  written to the board or captured from the vendor app, so what the board does with it is unverified.
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.

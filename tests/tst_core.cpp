@@ -910,6 +910,20 @@ private slots:
         QVERIFY(board.macros.empty());
     }
 
+    void macroWithNoStepsIsJustItsName()
+    {
+        // The blob allows a name with zero actions: directory entry, then name_len and the name.
+        const std::vector<Macro> empty{{"ok", {}}};
+        QVERIFY(macroProblem(empty[0]).empty());
+        const std::vector<std::uint8_t> blob{0x04, 0x00, 0x03, 0x00, 0x02, 0x6f, 0x6b};
+        QVERIFY(macroBlob(empty) == blob);
+        const auto back = parseMacroBlob(blob);
+        QCOMPARE(back.size(), std::size_t(1));
+        QCOMPARE(back[0].name, std::string("ok"));
+        QVERIFY(back[0].steps.empty());
+        QCOMPARE(int(macroStorageUsed(empty)), 7);
+    }
+
     void writeMacrosSetsTheLastDelayToOne()
     {
         FakeTransport t;
@@ -929,7 +943,6 @@ private slots:
         QTest::addColumn<int>("usage");
         QTest::newRow("short name") << "a" << 2 << 4;
         QTest::newRow("non-ascii name") << QString::fromUtf8("é!") << 2 << 4;
-        QTest::newRow("no steps") << "ab" << 0 << 4;
         QTest::newRow("no key") << "ab" << 2 << 0;
         QTest::newRow("too big") << "ab" << 1100 << 4;
     }
