@@ -19,9 +19,14 @@ reflected in `akko-protocol.md`.
 - `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
-- **Mural**: core only (`core/mural.h`), no app page: a static paint page duplicated Keys → Colour; it
-  waits for live animations. How long the board keeps the last frame was only timed by eye (1–3 s); frames more than 6
-  packets long can't happen (83 LEDs × 4 B at most).
+- **Mural**: the app streams an audio visualiser only (no paint or still-image page: Lighting's
+  per-key colours already store a still). How long the board keeps the last frame was only timed
+  by eye (1–3 s); frames more than 6 packets long can't happen (83 LEDs × 4 B at most). Between
+  ~1 s streaming sessions the board gets no frames for ~60 ms (longer while an action runs), far
+  under that fallback. Audio comes from `@DEFAULT_MONITOR@`, resolved when capture opens:
+  changing the default output while it runs is not followed until it is turned off and on.
+  Brightness and the lights switch are not applied to Mural frames by the app; whether the board
+  applies them was not checked.
 - **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`
   and `08` were never sent alone.
 - **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is
