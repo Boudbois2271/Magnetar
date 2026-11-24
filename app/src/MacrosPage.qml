@@ -129,6 +129,12 @@ Item {
         steps.splice(i, 1)
         page.setSteps(steps)
     }
+    // Removes every step, the name stays. While recording, the take starts over.
+    function clearSteps() {
+        page.setSteps([])
+        page.held = []
+        page.lastEvent = 0
+    }
     function addKey(usage) {
         const d = page.limits.standardDelay
         page.setSteps(page.draft.steps.concat([{ press: true, usage: usage, delay: d },
@@ -546,10 +552,10 @@ Item {
                         onClicked: page.save()
                     }
                     AppButton {
-                        objectName: "revertMacro"
-                        text: qsTr("Revert")
-                        enabled: page.dirty || page.recording
-                        onClicked: page.load()
+                        objectName: "clearMacro"
+                        text: qsTr("Clear")
+                        enabled: page.draft.steps.length > 0
+                        onClicked: page.clearSteps()
                     }
                     Item { Layout.fillWidth: true }
                     IconButton {

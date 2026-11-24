@@ -1736,11 +1736,11 @@ private slots:
         QCOMPARE(saved[3].toMap().value("delay").toInt(), 1);
         QCOMPARE(need("macroStorageLabel")->property("text").toString(), QString("23 / 4096 bytes used"));
 
-        // Standard delay: every step waits 50 ms; Revert puts the board's delays back.
+        // Standard delay: every step waits 50 ms; selecting the macro again puts the board's delays back.
         page->setProperty("standard", true);
         QVERIFY(page->property("dirty").toBool());
         QCOMPARE(page->property("record").toMap().value("steps").toList()[1].toMap().value("delay").toInt(), 50);
-        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+        call("select", {0});
         QVERIFY(!page->property("dirty").toBool());
         QVERIFY(!page->property("standard").toBool());
         // A re-read (window focus) keeps an edited draft.
@@ -1749,7 +1749,12 @@ private slots:
         w.backend.refresh();
         QTest::qWait(100);
         QCOMPARE(steps().size(), 6);
-        QMetaObject::invokeMethod(need("revertMacro"), "clicked");
+        // Clear empties the steps and keeps the name.
+        QMetaObject::invokeMethod(need("clearMacro"), "clicked");
+        QCOMPARE(steps().size(), 0);
+        QCOMPARE(page->property("draft").toMap().value("name").toString(), QString("ab"));
+        QVERIFY(!need("clearMacro")->property("enabled").toBool());
+        call("select", {0});
 
         // Bound to Insert, played three times: the drawing and the Keys page name it.
         w.window->setProperty("page", PageKeys);
