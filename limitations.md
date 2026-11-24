@@ -21,7 +21,8 @@ reflected in `akko-protocol.md`.
 ### Captured but not decoded
 - **Mural**: the app streams an audio visualiser only (no paint or still-image page: Lighting's
   per-key colours already store a still). How long the board keeps the last frame was only timed
-  by eye (1–3 s); frames more than 6 packets long can't happen (83 LEDs × 4 B at most). Between
+  by eye (1–3 s), and there is no stop command, so after the visualiser is turned off or the app
+  quits the board keeps the last frame that long before its own effect comes back; frames more than 6 packets long can't happen (83 LEDs × 4 B at most). Between
   ~1 s streaming sessions the board gets no frames for ~60 ms (longer while an action runs), far
   under that fallback. Audio comes from `@DEFAULT_MONITOR@`, resolved when capture opens:
   changing the default output while it runs is not followed until it is turned off and on.
