@@ -18,8 +18,7 @@ Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *par
       m_stateFile(stateFile.isEmpty() ? akko::defaultStateFile() : stateFile.toStdString())
 {
     // While the keyboard is unreachable, try again every few seconds, so plugging it in or
-    // closing the vendor web app is enough.
-    m_retry.setInterval(3000);
+    // closing the vendor web app is enough (the interval is set in applyError()).
     connect(&m_retry, &QTimer::timeout, this, &Backend::refresh);
     m_restartWait.setSingleShot(true);
     connect(&m_restartWait, &QTimer::timeout, this, &Backend::refresh);
@@ -957,6 +956,12 @@ void Backend::applyState(const Snapshot &s)
     emit stateChanged();
 }
 
+void Backend::keyboardAdded()
+{
+    if (!m_connected || m_restarting)
+        refresh();
+}
+
 int Backend::calibrationFull() const
 {
     return int(std::count_if(m_calibrationDepth.begin(), m_calibrationDepth.end(),
@@ -1033,6 +1038,8 @@ void Backend::applyError(const QString &message)
     m_connected = false;
     m_errorKind = classifyError(message);
     m_errorDetail = message;
-    m_retry.start();
+    // Unplugged with a udev watch running: the watch says when it's back; retry rarely, in case
+    // an event is missed. Busy, permission and other errors get no udev event: retry often.
+    m_retry.start(m_hotplugWatched && m_errorKind == "notFound" ? kHotplugFallbackMs : kRetryMs);
     emit connectionChanged();
 }

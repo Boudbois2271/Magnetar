@@ -137,7 +137,9 @@ reflected in `akko-protocol.md`.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the
   unsolicited `fe 0b` brightness reports aren't listened to.
-- While unplugged it retries every 3 s; there is no udev hotplug watch.
+- Plugging in is noticed through a udev watch (`hidraw` add events of `38ee:0016`), tested against
+  the fake keyboard only, not by replugging the board yet. Without udev it retries every 3 s; with
+  it, "not found" is retried every 10 s as a fallback. Unplugging is still noticed on the next read.
 - Firmware version byte order (`82 02` = `08 01` → v1.08, low byte first) rests on one sample.
 - Colour picker (Lighting): checked offscreen only (tests, EN/FR screenshots, dark and light), not
   used by hand on the desktop yet. A colour is sent when the field or hue strip is let go (or 300 ms

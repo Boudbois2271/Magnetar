@@ -2,6 +2,7 @@
 // Magnetar tests: the real Backend and DeviceWorker against the pretend keyboard, the theme
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
+#include "hotplug_watch.h"
 #include "color_palette.h"
 #include "desktop_size.h"
 #include "fake_transport.h"
@@ -392,6 +393,39 @@ private slots:
             board.failWith.clear();  // "plugged in"
         }
         QTRY_VERIFY_WITH_TIMEOUT(b.connected(), 5000);  // the 3 s retry, no refresh() call
+    }
+
+    // With a udev watch, "not found" is retried only every 10 s; the watch's signal reconnects.
+    void hotplugReconnects()
+    {
+        FakeBoard board;
+        board.failWith = "keyboard not found (is it plugged in?)";
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        b.setHotplugWatched(true);
+        QTRY_COMPARE(b.errorKind(), QString("notFound"));
+        b.refresh();  // the error that follows is seen with the watch on
+        QTest::qWait(200);
+        {
+            std::lock_guard lock(board.mutex);
+            board.failWith.clear();  // "plugged in"
+        }
+        QTest::qWait(3500);
+        QVERIFY(!b.connected());  // no 3 s retry
+        b.keyboardAdded();
+        QTRY_VERIFY(b.connected());
+        b.keyboardAdded();  // connected: nothing to do
+        QVERIFY(b.connected());
+    }
+
+    void hotplugMatchesTheKeyboardOnly()
+    {
+        QVERIFY(HotplugWatch::isKeyboard("38ee", "0016"));
+        QVERIFY(!HotplugWatch::isKeyboard("38ee", "0017"));
+        QVERIFY(!HotplugWatch::isKeyboard("046d", "0016"));
+        QVERIFY(!HotplugWatch::isKeyboard(nullptr, "0016"));
+        HotplugWatch watch;  // opens and closes cleanly, whether udev is reachable or not
+        Q_UNUSED(watch.active());
     }
 
     void settingsAreWrittenAndReadBack()

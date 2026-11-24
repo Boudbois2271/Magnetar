@@ -11,6 +11,7 @@
 #include "backend.h"
 #include "color_palette.h"
 #include "desktop_size.h"
+#include "hotplug_watch.h"
 #include "mural_controller.h"
 #include "theme.h"
 #include "translator.h"
@@ -38,6 +39,10 @@ int main(int argc, char *argv[])
     Theme theme;
     DesktopSize ui;
     Backend backend;
+    // Plugging the keyboard in is noticed through udev; the retry timer stays as a fallback.
+    HotplugWatch hotplug;
+    backend.setHotplugWatched(hotplug.active());
+    QObject::connect(&hotplug, &HotplugWatch::keyboardAdded, &backend, &Backend::keyboardAdded);
     // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours and the Mural.
     const QString settings = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini";
     ColorPalette colorPalette(settings);

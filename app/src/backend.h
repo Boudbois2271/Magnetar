@@ -138,6 +138,10 @@ public:
     QVariantMap macroLimits() const;   // name length, standard delay, max delay, max repeat
 
     Q_INVOKABLE void refresh();
+    // A udev watch is running (HotplugWatch): "not found" is then retried only every 10 s, as a
+    // fallback, and keyboardAdded() reconnects at once.
+    void setHotplugWatched(bool watched) { m_hotplugWatched = watched; }
+    void keyboardAdded();  // the keyboard's node appeared: read it if we aren't connected
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
     // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |
@@ -218,6 +222,8 @@ public:
     // Linux), and how long to keep waiting before showing the error.
     static constexpr int kRestartWaitMs = 1200;
     static constexpr int kRestartGiveUpMs = 10000;
+    static constexpr int kRetryMs = 3000;
+    static constexpr int kHotplugFallbackMs = 10000;
 
     bool calibrating() const { return m_calibrating; }
     QVariantMap calibrationDepth() const { return m_calibrationDepth; }
@@ -258,6 +264,7 @@ private:
     QString m_errorKind;
     QString m_errorDetail;
     QTimer m_retry;
+    bool m_hotplugWatched = false;
     bool m_restarting = false;
     QTimer m_restartWait;  // single shot: read the keyboard again
     QElapsedTimer m_restartClock;

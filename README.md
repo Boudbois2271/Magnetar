@@ -48,7 +48,7 @@ Every page planned so far is in; Magnetar grows one page at a time.
 ## Install
 
 Build requirements: Linux, a C++20 compiler, `make` and Qt 6 (on Arch:
-`base-devel qt6-base qt6-declarative libpulse`). The installed `akkoctl` itself has no dependencies.
+`base-devel qt6-base qt6-declarative libpulse systemd-libs`). The installed `akkoctl` itself has no dependencies.
 
 ```sh
 # Let your user talk to the keyboard
