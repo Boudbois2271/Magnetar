@@ -43,6 +43,8 @@ MuralController::MuralController(Backend &backend, const QString &settingsFile, 
     m_shared->visualiser.setSettings(m_settings);
     m_on = m_file.value("on", false).toBool();
 
+    connect(&m_backend, &Backend::stateChanged, this, &MuralController::followBoard);
+    followBoard();
     m_tick.setInterval(kTickMs);
     connect(&m_tick, &QTimer::timeout, this, &MuralController::tick);
     apply();
@@ -108,6 +110,23 @@ void MuralController::changed()
         ++m_shared->sequence;
     }
     emit settingsChanged();
+    if (m_on)
+        tick();
+}
+
+void MuralController::followBoard()
+{
+    // Until the board has been read, full brightness: nothing is streamed before that anyway.
+    const double level = m_backend.ready() ? double(m_backend.brightness()) / m_backend.maxBrightness() : 1;
+    if (level == m_brightness)
+        return;
+    m_brightness = level;
+    {
+        std::lock_guard lock(m_shared->mutex);
+        m_shared->visualiser.setBrightness(level);
+        m_shared->colors = m_shared->visualiser.colors();
+        ++m_shared->sequence;
+    }
     if (m_on)
         tick();
 }

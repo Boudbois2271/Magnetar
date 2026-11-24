@@ -32,6 +32,8 @@ public:
 
     void setSettings(const VisualiserSettings &settings) { settings_ = settings; }
     const VisualiserSettings &settings() const { return settings_; }
+    // The board's brightness, 0…1: Mural frames are shown as sent, so the colours carry it.
+    void setBrightness(double brightness) { brightness_ = brightness; }
 
     // Adds samples (-1…1). True when at least one new spectrum came out of them.
     bool feed(std::span<const float> samples);
@@ -51,5 +53,6 @@ private:
     std::vector<float> samples_;  // the last kWindow samples
     int pending_ = 0;             // samples since the last spectrum
     std::array<double, kBands> levels_{};
+    double brightness_ = 1;
     double peakDb_;  // automatic gain: the loudest band lately, slowly forgotten
 };

@@ -25,8 +25,8 @@ reflected in `akko-protocol.md`.
   ~1 s streaming sessions the board gets no frames for ~60 ms (longer while an action runs), far
   under that fallback. Audio comes from `@DEFAULT_MONITOR@`, resolved when capture opens:
   changing the default output while it runs is not followed until it is turned off and on.
-  Brightness and the lights switch are not applied to Mural frames by the app; whether the board
-  applies them was not checked.
+  The board shows Mural frames as sent, ignoring its brightness: the app scales the colours by
+  the board's brightness itself (linearly; the board's own curve for effects is not known).
 - **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`
   and `08` were never sent alone.
 - **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is

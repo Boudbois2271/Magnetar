@@ -1019,6 +1019,24 @@ private slots:
             m.setColor("#ff0000");
             audio.play(sineWave(100, 0.1));
             QTRY_COMPARE(m.colors().value("67").toString(), QString("#ff0000"));
+
+            // The colours carry the board's brightness (frames are shown as sent): half at
+            // 10 / 20, dark with the lights off.
+            b.setBrightness(10);
+            QTRY_COMPARE(b.brightness(), 10);
+            audio.play(sineWave(100, 0.1));
+            QTRY_COMPARE(m.colors().value("67").toString(), QString("#800000"));
+            QTRY_COMPARE(lastMuralFrame(board)[*muralLed(0x43)], rgb565(0x80, 0, 0));
+            b.setLightsOn(false);
+            QTRY_VERIFY(!b.lightsOn());
+            audio.play(sineWave(100, 0.1));
+            QTRY_COMPARE(m.colors().value("67").toString(), QString("#000000"));
+            b.setLightsOn(true);
+            QTRY_COMPARE(b.brightness(), 10);
+            b.setBrightness(20);
+            QTRY_COMPARE(b.brightness(), 20);
+            audio.play(sineWave(100, 0.1));
+            QTRY_COMPARE(m.colors().value("67").toString(), QString("#ff0000"));
             m.setSensitivity(100);
             QCOMPARE(m.sensitivity(), Visualiser::kSensitivityMax);
             m.setColor("not a colour");

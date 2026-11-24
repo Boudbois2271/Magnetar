@@ -152,7 +152,7 @@ std::vector<akko::KeyColor> Visualiser::colors() const
         const int b = std::min(int(p), kBands - 2);
         const double level = levels_[b] + (levels_[b + 1] - levels_[b]) * (p - b);
         const int fromBottom = kRows - 1 - rowOf(k.y);
-        const double lit = std::clamp(level * kRows - fromBottom, 0.0, 1.0);
+        const double lit = std::clamp(level * kRows - fromBottom, 0.0, 1.0) * std::clamp(brightness_, 0.0, 1.0);
         const std::array<double, 3> base = settings_.rainbow
             ? hue(f * 0.8)  // red on the left to violet on the right
             : std::array<double, 3>{settings_.color[0] / 255.0, settings_.color[1] / 255.0, settings_.color[2] / 255.0};

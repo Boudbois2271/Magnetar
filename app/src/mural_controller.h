@@ -3,7 +3,8 @@
 // board as spectrum bars (Mural frames, 08 04, streamed by the device worker between actions).
 // Nothing is stored on the board: when it stops (off, or the app quits) the board goes back to
 // its own effect. The settings are app preferences, kept in the settings file (QSettings), on/off
-// included, so the visualiser comes back with the app.
+// included, so the visualiser comes back with the app. The board shows Mural frames as sent, so
+// the colours follow its brightness (Lighting): dimmer with it, dark with the lights off.
 #pragma once
 
 #include "audio_capture.h"
@@ -64,6 +65,7 @@ private:
     void apply();  // starts or stops capture and streaming to match m_on
     void changed();  // stores the settings and hands them to the visualiser
     void tick();
+    void followBoard();  // the board's brightness into the colours
 
     Backend &m_backend;
     AudioCaptureFactory m_audio;
@@ -72,6 +74,7 @@ private:
     VisualiserSettings m_settings;
     bool m_hearing = false;
     QVariantMap m_colors;
+    double m_brightness = 1;
     unsigned m_shown = 0;  // sequence number of the colours in m_colors
     QTimer m_tick;
     std::shared_ptr<Shared> m_shared;     // with the capture thread and the device worker
