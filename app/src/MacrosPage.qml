@@ -407,6 +407,26 @@ Item {
                     Item { Layout.fillWidth: true }
                 }
 
+                // Adds a press and a release of one key, for editing by hand. Above the steps, so it stays put
+                // as the list grows.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10 * ui.unit
+                    AppComboBox {
+                        id: addKeyBox
+                        Layout.preferredWidth: 200 * ui.unit
+                        model: page.addableKeys.map(u => names.usageName(u))
+                        currentIndex: -1
+                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
+                    }
+                    AppButton {
+                        text: qsTr("Add")
+                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
+                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
+                    }
+                    Item { Layout.fillWidth: true }
+                }
+
                 // One row per step: what happens, then the wait before the next step. A long
                 // macro scrolls in this box; the rest of the page stays put.
                 Rectangle {
@@ -504,25 +524,6 @@ Item {
                             }
                         }
                     }
-                }
-
-                // Adds a press and a release of one key, for editing by hand.
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10 * ui.unit
-                    AppComboBox {
-                        id: addKeyBox
-                        Layout.preferredWidth: 200 * ui.unit
-                        model: page.addableKeys.map(u => names.usageName(u))
-                        currentIndex: -1
-                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
-                    }
-                    AppButton {
-                        text: qsTr("Add")
-                        enabled: addKeyBox.currentIndex >= 0 && !page.recording
-                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
-                    }
-                    Item { Layout.fillWidth: true }
                 }
 
                 Label {
