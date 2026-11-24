@@ -5,9 +5,11 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QStandardPaths>
 #include <QUrl>
 
 #include "backend.h"
+#include "color_palette.h"
 #include "desktop_size.h"
 #include "theme.h"
 #include "translator.h"
@@ -35,6 +37,8 @@ int main(int argc, char *argv[])
     Theme theme;
     DesktopSize ui;
     Backend backend;
+    // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours.
+    ColorPalette colorPalette(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini");
 
     QQmlApplicationEngine engine;
     QObject::connect(&translator, &Translator::changed, &engine, &QQmlEngine::retranslate);
@@ -42,6 +46,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("theme", &theme);
     engine.rootContext()->setContextProperty("backend", &backend);
     engine.rootContext()->setContextProperty("ui", &ui);
+    engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;

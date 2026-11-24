@@ -14,6 +14,7 @@
         <file alias="AppComboBox.qml">AppComboBox.qml</file>
         <file alias="AppSpinBox.qml">AppSpinBox.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
+        <file alias="ColorPicker.qml">ColorPicker.qml</file>
         <file alias="KeysPage.qml">KeysPage.qml</file>
         <file alias="ActionTab.qml">ActionTab.qml</file>
         <file alias="TravelTab.qml">TravelTab.qml</file>

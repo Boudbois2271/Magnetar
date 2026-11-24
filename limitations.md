@@ -126,7 +126,13 @@ reflected in `akko-protocol.md`.
   unsolicited `fe 0b` brightness reports aren't listened to.
 - While unplugged it retries every 3 s; there is no udev hotplug watch.
 - Firmware version byte order (`82 02` = `08 01` → v1.08, low byte first) rests on one sample.
-- Colour choice is swatches plus a hex field, no free colour picker yet.
+- Colour picker (Lighting): checked offscreen only (tests, EN/FR screenshots, dark and light), not
+  used by hand on the desktop yet. A colour is sent when the field or hue strip is let go (or 300 ms
+  after the last arrow key), so the board doesn't follow the drag; the drawing does. After a send,
+  the picker keeps the chosen colour until the read-back changes it: a write that fails without an
+  error would leave it showing that colour. Beside the option rows it needs a page about 1100 u
+  wide: at the default window it fits, near the minimum width (900 u) it is cut off on the right.
+  Saved colours live in `~/.config/magnetar/settings.ini`, shared by every profile.
 - No Arch package for `akkoctl` or the widget yet: `bin/package` installs Magnetar only.
 - Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on

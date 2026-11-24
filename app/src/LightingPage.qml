@@ -101,16 +101,19 @@ Item {
     // The colour a key's LED shows, as read back: nothing with the lights or the effect off;
     // the per-key colours under Custom; a hue across the board for rainbow; else the global
     // colour. Brightness mixes it into the unlit cap: at 0 the cap looks unlit.
+    // While a colour is being picked (not sent yet), the keys it will go to show it.
     function previewColor(k) {
         if (!backend.lightsOn || backend.effect === 0)
             return ""
+        const draft = picker.dragging && picker.shown ? picker.liveColor : ""
         let led
         if (backend.effect === backend.customEffect)
-            led = backend.colorsReady ? backend.keyColors[String(k.id)] : undefined
+            led = draft !== "" && page.selection.indexOf(k.id) >= 0 ? draft
+                : backend.colorsReady ? backend.keyColors[String(k.id)] : undefined
         else if (backend.rainbow)
             led = Qt.hsva((k.x + k.w / 2) / 66, 1, 1, 1)
         else
-            led = backend.color
+            led = draft !== "" && !page.perKey ? draft : backend.color
         if (led === undefined)
             return ""
         const level = backend.maxBrightness > 0 ? backend.brightness / backend.maxBrightness : 1
@@ -223,201 +226,155 @@ Item {
             }
         }
 
-        // ---- the options -----------------------------------------------------
-        ColumnLayout {
+        // ---- the options: the settings, then the colour beside them -------------
+        RowLayout {
             id: options
             objectName: "lightingOptions"
             Layout.fillWidth: true
-            spacing: 6 * ui.unit
+            spacing: 0
 
-            // Lights: a title carrying the switch.
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 0
+            ColumnLayout {
+                Layout.alignment: Qt.AlignTop
+                spacing: 6 * ui.unit
+
+                // Lights: a title carrying the switch.
+                RowLayout {
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    spacing: 0
+                    Label {
+                        Layout.preferredWidth: page.labelWidth
+                        text: qsTr("Lights")
+                        font.pixelSize: ui.section
+                        font.weight: Font.DemiBold
+                    }
+                    AppSwitch {
+                        objectName: "lightsSwitch"
+                        Layout.maximumHeight: page.rowHeight
+                        Layout.leftMargin: -indicator.x  // the track lines up with the other controls
+                        checked: backend.lightsOn
+                        onToggled: backend.setLightsOn(checked)
+                    }
+                }
+                RowLayout {
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    spacing: 12 * ui.unit
+                    Label {
+                        Layout.preferredWidth: page.labelWidth - parent.spacing
+                        text: qsTr("Brightness")
+                    }
+                    Slider {
+                        id: brightness
+                        FocusRing {}
+                        objectName: "brightnessSlider"
+                        Layout.preferredWidth: page.sliderWidth
+                        Layout.preferredHeight: page.rowHeight
+                        Layout.leftMargin: -leftPadding - handle.width / 2  // the track lines up
+                        // A position per level.
+                        from: 0
+                        to: page.levels.length - 1
+                        readonly property int level: page.levels[Math.round(value)]
+                        // No stepSize: Material would draw a tick dot per step.
+                        onMoved: if (level !== backend.brightness) backend.setBrightness(level)
+                        Binding on value {
+                            when: !brightness.pressed
+                            value: page.nearestLevel(backend.brightness)
+                            restoreMode: Binding.RestoreNone
+                        }
+                    }
+                    Label {
+                        objectName: "brightnessValue"
+                        text: (brightness.pressed ? brightness.level : backend.brightness) + " / " + backend.maxBrightness
+                        font.features: { "tnum": 1 }
+                    }
+                }
+                RowLayout {
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    spacing: 12 * ui.unit
+                    Label {
+                        Layout.preferredWidth: page.labelWidth - parent.spacing
+                        text: qsTr("Effect")
+                    }
+                    AppComboBox {
+                        objectName: "effectBox"
+                        Layout.preferredWidth: 300 * ui.unit
+                        model: page.effectNames
+                        currentIndex: backend.effect
+                        onActivated: (index) => backend.setEffect(index)
+                    }
+                }
+                RowLayout {
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    spacing: 12 * ui.unit
+                    Label {
+                        Layout.preferredWidth: page.labelWidth - parent.spacing
+                        text: qsTr("Speed")
+                    }
+                    Slider {
+                        id: speed
+                        FocusRing {}
+                        objectName: "speedSlider"
+                        Layout.preferredWidth: page.sliderWidth
+                        Layout.preferredHeight: page.rowHeight
+                        Layout.leftMargin: -leftPadding - handle.width / 2  // the track lines up
+                        from: 0
+                        to: 4
+                        // No stepSize: Material would draw a tick dot per step.
+                        onMoved: backend.setSpeed(Math.round(value))
+                        Binding on value {
+                            when: !speed.pressed
+                            value: backend.speed
+                            restoreMode: Binding.RestoreNone
+                        }
+                    }
+                    Label {
+                        text: Math.round(speed.value) + " / 4"
+                        font.features: { "tnum": 1 }
+                    }
+                }
+                RowLayout {
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    spacing: 0
+                    Label {
+                        Layout.preferredWidth: page.labelWidth
+                        text: qsTr("Rainbow")
+                    }
+                    AppSwitch {
+                        objectName: "rainbowSwitch"
+                        Layout.maximumHeight: page.rowHeight
+                        Layout.leftMargin: -indicator.x  // the track lines up with the other controls
+                        checked: backend.rainbow
+                        onToggled: backend.setRainbow(checked)
+                    }
+                }
+            }
+
+            // The colour: the board's, or the selected keys'.
+            ColumnLayout {
+                Layout.alignment: Qt.AlignTop
+                Layout.leftMargin: 48 * ui.unit
+                spacing: 6 * ui.unit
                 Label {
-                    Layout.preferredWidth: page.labelWidth
-                    text: qsTr("Lights")
+                    objectName: "colorLabel"
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: page.perKey ? qsTr("Key color") : qsTr("Color")
                     font.pixelSize: ui.section
                     font.weight: Font.DemiBold
                 }
-                AppSwitch {
-                    objectName: "lightsSwitch"
-                    Layout.maximumHeight: page.rowHeight
-                    Layout.leftMargin: -indicator.x  // the track lines up with the other controls
-                    checked: backend.lightsOn
-                    onToggled: backend.setLightsOn(checked)
-                }
-            }
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 12 * ui.unit
-                Label {
-                    Layout.preferredWidth: page.labelWidth - parent.spacing
-                    text: qsTr("Brightness")
-                }
-                Slider {
-                    id: brightness
-                    FocusRing {}
-                    objectName: "brightnessSlider"
-                    Layout.preferredWidth: page.sliderWidth
-                    Layout.preferredHeight: page.rowHeight
-                    Layout.leftMargin: -leftPadding - handle.width / 2  // the track lines up
-                    // A position per level.
-                    from: 0
-                    to: page.levels.length - 1
-                    readonly property int level: page.levels[Math.round(value)]
-                    // No stepSize: Material would draw a tick dot per step.
-                    onMoved: if (level !== backend.brightness) backend.setBrightness(level)
-                    Binding on value {
-                        when: !brightness.pressed
-                        value: page.nearestLevel(backend.brightness)
-                        restoreMode: Binding.RestoreNone
-                    }
-                }
-                Label {
-                    objectName: "brightnessValue"
-                    text: (brightness.pressed ? brightness.level : backend.brightness) + " / " + backend.maxBrightness
-                    font.features: { "tnum": 1 }
-                }
-            }
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 12 * ui.unit
-                Label {
-                    Layout.preferredWidth: page.labelWidth - parent.spacing
-                    text: qsTr("Effect")
-                }
-                AppComboBox {
-                    objectName: "effectBox"
-                    Layout.preferredWidth: 300 * ui.unit
-                    model: page.effectNames
-                    currentIndex: backend.effect
-                    onActivated: (index) => backend.setEffect(index)
-                }
-            }
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 12 * ui.unit
-                Label {
-                    Layout.preferredWidth: page.labelWidth - parent.spacing
-                    text: qsTr("Speed")
-                }
-                Slider {
-                    id: speed
-                    FocusRing {}
-                    objectName: "speedSlider"
-                    Layout.preferredWidth: page.sliderWidth
-                    Layout.preferredHeight: page.rowHeight
-                    Layout.leftMargin: -leftPadding - handle.width / 2  // the track lines up
-                    from: 0
-                    to: 4
-                    // No stepSize: Material would draw a tick dot per step.
-                    onMoved: backend.setSpeed(Math.round(value))
-                    Binding on value {
-                        when: !speed.pressed
-                        value: backend.speed
-                        restoreMode: Binding.RestoreNone
-                    }
-                }
-                Label {
-                    text: Math.round(speed.value) + " / 4"
-                    font.features: { "tnum": 1 }
-                }
-            }
-            // With keys selected, Color and Hex color set those keys, not the board.
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 12 * ui.unit
-                Label {
-                    objectName: "colorLabel"
-                    Layout.preferredWidth: page.labelWidth - parent.spacing
-                    text: page.perKey ? qsTr("Key color") : qsTr("Color")
-                }
-                Row {
-                    spacing: 8 * ui.unit
-                    Repeater {
-                        model: page.swatches
-                        delegate: Rectangle {
-                            required property string modelData
-                            readonly property bool current: (page.perKey || !backend.rainbow)
-                                                            && page.shownColor === modelData
-                            objectName: "swatch_" + modelData.slice(1)
-                            width: 26 * ui.unit
-                            height: 26 * ui.unit
-                            radius: theme.radius
-                            color: modelData
-                            border.width: current ? 3 : 1
-                            border.color: current ? theme.accent : Qt.alpha(theme.foreground, 0.19)
-                            ToolTip.visible: modelData === "#000000" && swatchMouse.containsMouse
-                            ToolTip.text: qsTr("Black: the key stays dark")
-                            activeFocusOnTab: true
-                            Keys.onSpacePressed: page.apply(modelData)
-                            Keys.onReturnPressed: page.apply(modelData)
-                            FocusRing { anchors.margins: -4 * ui.unit }
-                            MouseArea {
-                                id: swatchMouse
-                                anchors.fill: parent
-                                hoverEnabled: true
-                                cursorShape: Qt.PointingHandCursor
-                                onClicked: page.apply(parent.modelData)
-                            }
-                        }
-                    }
-                }
-            }
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 12 * ui.unit
-                Label {
-                    Layout.preferredWidth: page.labelWidth - parent.spacing
-                    text: qsTr("Hex color")
-                }
-                // What the board or the selected keys show; with rainbow on, the colour it
-                // goes back to.
-                Rectangle {
-                    objectName: "selectedColor"
-                    implicitWidth: 26 * ui.unit
-                    implicitHeight: 26 * ui.unit
-                    radius: theme.radius
-                    color: page.shownColor !== "" ? page.shownColor : "transparent"
-                    border.color: Qt.alpha(theme.foreground, 0.19)
-                }
-                AppTextField {
-                    id: hex
-                    objectName: "hexField"
-                    Layout.preferredWidth: 140 * ui.unit
-                    font.family: "monospace"
-                    // Selected keys of different colours.
-                    placeholderText: page.shownColor === "" ? qsTr("Mixed") : ""
-                    validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
-                    onAccepted: if (!page.apply(text)) hex.text = page.shownColor
-                    Binding on text {
-                        when: !hex.activeFocus
-                        value: page.shownColor
-                        restoreMode: Binding.RestoreNone
-                    }
-                }
-            }
-            RowLayout {
-                Layout.minimumHeight: page.rowHeight
-                Layout.maximumHeight: page.rowHeight
-                spacing: 0
-                Label {
-                    Layout.preferredWidth: page.labelWidth
-                    text: qsTr("Rainbow")
-                }
-                AppSwitch {
-                    objectName: "rainbowSwitch"
-                    Layout.maximumHeight: page.rowHeight
-                    Layout.leftMargin: -indicator.x  // the track lines up with the other controls
-                    checked: backend.rainbow
-                    onToggled: backend.setRainbow(checked)
+                ColorPicker {
+                    id: picker
+                    objectName: "colorPicker"
+                    color: page.shownColor
+                    classics: page.swatches
+                    // With rainbow on, the board's colour is the one it goes back to.
+                    markCurrent: page.perKey || !backend.rainbow
+                    onPicked: (color) => { if (!page.apply(color)) picker.sync() }
                 }
             }
         }

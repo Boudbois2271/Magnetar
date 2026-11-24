@@ -2,6 +2,7 @@
 // Magnetar tests: the real Backend and DeviceWorker against the pretend keyboard, the theme
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
+#include "color_palette.h"
 #include "desktop_size.h"
 #include "fake_transport.h"
 #include "theme.h"
@@ -18,6 +19,7 @@
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QScreen>
+#include <QSettings>
 #include <QRegularExpression>
 #include <QScopeGuard>
 #include <QTemporaryDir>
@@ -151,6 +153,7 @@ struct KeysWindow {
     Theme theme{dir.path(), nullptr, "/nonexistent-hyprctl"};
     Translator translator{dir.filePath("language"), ":/i18n"};
     DesktopSize ui{"/nonexistent-gsettings"};
+    ColorPalette colorPalette{dir.filePath("settings.ini")};
     QQmlApplicationEngine engine;
     QList<QQmlError> warnings;
     QQuickWindow *window = nullptr;
@@ -163,6 +166,7 @@ struct KeysWindow {
         engine.rootContext()->setContextProperty("theme", &theme);
         engine.rootContext()->setContextProperty("backend", &backend);
         engine.rootContext()->setContextProperty("ui", &ui);
+        engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
         engine.load(QUrl("qrc:/Main.qml"));
         window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window)
@@ -750,6 +754,93 @@ private slots:
         QTRY_VERIFY(board.writesOf(0x85, 0x00) > reads);
     }
 
+    // The colour picker's arithmetic: hue/saturation/value ↔ "#rrggbb", every 8-bit colour
+    // coming back as itself, and a grey or black keeping the hue (and black the saturation)
+    // the picker had.
+    void colorPaletteConvertsHsv()
+    {
+        QCOMPARE(ColorPalette::hsvToHex(0, 1, 1), QString("#ff0000"));
+        QCOMPARE(ColorPalette::hsvToHex(1.0 / 3, 1, 1), QString("#00ff00"));
+        QCOMPARE(ColorPalette::hsvToHex(2.0 / 3, 1, 1), QString("#0000ff"));
+        QCOMPARE(ColorPalette::hsvToHex(1, 1, 1), QString("#ff0000"));  // all the way round
+        QCOMPARE(ColorPalette::hsvToHex(0.5, 0, 1), QString("#ffffff"));
+        QCOMPARE(ColorPalette::hsvToHex(0.5, 1, 0), QString("#000000"));
+        QCOMPARE(ColorPalette::hsvToHex(-1, 2, 7), QString("#ff0000"));  // clamped
+
+        const auto hsv = [](const QString &c, double h = 0, double s = 0) {
+            const QVariantList l = ColorPalette::hexToHsv(c, h, s);
+            return l.size() == 3 ? std::array<double, 3>{l[0].toDouble(), l[1].toDouble(), l[2].toDouble()}
+                                 : std::array<double, 3>{-1, -1, -1};
+        };
+        const auto near = [](std::array<double, 3> a, std::array<double, 3> b) {
+            for (int i = 0; i < 3; ++i)
+                if (std::abs(a[i] - b[i]) > 0.002)
+                    return false;
+            return true;
+        };
+        QVERIFY(near(hsv("#ff0000"), {0, 1, 1}));
+        QVERIFY(near(hsv("#0000FF"), {2.0 / 3, 1, 1}));
+        QVERIFY(near(hsv("0f0"), {1.0 / 3, 1, 1}));
+        QVERIFY(near(hsv("#808080", 0.4, 0.9), {0.4, 0, 128 / 255.0}));  // grey: hue kept
+        QVERIFY(near(hsv("#000000", 0.4, 0.9), {0.4, 0.9, 0}));        // black: hue and saturation kept
+        QVERIFY(ColorPalette::hexToHsv("#12345").isEmpty());
+        QVERIFY(ColorPalette::hexToHsv("red").isEmpty());
+
+        QStringList wrong;
+        for (int r = 0; r < 256; r += 5)
+            for (int g = 0; g < 256; g += 3)
+                for (int b = 0; b < 256; b += 7) {
+                    const QString c = QColor(r, g, b).name();
+                    const auto v = hsv(c, 0.5, 0.5);
+                    if (ColorPalette::hsvToHex(v[0], v[1], v[2]) != c)
+                        wrong << c;
+                }
+        QVERIFY2(wrong.isEmpty(), qPrintable(wrong.mid(0, 10).join(" ")));
+
+        QCOMPARE(ColorPalette::normalized(" #ABCDEF "), QString("#abcdef"));
+        QCOMPARE(ColorPalette::normalized("abc"), QString("#aabbcc"));
+        QCOMPARE(ColorPalette::normalized("#ab"), QString());
+    }
+
+    // Saved colours: two rows of ten slots, kept in the settings file across runs; anything
+    // in that file that isn't a colour reads as an empty slot.
+    void colorPaletteKeepsSavedColors()
+    {
+        QTemporaryDir dir;
+        const QString file = dir.filePath("settings.ini");
+        {
+            ColorPalette p(file);
+            QCOMPARE(p.saved().size(), ColorPalette::kSlotCount);
+            const QStringList empty = p.saved();
+            QVERIFY(std::all_of(empty.begin(), empty.end(), [](const QString &c) { return c.isEmpty(); }));
+            QSignalSpy changed(&p, &ColorPalette::savedChanged);
+            QVERIFY(p.save(0, "#FF6A00"));
+            QVERIFY(p.save(19, "00a0ff"));
+            QVERIFY(p.save(5, "#123456"));
+            QVERIFY(p.save(5, "#654321"));  // replaced
+            p.remove(19);
+            QVERIFY(!p.save(20, "#ffffff"));
+            QVERIFY(!p.save(-1, "#ffffff"));
+            QVERIFY(!p.save(1, "not a colour"));
+            p.remove(7);  // already empty: nothing to do
+            QCOMPARE(changed.count(), 5);
+        }
+        {
+            ColorPalette p(file);
+            QCOMPARE(p.saved()[0], QString("#ff6a00"));
+            QCOMPARE(p.saved()[5], QString("#654321"));
+            QCOMPARE(p.saved()[19], QString());
+        }
+        {
+            QSettings s(file, QSettings::IniFormat);
+            s.setValue("colors/saved", QStringList{"#00ff00", "junk"});
+        }
+        ColorPalette p(file);
+        QCOMPARE(p.saved().size(), ColorPalette::kSlotCount);
+        QCOMPARE(p.saved()[0], QString("#00ff00"));
+        QCOMPARE(p.saved()[1], QString());
+    }
+
     void scanCodesGiveHidUsages()
     {
         Backend b([]() -> std::unique_ptr<Session> { throw Error("keyboard not found"); });
@@ -1002,6 +1093,7 @@ private slots:
         Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
         Translator translator(dir.filePath("language"), ":/i18n");
         DesktopSize ui("/nonexistent-gsettings");
+        ColorPalette colorPalette(dir.filePath("settings.ini"));
 
         QQmlApplicationEngine engine;
         QList<QQmlError> warnings;
@@ -1010,6 +1102,7 @@ private slots:
         engine.rootContext()->setContextProperty("theme", &theme);
         engine.rootContext()->setContextProperty("backend", &backend);
         engine.rootContext()->setContextProperty("ui", &ui);
+        engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
         engine.load(QUrl("qrc:/Main.qml"));
         QCOMPARE(engine.rootObjects().size(), 1);
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
@@ -1325,6 +1418,64 @@ private slots:
         QTRY_COMPARE(page->property("selection").toList().size(), 0);
         QCOMPARE(page->property("shownColor").toString(), w.backend.color());
 
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    // The picker sends one colour when the field is let go, while the drawing shows the colour
+    // under the marker during the drag. A saved slot keeps the colour, and gives it back.
+    void lightingColorPicker()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready() && w.backend.colorsReady());
+        w.backend.setEffect(1);
+        w.backend.setRainbow(false);
+        w.backend.setLightsOn(true);
+        w.backend.setBrightness(w.backend.maxBrightness());
+        QTRY_VERIFY(w.backend.effect() == 1 && !w.backend.rainbow() && w.backend.lightsOn()
+                    && w.backend.brightness() == w.backend.maxBrightness());
+        w.show("lightingPage");
+        auto *picker = w.item("colorPicker");
+        auto *field = w.item("colorField");
+        auto *preview = w.item("lightingPreview");
+        QVERIFY(picker && field && preview && field->isVisible());
+        QTRY_COMPARE(picker->property("liveColor").toString(), w.backend.color());
+        QTest::qWait(60);  // laid out
+
+        const auto at = [&](QQuickItem *item, double fx, double fy) {
+            return item->mapToScene(QPointF(fx * item->width(), fy * item->height())).toPoint();
+        };
+        const auto esc = [&] { return findItem(preview, "key_1")->property("color").value<QColor>(); };
+        const int writes = w.board.writesOf(0x04, 0x01);
+        QTest::mousePress(w.window, Qt::LeftButton, {}, at(field, 0.2, 0.2));
+        QTest::mouseMove(w.window, at(field, 0.5, 0.5));
+        QTest::mouseMove(w.window, at(field, 0.9, 0.1));
+        QVERIFY(picker->property("dragging").toBool());
+        const QString live = picker->property("liveColor").toString();
+        QVERIFY(live != w.backend.color());
+        QTRY_COMPARE(esc(), QColor(live));  // the drawing follows the marker
+        QTest::qWait(100);
+        QCOMPARE(w.board.writesOf(0x04, 0x01), writes);  // nothing sent yet
+        QTest::mouseRelease(w.window, Qt::LeftButton, {}, at(field, 0.9, 0.1));
+        QTRY_COMPARE(w.backend.color(), live);
+        QCOMPARE(w.board.writesOf(0x04, 0x01), writes + 1);
+        QCOMPARE(picker->property("liveColor").toString(), live);
+
+        // An empty slot saves the colour; a classic colour, then the saved one, set the board.
+        auto *slot = findItem(picker, "savedColor_0");  // a Repeater delegate
+        QVERIFY(slot);
+        QTest::mouseClick(w.window, Qt::LeftButton, {}, at(slot, 0.5, 0.5));
+        QCOMPARE(w.colorPalette.saved()[0], live);
+        QTest::mouseClick(w.window, Qt::LeftButton, {}, at(findItem(picker, "swatch_00ff00"), 0.5, 0.5));
+        QTRY_COMPARE(w.backend.color(), QString("#00ff00"));
+        QTest::mouseClick(w.window, Qt::LeftButton, {}, at(slot, 0.5, 0.5));
+        QTRY_COMPARE(w.backend.color(), live);
+        QCOMPARE(w.colorPalette.saved()[0], live);  // a full slot isn't overwritten by a click
+
+        // Delete on a saved colour empties its slot.
+        slot->forceActiveFocus();
+        QTest::keyClick(w.window, Qt::Key_Delete);
+        QCOMPARE(w.colorPalette.saved()[0], QString());
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
