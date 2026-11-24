@@ -54,6 +54,15 @@ struct DksStroke {
 std::array<std::uint8_t, kDksStages> dksStages(DksStroke s);
 std::optional<DksStroke> dksStroke(const std::array<std::uint8_t, kDksStages> &stages);  // nullopt: another pattern
 
+// A row's whole pattern: strokes one after the other, each starting after the previous one ended
+// (a stroke's last stage is never the next one's first). Every pattern of the four stages, in a
+// fixed order: not used, the ten single strokes (as dksStroke() names them), then the 23 with two
+// strokes or more. Several strokes in a row are composed from the stage bits, never captured.
+using DksPattern = std::vector<DksStroke>;
+const std::vector<DksPattern> &dksPatterns();
+std::array<std::uint8_t, kDksStages> dksPatternStages(const DksPattern &p);
+std::optional<std::size_t> dksPatternIndex(const std::array<std::uint8_t, kDksStages> &stages);  // nullopt: another pattern
+
 struct PointSlot {
     Action action = kNoAction;
     std::uint16_t depth = 0;

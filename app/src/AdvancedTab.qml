@@ -57,7 +57,7 @@ ColumnLayout {
         if (Array.isArray(o))
             return "[" + o.map(page.canon).join(",") + "]"
         if (o !== null && typeof o === "object")
-            return "{" + Object.keys(o).filter(k => !(k === "stages" && (o.from >= 0 || o.stages === "00 00 00 00"))).sort()
+            return "{" + Object.keys(o).filter(k => !(k === "stages" && (o.pattern >= 0 || o.stages === "00 00 00 00"))).sort()
                 .map(k => k + ":" + page.canon(o[k])).join(",") + "}"
         return JSON.stringify(o)
     }
@@ -131,7 +131,7 @@ ColumnLayout {
         case "multiPoint": return { type: type, key: key,
                                     points: page.limits.pointDepths.map(d => ({ action: "", depth: d })) }
         case "dks": return { type: type, key: key, depths: page.limits.dksDepths.slice(),
-                             rows: [0, 1, 2, 3].map(() => ({ action: "", from: -1, to: -1 })) }
+                             rows: [0, 1, 2, 3].map(() => ({ action: "", pattern: 0 })) }
         case "socd": return { type: type, key: key, key2: page.selection.length === 2 ? page.selection[1] : -1, mode: "lastInput" }
         }
         return null
@@ -169,10 +169,10 @@ ColumnLayout {
             } else if (n === 1) d.tap = code
             else if (n >= 20) {
                 d.rows[n - 20].action = code
-                if (code !== "" && d.rows[n - 20].from < 0 && !page.customRow(d.rows[n - 20]))
-                    d.rows[n - 20].from = d.rows[n - 20].to = 0  // a new row fires once at the first point
+                if (code !== "" && d.rows[n - 20].pattern <= 0 && !page.customRow(d.rows[n - 20]))
+                    d.rows[n - 20].pattern = 1  // a new row fires once at the first point
                 if (code === "")
-                    d.rows[n - 20].from = d.rows[n - 20].to = -1
+                    d.rows[n - 20].pattern = 0
             } else
                 d.points[n - 10].action = code
         })
@@ -191,17 +191,34 @@ ColumnLayout {
     // DKS: the four points of the travel, and what a row can do with them.
     readonly property var stageNames: [qsTr("going down, 1st point"), qsTr("going down, 2nd point"),
                                        qsTr("coming up, 1st point"), qsTr("coming up, 2nd point")]
-    readonly property var strokes: {
-        let s = [{ label: qsTr("Not used"), from: -1, to: -1 }]
-        for (let i = 0; i < 4; ++i)
-            s.push({ label: qsTr("Once, %1").arg(page.stageNames[i]), from: i, to: i })
-        for (let a = 0; a < 4; ++a)
-            for (let b = a + 1; b < 4; ++b)
-                s.push({ label: qsTr("Held, %1 → %2").arg(page.stageNames[a]).arg(page.stageNames[b]), from: a, to: b })
-        return s
-    }
+    // One label per row pattern (backend order: not used, single strokes, then several). A pattern
+    // of several strokes names the points short, in time order, to fit the list's width:
+    // "Once ↓1 ↓2, held ↑1→↑2" (↓1 = going down, 1st point).
+    readonly property var pointNames: ["↓1", "↓2", "↑1", "↑2"]
+    readonly property var patternLabels: page.limits.dksPatterns.map(p => {
+        if (p.length === 0)
+            return qsTr("Not used")
+        if (p.length === 1) {
+            const s = p[0]
+            return s.from === s.to ? qsTr("Once, %1").arg(page.stageNames[s.from])
+                                   : qsTr("Held, %1 → %2").arg(page.stageNames[s.from]).arg(page.stageNames[s.to])
+        }
+        let parts = []
+        for (let i = 0; i < p.length; ++i) {
+            if (p[i].from === p[i].to) {
+                let taps = [page.pointNames[p[i].from]]
+                while (i + 1 < p.length && p[i + 1].from === p[i + 1].to)
+                    taps.push(page.pointNames[p[++i].from])
+                parts.push((parts.length === 0 ? qsTr("Once %1") : qsTr("once %1")).arg(taps.join(" ")))
+            } else {
+                const hold = page.pointNames[p[i].from] + "→" + page.pointNames[p[i].to]
+                parts.push((parts.length === 0 ? qsTr("Held %1") : qsTr("held %1")).arg(hold))
+            }
+        }
+        return parts.join(", ")
+    })
     function customRow(r) {
-        return r.from < 0 && r.action !== "" && r.stages !== undefined && r.stages !== "00 00 00 00"
+        return !(r.pattern >= 0) && r.action !== "" && r.stages !== undefined && r.stages !== "00 00 00 00"
     }
 
     // Why Save is greyed out, in the user's words.
@@ -581,8 +598,8 @@ ColumnLayout {
                             readonly property var rowData: page.draft.rows[row.index]
                             readonly property bool custom: page.customRow(row.rowData)
                             readonly property var options: row.custom
-                                ? page.strokes.concat([{ label: qsTr("Another pattern (kept as it is)"), from: -1, to: -1 }])
-                                : page.strokes
+                                ? page.patternLabels.concat([qsTr("Another pattern (kept as it is)")])
+                                : page.patternLabels
                             Layout.fillWidth: true
                             spacing: 10 * ui.unit
                             SlotButton { slot: 20 + row.index }
@@ -590,23 +607,18 @@ ColumnLayout {
                                 objectName: "dksStroke" + row.index
                                 Layout.fillWidth: true
                                 enabled: row.rowData.action !== ""
-                                model: row.options.map(o => o.label)
-                                currentIndex: {
-                                    if (row.custom)
-                                        return row.options.length - 1
-                                    for (let i = 0; i < row.options.length; ++i)
-                                        if (row.options[i].from === row.rowData.from && row.options[i].to === row.rowData.to)
-                                            return i
-                                    return 0
-                                }
+                                model: row.options
+                                currentIndex: row.custom ? row.options.length - 1 : Math.max(0, row.rowData.pattern)
+                                // The single strokes' names are long: the list opens leftwards
+                                // over the depth sliders, half as wide again.
+                                popup.width: Math.max(width, implicitWidth, 1.5 * width)
+                                popup.x: width - popup.width
                                 onActivated: (i) => {
-                                    const o = row.options[i]
                                     if (row.custom && i === row.options.length - 1)
                                         return
                                     page.edit(d => {
-                                        d.rows[row.index].from = o.from
-                                        d.rows[row.index].to = o.to
-                                        if (o.from < 0) {
+                                        d.rows[row.index].pattern = i
+                                        if (i === 0) {
                                             d.rows[row.index].action = ""
                                             d.rows[row.index].stages = "00 00 00 00"
                                         }

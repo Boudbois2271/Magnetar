@@ -1244,6 +1244,34 @@ private slots:
         QVERIFY(!dksStroke(S{0x0a, 0, 0x0a, 0}).has_value());
     }
 
+    // Every row pattern: 34 of them, each with its own stage bytes, the single strokes first.
+    void dksPatternsAreAllDistinct()
+    {
+        using S = std::array<std::uint8_t, 4>;
+        const auto &all = dksPatterns();
+        QCOMPARE(all.size(), std::size_t(34));
+        QVERIFY(all[0].empty());
+        std::set<S> seen;
+        for (std::size_t i = 0; i < all.size(); ++i) {
+            const S s = dksPatternStages(all[i]);
+            QVERIFY(seen.insert(s).second);
+            QCOMPARE(dksPatternIndex(s), std::optional<std::size_t>(i));
+            if (i >= 1 && i <= 10) {  // the single strokes, as dksStroke() names them
+                QCOMPARE(all[i].size(), std::size_t(1));
+                QVERIFY(dksStroke(s) == all[i][0]);
+            } else if (i > 10) {
+                QVERIFY(all[i].size() >= 2 && all[i].size() >= all[i - 1].size());
+                QVERIFY(!dksStroke(s).has_value());
+            }
+        }
+        QVERIFY(dksPatternStages(DksPattern{{0, 0}, {2, 2}}) == (S{0x0a, 0, 0x0a, 0}));
+        QVERIFY(dksPatternStages(DksPattern{{0, 0}, {1, 3}}) == (S{0x0a, 0x06, 0x0c, 0}));
+        QVERIFY(dksPatternStages(DksPattern{{0, 0}, {1, 1}, {2, 2}, {3, 3}}) == (S{0x0a, 0x0a, 0x0a, 0x0a}));
+        QVERIFY(dksPatternStages(DksPattern{{0, 1}, {1, 1}}) == S{});  // touching: nothing
+        QVERIFY(dksPatternStages(DksPattern{{2, 2}, {0, 0}}) == S{});  // out of order: nothing
+        QVERIFY(!dksPatternIndex(S{0x02, 0, 0, 0}).has_value());
+    }
+
     void decodeRejectsShortPayloads()
     {
         const Bytes mt{0x00, 0x26, 0, 0, 0, 0x15};

@@ -37,6 +37,72 @@ std::optional<DksStroke> dksStroke(const std::array<std::uint8_t, kDksStages> &s
     return std::nullopt;
 }
 
+const std::vector<DksPattern> &dksPatterns()
+{
+    static const std::vector<DksPattern> all = [] {
+        // Every set of disjoint strokes starting at stage `first` or later.
+        std::vector<DksPattern> rest[kDksStages + 1];
+        rest[kDksStages] = {{}};
+        for (int first = int(kDksStages) - 1; first >= 0; --first) {
+            rest[first] = rest[first + 1];
+            for (int to = first; to < int(kDksStages); ++to)
+                for (const auto &tail : rest[to + 1]) {
+                    DksPattern p{{first, to}};
+                    p.insert(p.end(), tail.begin(), tail.end());
+                    rest[first].push_back(p);
+                }
+        }
+        // Not used, then single strokes in dksStroke()'s order (once at 0..3, then held a → b),
+        std::vector<DksPattern> out{{}};
+        for (int i = 0; i < int(kDksStages); ++i)
+            out.push_back({{i, i}});
+        for (int a = 0; a < int(kDksStages); ++a)
+            for (int b = a + 1; b < int(kDksStages); ++b)
+                out.push_back({{a, b}});
+        // then the rest by number of strokes, each group in stage order.
+        const auto key = [](const DksPattern &p) {
+            std::vector<int> k;
+            for (const auto &st : p)
+                k.insert(k.end(), {st.from, st.to});
+            return k;
+        };
+        for (std::size_t n = 2; n <= kDksStages; ++n) {
+            std::vector<DksPattern> group;
+            for (const auto &p : rest[0])
+                if (p.size() == n)
+                    group.push_back(p);
+            std::sort(group.begin(), group.end(), [&](const auto &a, const auto &b) { return key(a) < key(b); });
+            out.insert(out.end(), group.begin(), group.end());
+        }
+        return out;
+    }();
+    return all;
+}
+
+std::array<std::uint8_t, kDksStages> dksPatternStages(const DksPattern &p)
+{
+    std::array<std::uint8_t, kDksStages> out{};
+    int free = 0;
+    for (const auto &s : p) {
+        if (s.from < free || s.to < s.from || s.to >= int(kDksStages))
+            return {};  // overlapping or out of range: nothing
+        const auto one = dksStages(s);
+        for (std::size_t i = 0; i < kDksStages; ++i)
+            out[i] |= one[i];
+        free = s.to + 1;
+    }
+    return out;
+}
+
+std::optional<std::size_t> dksPatternIndex(const std::array<std::uint8_t, kDksStages> &stages)
+{
+    const auto &all = dksPatterns();
+    for (std::size_t i = 0; i < all.size(); ++i)
+        if (dksPatternStages(all[i]) == stages)
+            return i;
+    return std::nullopt;
+}
+
 AdvancedKey makeAdvanced(AdvancedType type, std::uint16_t key)
 {
     AdvancedKey a;

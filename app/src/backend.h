@@ -117,9 +117,9 @@ public:
 
     // Advanced keys of the active profile, as read from the board. Each record: {type: "toggle" |
     // "modTap" | "dks" | "socd" | "multiPoint" | "release", key, and by type: action (Toggle,
-    // Release, Mod-Tap hold), tap, holdMs; depths [4 × mm] and rows [4 × {action, from, to,
-    // stages}] (DKS; from/to are stage indexes, -1 when the row is unused or its stages aren't a
-    // single press or hold, stages = the bytes as hex); key2 and mode ("neutral" | "lastInput" |
+    // Release, Mod-Tap hold), tap, holdMs; depths [4 × mm] and rows [4 × {action, pattern,
+    // stages}] (DKS; pattern indexes advancedLimits().dksPatterns, -1 when the stages match none,
+    // stages = the bytes as hex); key2 and mode ("neutral" | "lastInput" |
     // "key1" | "key2") for SOCD; points [3 × {action, depth}] for Multi-Point. Actions are codes
     // as in actionInfo, "" for an empty slot.
     bool advancedReady() const { return m_state.advancedProfile >= 0; }
@@ -127,7 +127,7 @@ public:
     bool colorsReady() const { return m_state.colorsProfile >= 0; }
     QVariantMap keyColors() const { return m_colors; }
     int customEffect() const { return akko::kEffectCustom; }
-    QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults
+    QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults, DKS row patterns
 
     // Macros of the active profile, as read from the board. Each record: {name, size (bytes in
     // the blob), steps: [{press, usage, delay}]}; usage = HID keyboard usage, delay in ms after

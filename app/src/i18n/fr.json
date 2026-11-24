@@ -281,5 +281,9 @@
   "Cancel": "Annuler",
   "Change it": "Modifier",
   "Needs the app open": "Nécessite l'application ouverte",
-  "New effects streamed by the app are tried here, one at a time, before they join the effects on Lighting. None in progress: the Visualiser is on Lighting. The drawing shows what is being sent.": "Les nouveaux effets diffusés par l'application sont essayés ici, un à la fois, avant de rejoindre les effets d'Éclairage. Aucun en cours : le Visualiseur est dans Éclairage. Le dessin montre ce qui est envoyé."
+  "New effects streamed by the app are tried here, one at a time, before they join the effects on Lighting. None in progress: the Visualiser is on Lighting. The drawing shows what is being sent.": "Les nouveaux effets diffusés par l'application sont essayés ici, un à la fois, avant de rejoindre les effets d'Éclairage. Aucun en cours : le Visualiseur est dans Éclairage. Le dessin montre ce qui est envoyé.",
+  "Once %1": "1 fois %1",
+  "held %1": "tenue %1",
+  "Held %1": "Tenue %1",
+  "once %1": "1 fois %1"
 }

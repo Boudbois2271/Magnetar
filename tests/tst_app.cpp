@@ -729,10 +729,21 @@ private slots:
         }
 
         // DKS on Space: depths in mm, rows by stage; an unused row is empty.
-        const QVariantList rows{QVariantMap{{"action", "00 00 00 05"}, {"from", 1}, {"to", 2}},
-                                QVariantMap{{"action", "00 00 00 06"}, {"from", 3}, {"to", 3}},
-                                QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}},
-                                QVariantMap{{"action", ""}, {"from", -1}, {"to", -1}}};
+        // Patterns: 8 = held from the 2nd to the 3rd point, 4 = once at the 4th, 11+ = several.
+        const QVariantList patterns = b.advancedLimits().value("dksPatterns").toList();
+        QCOMPARE(patterns.size(), 34);
+        int twoTaps = -1;  // once at the 1st point, then once at the 3rd
+        for (int i = 0; i < patterns.size(); ++i) {
+            const auto p = patterns[i].toList();
+            if (p.size() == 2 && p[0].toMap().value("from") == 0 && p[0].toMap().value("to") == 0
+                && p[1].toMap().value("from") == 2 && p[1].toMap().value("to") == 2)
+                twoTaps = i;
+        }
+        QVERIFY(twoTaps > 10);
+        const QVariantList rows{QVariantMap{{"action", "00 00 00 05"}, {"pattern", 8}},
+                                QVariantMap{{"action", "00 00 00 06"}, {"pattern", 4}},
+                                QVariantMap{{"action", "00 00 00 07"}, {"pattern", twoTaps}},
+                                QVariantMap{{"action", ""}, {"pattern", 0}}};
         const QVariantMap dks{{"type", "dks"}, {"key", 0x46}, {"depths", QVariantList{1.0, 3.0, 3.0, 1.0}}, {"rows", rows}};
         QVERIFY(b.saveAdvanced({dks}));
         QTRY_COMPARE(b.advancedKeys().size(), 2);
@@ -742,9 +753,12 @@ private slots:
                 read = v.toMap();
         QCOMPARE(read.value("depths").toList().at(1).toDouble(), 3.0);
         const auto row0 = read.value("rows").toList().at(0).toMap();
-        QCOMPARE(row0.value("from").toInt(), 1);
+        QCOMPARE(row0.value("pattern").toInt(), 8);
         QCOMPARE(row0.value("stages").toString(), QString("00 0e 00 00"));
-        QCOMPARE(read.value("rows").toList().at(2).toMap().value("action").toString(), QString());
+        const auto row2 = read.value("rows").toList().at(2).toMap();
+        QCOMPARE(row2.value("pattern").toInt(), twoTaps);
+        QCOMPARE(row2.value("stages").toString(), QString("0a 00 0a 00"));
+        QCOMPARE(read.value("rows").toList().at(3).toMap().value("action").toString(), QString());
 
         // SOCD A + D, then Release on D: the pair goes, D gets the new key.
         QVERIFY(b.saveAdvanced({QVariantMap{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}}));

@@ -97,8 +97,10 @@ reflected in `akko-protocol.md`.
   key's keymap action, isn't known. Assumed per profile (read again on a profile switch).
 - Advanced tab: clearing one key of a SOCD pair might leave the other key's record on the
   board; Magnetar always clears both, like the vendor app.
-- Advanced tab: DKS patterns other than "once at a point" or "held from one point to another"
-  (e.g. two separate taps in one row) are shown as "another pattern" and kept as read, not editable.
+- Advanced tab: a DKS row can hold several strokes (e.g. once at ↓1, then held ↑1→↑2): all 34
+  patterns of the four points are offered. Rows of several strokes are composed from the stage
+  bits (`02`/`04`/`08`), never captured nor tried on the board; whether the vendor app can make
+  them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: no Undo (Remove, or saving the old values again).
 - Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID

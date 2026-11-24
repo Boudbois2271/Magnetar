@@ -421,11 +421,10 @@ QVariantMap toVariant(const akko::AdvancedKey &a)
         for (auto d : a.depths)
             depths.append(mm(d));
         for (const auto &r : a.rows) {
-            const auto stroke = akko::dksStroke(r.stages);
+            const auto pattern = akko::dksPatternIndex(r.stages);
             const akko::Action stages{r.stages[0], r.stages[1], r.stages[2], r.stages[3]};
             rows.append(QVariantMap{{"action", slotCode(r.action)},
-                                    {"from", stroke ? stroke->from : -1},
-                                    {"to", stroke ? stroke->to : -1},
+                                    {"pattern", pattern ? int(*pattern) : -1},
                                     {"stages", code(stages)}});
         }
         m["depths"] = depths;
@@ -523,11 +522,11 @@ std::optional<akko::AdvancedKey> fromVariant(const QVariantMap &m)
             if (!act)
                 return std::nullopt;
             a.rows[i].action = *act;
-            const int from = r.value("from", -1).toInt(), to = r.value("to", -1).toInt();
-            if (from >= 0) {
-                if (to < from || to >= int(akko::kDksStages))
+            const int pattern = r.value("pattern", -1).toInt();
+            if (pattern >= 0) {
+                if (pattern >= int(akko::dksPatterns().size()))
                     return std::nullopt;
-                a.rows[i].stages = akko::dksStages({from, to});
+                a.rows[i].stages = akko::dksPatternStages(akko::dksPatterns()[std::size_t(pattern)]);
             } else if (*act != akko::kNoAction) {
                 // A pattern the editor can't draw: kept as read.
                 const auto kept = akko::parseAction(r.value("stages").toString().toStdString());
@@ -575,6 +574,19 @@ void storeAdvanced(Snapshot &s, std::vector<akko::AdvancedKey> after, int profil
 
 }  // namespace
 
+// Every DKS row pattern, as lists of {from, to} strokes (stage indexes): QML names them.
+static QVariantList dksPatternList()
+{
+    QVariantList out;
+    for (const auto &p : akko::dksPatterns()) {
+        QVariantList strokes;
+        for (const auto &s : p)
+            strokes.append(QVariantMap{{"from", s.from}, {"to", s.to}});
+        out.append(QVariant(strokes));
+    }
+    return out;
+}
+
 QVariantMap Backend::advancedLimits() const
 {
     return {{"minHoldMs", akko::kMinHoldMs},
@@ -584,7 +596,8 @@ QVariantMap Backend::advancedLimits() const
             {"maxDepth", mm(akko::kMaxActuation)},
             {"step", akko::kMmPerUnit},
             {"dksDepths", QVariantList{1.0, 3.0, 3.0, 1.0}},
-            {"pointDepths", QVariantList{0.5, 1.0, 1.5}}};
+            {"pointDepths", QVariantList{0.5, 1.0, 1.5}},
+            {"dksPatterns", dksPatternList()}};
 }
 
 bool Backend::advancedValid(const QVariantMap &record) const

@@ -133,6 +133,8 @@ Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Det
   (A only = `03, 00000004 007f, 00000000 00e9, 00000000 01c0`).
 - DKS rows as the vendor UI makes them: one click = `0a` at that stage; a drag from stage a to b =
   `06` at a, `04` in between, and `08` added to the stage before b (`0e` when b = a + 1).
+  GUESS: several strokes in one row (each starting after the previous one's last stage) are the
+  OR of their bytes, e.g. once at stage 0 then once at 2 = `0a 00 0a 00`. Magnetar offers them.
 - Saving over a key that has an advanced key: the vendor app sends the type `00` clear first; it
   doesn't clear a key that has none. Removing a SOCD pair clears both keys, one frame each.
 - After each write the app reads the list, then each listed key.
