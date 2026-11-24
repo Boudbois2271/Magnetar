@@ -34,8 +34,7 @@ MuralController::MuralController(Backend &backend, const QString &settingsFile, 
       m_shared(std::make_shared<Shared>())
 {
     m_file.beginGroup("mural");
-    m_settings.sensitivity = std::clamp(m_file.value("sensitivity", 1.0).toDouble(), Visualiser::kSensitivityMin,
-                                        Visualiser::kSensitivityMax);
+    m_file.remove("sensitivity");  // was a setting; the visualiser's own now
     m_settings.rainbow = m_file.value("rainbow", true).toBool();
     const QColor c(m_file.value("color", "#ffffff").toString());
     if (c.isValid())
@@ -71,15 +70,6 @@ void MuralController::setOn(bool on)
     emit settingsChanged();
 }
 
-void MuralController::setSensitivity(double value)
-{
-    value = std::clamp(value, Visualiser::kSensitivityMin, Visualiser::kSensitivityMax);
-    if (value == m_settings.sensitivity)
-        return;
-    m_settings.sensitivity = value;
-    changed();
-}
-
 void MuralController::setRainbow(bool on)
 {
     if (on == m_settings.rainbow)
@@ -100,7 +90,6 @@ void MuralController::setColor(const QString &color)
 
 void MuralController::changed()
 {
-    m_file.setValue("sensitivity", m_settings.sensitivity);
     m_file.setValue("rainbow", m_settings.rainbow);
     m_file.setValue("color", color());
     {

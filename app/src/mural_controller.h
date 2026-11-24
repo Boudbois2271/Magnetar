@@ -22,9 +22,6 @@ class Backend;
 class MuralController : public QObject {
     Q_OBJECT
     Q_PROPERTY(bool on READ on WRITE setOn NOTIFY settingsChanged)
-    Q_PROPERTY(double sensitivity READ sensitivity WRITE setSensitivity NOTIFY settingsChanged)
-    Q_PROPERTY(double sensitivityMin READ sensitivityMin CONSTANT)
-    Q_PROPERTY(double sensitivityMax READ sensitivityMax CONSTANT)
     Q_PROPERTY(bool rainbow READ rainbow WRITE setRainbow NOTIFY settingsChanged)
     Q_PROPERTY(QString color READ color WRITE setColor NOTIFY settingsChanged)
     // The desktop's audio is open (false while off, or when the sound server can't be reached).
@@ -39,10 +36,6 @@ public:
 
     bool on() const { return m_on; }
     void setOn(bool on);
-    double sensitivity() const { return m_settings.sensitivity; }
-    void setSensitivity(double value);
-    double sensitivityMin() const { return Visualiser::kSensitivityMin; }
-    double sensitivityMax() const { return Visualiser::kSensitivityMax; }
     bool rainbow() const { return m_settings.rainbow; }
     void setRainbow(bool on);
     QString color() const;

@@ -42,7 +42,6 @@
   "Clear": "Vider",
   "Color": "Couleur",
   "Colorful waterfall": "Cascade de couleurs",
-  "Colors": "Couleurs",
   "Combo Optimization": "Optimisation des combinaisons",
   "coming up, 1st point": "remontée, 1er point",
   "coming up, 2nd point": "remontée, 2e point",
@@ -146,7 +145,6 @@
   "On release": "Au relâchement",
   "Onboard profiles": "Profils intégrés",
   "Once, %1": "Une fois, %1",
-  "One color": "Une couleur",
   "Page Down": "Page suiv.",
   "Page Up": "Page préc.",
   "PgDn": "Pg suiv",
@@ -207,7 +205,6 @@
   "Some values are out of range.": "Certaines valeurs sont hors limites.",
   "Something went wrong while talking to the keyboard.": "Un problème est survenu en communiquant avec le clavier.",
   "Space": "Espace",
-  "Spectrum bars from what your computer plays, while Magnetar is open. Nothing is stored on the keyboard: it goes back to its own lighting when the visualiser stops.": "Des barres de spectre au rythme de ce que joue votre ordinateur, tant que Magnetar est ouvert. Rien n'est enregistré sur le clavier : il retrouve son propre éclairage quand le visualiseur s'arrête.",
   "Speed": "Vitesse",
   "Spinning storm": "Tempête tournoyante",
   "Spinning windmill": "Moulin tournant",
@@ -282,5 +279,7 @@
   "Back": "Retour",
   "Calibrate": "Calibrer",
   "Cancel": "Annuler",
-  "Change it": "Modifier"
+  "Change it": "Modifier",
+  "Needs the app open": "Nécessite l'application ouverte",
+  "New effects streamed by the app are tried here, one at a time, before they join the effects on Lighting. None in progress: the Visualiser is on Lighting. The drawing shows what is being sent.": "Les nouveaux effets diffusés par l'application sont essayés ici, un à la fois, avant de rejoindre les effets d'Éclairage. Aucun en cours : le Visualiseur est dans Éclairage. Le dessin montre ce qui est envoyé."
 }

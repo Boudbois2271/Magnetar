@@ -13,7 +13,6 @@
 #include <vector>
 
 struct VisualiserSettings {
-    double sensitivity = 1.0;  // gain on top of the automatic one: 2 = bars twice as loud
     bool rainbow = true;       // a rainbow across the board, else one colour
     std::array<std::uint8_t, 3> color{255, 255, 255};
 };
@@ -26,7 +25,8 @@ public:
     static constexpr int kBands = 16;     // log-spaced, kLowHz to kHighHz
     static constexpr double kLowHz = 40, kHighHz = 12000;
     static constexpr int kRows = 6;
-    static constexpr double kSensitivityMin = 0.25, kSensitivityMax = 4;
+    // Gain on top of the automatic one (2 = bars twice as loud), tuned by ear on the board.
+    static constexpr double kSensitivity = 0.697;
 
     Visualiser();
 

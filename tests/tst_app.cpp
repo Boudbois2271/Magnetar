@@ -1037,8 +1037,6 @@ private slots:
             QTRY_COMPARE(b.brightness(), 20);
             audio.play(sineWave(100, 0.1));
             QTRY_COMPARE(m.colors().value("67").toString(), QString("#ff0000"));
-            m.setSensitivity(100);
-            QCOMPARE(m.sensitivity(), Visualiser::kSensitivityMax);
             m.setColor("not a colour");
             QCOMPARE(m.color(), QString("#ff0000"));
 
@@ -1059,7 +1057,6 @@ private slots:
         QCOMPARE(audio.open, 1);
         QVERIFY(!again.rainbow());
         QCOMPARE(again.color(), QString("#ff0000"));
-        QCOMPARE(again.sensitivity(), Visualiser::kSensitivityMax);
     }
 
     void visualiserBarsFollowThePitch()
@@ -1094,13 +1091,13 @@ private slots:
         };
         v.feed(sine(100, 0.5));
         colors = v.colors();
-        QCOMPARE(brightness(colors, leftCtrl), 255);
+        QVERIFY(brightness(colors, leftCtrl) >= 250);  // near full: the fixed gain is under 1
         QVERIFY(litSide(colors, true, true));
         QVERIFY(!litSide(colors, false, false));
 
         v.feed(sine(8000, 1.0));  // long enough for the low bars to fall
         colors = v.colors();
-        QCOMPARE(brightness(colors, right), 255);
+        QVERIFY(brightness(colors, right) >= 250);
         QVERIFY(litSide(colors, false, false));
         QVERIFY(!litSide(colors, true, false));
 
@@ -1110,7 +1107,7 @@ private slots:
             QCOMPARE(int(*std::max_element(c.rgb.begin(), c.rgb.end())), 0);
     }
 
-    void visualiserColoursAndSensitivity()
+    void visualiserColours()
     {
         std::vector<float> noise(Visualiser::kRate / 2);
         std::uint32_t seed = 1;
@@ -1135,7 +1132,7 @@ private slots:
         QVERIFY2(hues.size() > 5, "a rainbow across the board");
 
         Visualiser red;
-        red.setSettings({1.0, false, {255, 0, 0}});
+        red.setSettings({false, {255, 0, 0}});
         red.feed(noise);
         bool lit = false;
         for (const auto &c : red.colors()) {
@@ -1144,11 +1141,6 @@ private slots:
             lit = lit || c.rgb[0] > 0;
         }
         QVERIFY(lit);
-
-        Visualiser quiet;
-        quiet.setSettings({Visualiser::kSensitivityMin, true, {}});
-        quiet.feed(noise);
-        QVERIFY(total(quiet) < total(rainbow));
 
         rainbow.reset();
         QCOMPARE(total(rainbow), 0.0);
@@ -1825,55 +1817,81 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
-    void muralPageDrivesTheVisualiser()
+    // Visualiser is the last effect on Lighting: picking it starts the Mural visualiser, the
+    // rainbow switch and the colour picker then set its colours, and picking a board effect
+    // stops it. Nothing about it is sent to the board but Mural frames.
+    void lightingDrivesTheVisualiser()
     {
         KeysWindow w;
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready());
-        w.show("muralPage");
-        auto *preview = w.item("muralPreview");
+        w.backend.setEffect(1);
+        w.backend.setRainbow(false);
+        w.backend.setLightsOn(true);
+        w.backend.setBrightness(w.backend.maxBrightness());
+        QTRY_VERIFY(w.backend.effect() == 1 && !w.backend.rainbow() && w.backend.lightsOn()
+                    && w.backend.brightness() == w.backend.maxBrightness());
+        const QString boardColor = w.backend.color();
+        w.show("lightingPage");
+        auto *page = w.item("lightingPage");
+        auto *preview = w.item("lightingPreview");
+        auto *box = w.item("effectBox");
+        auto *note = w.item("visualiserNote");
+        auto *speed = w.item("speedSlider");
+        auto *rainbow = w.item("rainbowSwitch");
         const auto fill = [&](int key) { return findItem(preview, "key_" + QByteArray::number(key))->property("fill").toString(); };
-        QCOMPARE(fill(0x43), QString());
+        const int visualiser = page->property("visualiserEffect").toInt();
+        QCOMPARE(visualiser, 0x14);
+        QVERIFY(!note->isVisible() && speed->isVisible());
 
-        // The switch turns it on; until the sound opens, the page says so.
-        auto *sw = w.item("muralSwitch");
-        QMetaObject::invokeMethod(sw, "toggle");
-        QMetaObject::invokeMethod(sw, "toggled");
+        // Picked from the list: on, with its note; no speed; until the sound opens, it says so.
+        const int effectWrites = w.board.writesOf(0x04, 0x01);
+        QMetaObject::invokeMethod(box, "activated", Q_ARG(int, visualiser));
         QVERIFY(w.mural.on());
         QCOMPARE(w.audio.open, 1);
-        QTRY_VERIFY(w.item("muralNoSound")->isVisible());
+        QTRY_COMPARE(box->property("currentIndex").toInt(), visualiser);
+        QTRY_VERIFY(note->isVisible());
+        QVERIFY(!speed->isVisible());
+        QTRY_COMPARE(fill(0x43), QString());  // silence: the board's Steady colour is gone
+        QTRY_VERIFY(w.item("visualiserNoSound")->isVisible());
         w.audio.status(true);
-        QTRY_VERIFY(!w.item("muralNoSound")->isVisible());
+        QTRY_VERIFY(!w.item("visualiserNoSound")->isVisible());
 
         // A low note lights the bottom-left key on the drawing, and on the board.
         w.audio.play(sineWave(100, 0.3));
         QTRY_VERIFY(!fill(0x43).isEmpty());
         QTRY_VERIFY(lastMuralFrame(w.board)[*muralLed(0x43)] != 0);
 
-        // Colours: the mode, and picking a colour switches to it.
-        auto *mode = w.item("muralColorMode");
-        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 1));
-        QVERIFY(!w.mural.rainbow());
-        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));
-        QVERIFY(w.mural.rainbow());
-        QMetaObject::invokeMethod(w.item("muralColorPicker"), "picked", Q_ARG(QString, "#00ff00"));
+        // Rainbow and colour go to the visualiser, not to the board.
+        QCOMPARE(rainbow->property("checked").toBool(), w.mural.rainbow());
+        const bool wasRainbow = w.mural.rainbow();
+        QMetaObject::invokeMethod(rainbow, "toggle");
+        QMetaObject::invokeMethod(rainbow, "toggled");
+        QCOMPARE(w.mural.rainbow(), !wasRainbow);
+        QMetaObject::invokeMethod(page, "apply", Q_ARG(QVariant, "#00ff00"));
         QCOMPARE(w.mural.color(), QString("#00ff00"));
-        QVERIFY(!w.mural.rainbow());
-        QTRY_COMPARE(mode->property("currentIndex").toInt(), 1);
+        QCOMPARE(page->property("shownColor").toString(), QString("#00ff00"));
+        QTest::qWait(100);
+        QVERIFY(!w.backend.rainbow());
+        QCOMPARE(w.backend.color(), boardColor);
+        QCOMPARE(w.board.writesOf(0x04, 0x01), effectWrites);
 
-        // Sensitivity: the slider goes in doubling steps.
-        auto *slider = w.item("muralSensitivity");
-        QCOMPARE(slider->property("value").toDouble(), 0.0);
-        slider->setProperty("value", 1.0);
-        QMetaObject::invokeMethod(slider, "moved");
-        QCOMPARE(w.mural.sensitivity(), 2.0);
+        // The Mural page's drawing shows it too.
+        w.show("muralPage");
+        auto *mural = w.item("muralPreview");
+        w.audio.play(sineWave(100, 0.3));
+        QTRY_VERIFY(!findItem(mural, "key_67")->property("fill").toString().isEmpty());
 
-        // Off: capture stops, the drawing goes back to plain caps.
-        QMetaObject::invokeMethod(sw, "toggle");
-        QMetaObject::invokeMethod(sw, "toggled");
+        // A board effect stops it: capture stops, the drawing goes back to the board's colour.
+        w.show("lightingPage");
+        QMetaObject::invokeMethod(box, "activated", Q_ARG(int, 2));
         QVERIFY(!w.mural.on());
         QCOMPARE(w.audio.open, 0);
-        QTRY_COMPARE(fill(0x43), QString());
+        QTRY_COMPARE(w.backend.effect(), 2);
+        QTRY_COMPARE(box->property("currentIndex").toInt(), 2);
+        QTRY_VERIFY(!note->isVisible());
+        QVERIFY(speed->isVisible());
+        QTRY_COMPARE(findItem(preview, "key_67")->property("color").value<QColor>(), QColor(boardColor));
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
@@ -2392,10 +2410,11 @@ private slots:
         check("lighting");
         call(w.item("lightingPage"), "select", threeKeys);
         check("lighting, three keys");
+        call(w.item("lightingPage"), "select", QVariantList{});
+        w.mural.setOn(true);  // the Visualiser effect, not hearing yet: the warning shows
+        check("lighting, visualiser, no sound");
         w.show("muralPage");
         check("mural");
-        w.mural.setOn(true);  // not hearing yet: the warning shows beside the switch
-        check("mural, on, no sound");
         w.mural.setOn(false);
         w.window->setProperty("page", PageSettings);
         check("settings");

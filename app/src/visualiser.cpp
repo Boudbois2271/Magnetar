@@ -135,7 +135,7 @@ void Visualiser::analyse()
     }
 
     peakDb_ = std::max({loudest, peakDb_ - kPeakFallDb * kSecondsPerSpectrum, kPeakMinDb});
-    const double gainDb = 20 * std::log10(std::clamp(settings_.sensitivity, kSensitivityMin, kSensitivityMax));
+    const double gainDb = 20 * std::log10(kSensitivity);
     for (int b = 0; b < kBands; ++b) {
         const double target = std::clamp((db[b] + gainDb - (peakDb_ - kRangeDb)) / kRangeDb, 0.0, 1.0);
         double &level = levels_[b];

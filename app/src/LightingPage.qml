@@ -3,6 +3,9 @@
 // key under the Custom effect: with keys selected on the drawing, the colour controls set those
 // keys instead of the whole board. Controls show what the keyboard reported; a control being
 // dragged or edited keeps the user's value until they let go.
+// Visualiser, last in the effect list, is not the board's: it is the Mural visualiser (`mural`),
+// streamed by the app while it is open; rainbow and colour then set its colours. The board keeps
+// its own effect underneath and goes back to it when another effect is picked.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -46,17 +49,24 @@ Item {
     }
 
     readonly property bool perKey: page.selection.length > 0
-    readonly property bool customOn: backend.effect === backend.customEffect
+    readonly property bool visualiserOn: mural.on
+    readonly property bool customOn: !page.visualiserOn && backend.effect === backend.customEffect
     readonly property var keyColors: backend.colorsReady ? backend.keyColors : ({})
     // The colour every selected key has, or "" when they differ.
     readonly property var picked: page.selection.map(id => page.keyColors[String(id)]).filter(c => c !== undefined)
     readonly property string shared: page.picked.length > 0 && page.picked.every(c => c === page.picked[0]) ? page.picked[0] : ""
     // What the colour controls show: the selected keys' colour, or the board's.
-    readonly property string shownColor: page.perKey ? page.shared : backend.color
+    readonly property string shownColor: page.perKey ? page.shared : page.visualiserOn ? mural.color : backend.color
+    readonly property bool shownRainbow: page.visualiserOn ? mural.rainbow : backend.rainbow
 
     // A colour for the selected keys, or for the whole board when none is selected.
     function apply(color) {
-        return page.perKey ? backend.setKeyColors(page.selection, color) : backend.setColor(color)
+        if (page.perKey)
+            return backend.setKeyColors(page.selection, color)
+        if (!page.visualiserOn)
+            return backend.setColor(color)
+        mural.color = color
+        return true
     }
 
     // Indexed by effect number (00 … 13), as decoded in akko-protocol.md.
@@ -66,8 +76,19 @@ Item {
         qsTr("Starry night"), qsTr("Snow trail"), qsTr("Endless flow"), qsTr("Flowing water"),
         qsTr("Shadow follow"), qsTr("Sine wave"), qsTr("Left-right scan"), qsTr("Spinning windmill"),
         qsTr("Colorful waterfall"), qsTr("Blossom prosperity"), qsTr("Spinning storm"),
-        qsTr("Custom (per-key colors)")
+        qsTr("Custom (per-key colors)"), qsTr("Visualiser")
     ]
+    readonly property int visualiserEffect: page.effectNames.length - 1
+    readonly property int shownEffect: page.visualiserOn ? page.visualiserEffect : backend.effect
+    // An effect from the list: the visualiser, or one of the board's (which stops the visualiser).
+    function setEffect(index) {
+        if (index === page.visualiserEffect) {
+            mural.on = true
+        } else {
+            mural.on = false
+            backend.setEffect(index)
+        }
+    }
     // Black is "off" for a key; the board's colour has no black.
     readonly property var swatches: [
         "#ff0000", "#ff6a00", "#ffd000", "#00ff00", "#00ffc8", "#00a0ff",
@@ -103,7 +124,11 @@ Item {
     // colour. Brightness mixes it into the unlit cap: at 0 the cap looks unlit.
     // While a colour is being picked (not sent yet), the keys it will go to show it.
     function previewColor(k) {
-        if (!backend.lightsOn || backend.effect === 0)
+        if (!backend.lightsOn)
+            return ""
+        if (page.visualiserOn)
+            return page.visualiserColor(k.id)
+        if (backend.effect === 0)
             return ""
         const draft = picker.dragging && picker.shown ? picker.liveColor : ""
         let led
@@ -118,6 +143,18 @@ Item {
             return ""
         const level = backend.maxBrightness > 0 ? backend.brightness / backend.maxBrightness : 1
         return Qt.tint(theme.capTop, Qt.alpha(led, level)).toString()
+    }
+    // A colour the visualiser sends, on the cap: its hue at full strength, mixed into the unlit
+    // cap as much as the key is lit (the board's brightness is already in it).
+    function visualiserColor(id) {
+        const c = mural.colors[String(id)]
+        if (c === undefined)
+            return ""
+        const led = Qt.color(c)
+        const v = Math.max(led.r, led.g, led.b)
+        if (v <= 0)
+            return ""
+        return Qt.tint(theme.capTop, Qt.rgba(led.r / v, led.g / v, led.b / v, v)).toString()
     }
     readonly property var keyById: {
         const m = {}
@@ -214,7 +251,7 @@ Item {
                         visible: page.perKey && !page.customOn
                         kind: "primary"
                         text: qsTr("Switch to Custom")
-                        onClicked: backend.setEffect(backend.customEffect)
+                        onClicked: page.setEffect(backend.customEffect)
                     }
                 }
             }
@@ -295,11 +332,13 @@ Item {
                         objectName: "effectBox"
                         Layout.preferredWidth: 300 * ui.unit
                         model: page.effectNames
-                        currentIndex: backend.effect
-                        onActivated: (index) => backend.setEffect(index)
+                        currentIndex: page.shownEffect
+                        onActivated: (index) => page.setEffect(index)
                     }
                 }
+                // The visualiser has no speed: it follows the sound.
                 RowLayout {
+                    visible: !page.visualiserOn
                     Layout.minimumHeight: page.rowHeight
                     Layout.maximumHeight: page.rowHeight
                     spacing: 12 * ui.unit
@@ -341,9 +380,34 @@ Item {
                         objectName: "rainbowSwitch"
                         Layout.maximumHeight: page.rowHeight
                         Layout.leftMargin: -indicator.x  // the track lines up with the other controls
-                        checked: backend.rainbow
-                        onToggled: backend.setRainbow(checked)
+                        checked: page.shownRainbow
+                        onToggled: {
+                            if (page.visualiserOn)
+                                mural.rainbow = checked
+                            else
+                                backend.setRainbow(checked)
+                            checked = Qt.binding(() => page.shownRainbow)
+                        }
                     }
+                }
+                // The visualiser runs in the app, not on the board.
+                Label {
+                    objectName: "visualiserNote"
+                    visible: page.visualiserOn
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: qsTr("Needs the app open")
+                    color: theme.secondary
+                }
+                Label {
+                    objectName: "visualiserNoSound"
+                    visible: page.visualiserOn && !mural.hearing
+                    Layout.minimumHeight: page.rowHeight
+                    Layout.maximumHeight: page.rowHeight
+                    verticalAlignment: Text.AlignVCenter
+                    text: qsTr("Can't hear the computer's sound")
+                    color: theme.error
                 }
             }
 
@@ -367,7 +431,7 @@ Item {
                     color: page.shownColor
                     classics: page.swatches
                     // With rainbow on, the board's colour is the one it goes back to.
-                    markCurrent: page.perKey || !backend.rainbow
+                    markCurrent: page.perKey || !page.shownRainbow
                     onPicked: (color) => { if (!page.apply(color)) picker.sync() }
                 }
             }
