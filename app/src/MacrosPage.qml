@@ -145,6 +145,71 @@ Item {
         steps.splice(i + by, 0, s)
         page.setSteps(steps)
     }
+    // Moves the row shown at `from` so it is shown at `to` (rows in the order on screen).
+    function moveRow(from, to) {
+        let rows = page.shownSteps.slice()
+        const s = rows.splice(from, 1)[0]
+        rows.splice(to, 0, s)
+        page.setSteps(page.newestFirst ? rows.reverse() : rows)
+    }
+
+    // ---- dragging a step -------------------------------------------------------
+    // Positions are scene points, read in the steps' own coordinates, so they stay right while
+    // the list scrolls under the pointer.
+    property int dragFrom: -1          // row being dragged, -1 = none
+    property real dragStart: 0         // pointer y in the steps when the drag started
+    property real dragY: 0             // how far the dragged row has moved
+    property int dropGap: -1           // gap it would land in: 0 = above the first row
+    property point dragScene
+    readonly property bool dropShown: page.dragFrom >= 0 && page.dropGap >= 0
+                                      && page.dropGap !== page.dragFrom && page.dropGap !== page.dragFrom + 1
+    // The row it would land on, and the distance from one row to the next.
+    readonly property int dropTarget: page.dropGap > page.dragFrom ? page.dropGap - 1 : page.dropGap
+    readonly property real dragPitch: stepRows.count > 1 && stepRows.itemAt(1) ? stepRows.itemAt(1).y - stepRows.itemAt(0).y : 0
+    function startDrag(row, sceneX, sceneY) {
+        page.dragFrom = row
+        page.dragStart = steps.mapFromItem(null, sceneX, sceneY).y
+        page.dragTo(sceneX, sceneY)
+    }
+    function dragTo(sceneX, sceneY) {
+        page.dragScene = Qt.point(sceneX, sceneY)
+        const y = steps.mapFromItem(null, sceneX, sceneY).y
+        page.dragY = y - page.dragStart
+        let gap = 0
+        for (let i = 0; i < stepRows.count; ++i) {
+            const r = stepRows.itemAt(i)
+            if (r && r.y + r.height / 2 < y)
+                gap = i + 1
+        }
+        page.dropGap = gap
+    }
+    function endDrag(drop) {
+        const from = page.dragFrom, gap = page.dropGap, move = drop && page.dropShown
+        page.dragFrom = -1
+        page.dragY = 0
+        page.dropGap = -1
+        if (move)
+            page.moveRow(from, gap > from ? gap - 1 : gap)
+    }
+    // Near the top or bottom of the steps box, the list scrolls under the dragged row.
+    Timer {
+        interval: 16
+        repeat: true
+        running: page.dragFrom >= 0
+        onTriggered: {
+            const flick = stepsView.contentItem
+            const v = stepsView.mapFromItem(null, page.dragScene.x, page.dragScene.y).y
+            const edge = 32 * ui.unit, most = 14 * ui.unit
+            const by = v < edge ? -most * Math.min(1, (edge - v) / edge)
+                     : v > stepsView.height - edge ? most * Math.min(1, (v - stepsView.height + edge) / edge) : 0
+            const y = Math.max(0, Math.min(flick.contentHeight - flick.height, flick.contentY + by))
+            if (y !== flick.contentY) {
+                flick.contentY = y
+                page.dragTo(page.dragScene.x, page.dragScene.y)
+            }
+        }
+    }
+
     function removeStep(i) {
         let steps = page.draft.steps.slice()
         steps.splice(i, 1)
@@ -481,72 +546,147 @@ Item {
                             width: parent.width
                             spacing: 2 * ui.unit
                             Repeater {
+                                id: stepRows
                                 objectName: "macroStepRows"
                                 model: page.shownSteps
-                                delegate: RowLayout {
+                                delegate: Item {
                                     id: stepRow
                                     // index = row on screen; step = its place in the macro.
                                     required property int index
                                     required property var modelData
                                     readonly property int step: page.stepAt(index)
                                     readonly property bool last: step === page.draft.steps.length - 1
+                                    readonly property bool dragged: page.dragFrom === index
                                     Layout.fillWidth: true
-                                    spacing: 6 * ui.unit
+                                    implicitHeight: stepLine.implicitHeight
+                                    // While a row is dragged it follows the pointer above the
+                                    // others, and the rows between its place and where it would
+                                    // land slide over to make room.
+                                    readonly property real shift: {
+                                        const f = page.dragFrom, t = page.dropTarget, i = stepRow.index
+                                        if (f < 0 || stepRow.dragged)
+                                            return 0
+                                        return f < i && i <= t ? -page.dragPitch : t <= i && i < f ? page.dragPitch : 0
+                                    }
+                                    z: dragged ? 2 : 0
+                                    transform: Translate {
+                                        y: stepRow.dragged ? page.dragY : stepRow.shift
+                                        Behavior on y {
+                                            enabled: page.dragFrom >= 0 && !stepRow.dragged
+                                            NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                                        }
+                                    }
 
-                                    Chip {
-                                        Layout.preferredWidth: 90 * ui.unit
-                                        text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
-                                        onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
+                                    // The room it would land in, outlined (drawn from the dragged
+                                    // row, so it stays put while the row moves).
+                                    Rectangle {
+                                        objectName: "dropSlot"
+                                        visible: stepRow.dragged
+                                        width: parent.width
+                                        height: parent.height
+                                        y: (page.dropTarget - stepRow.index) * page.dragPitch - page.dragY
+                                        radius: theme.radius
+                                        color: "transparent"
+                                        border.width: Math.max(1, Math.round(ui.unit))
+                                        border.color: theme.accent
                                     }
-                                    Label {
-                                        Layout.fillWidth: true
-                                        leftPadding: 6 * ui.unit
-                                        text: names.usageName(stepRow.modelData.usage)
-                                        font.weight: Font.DemiBold
-                                        elide: Text.ElideRight
+                                    Rectangle {
+                                        anchors.fill: parent
+                                        visible: stepRow.dragged
+                                        radius: theme.radius
+                                        color: theme.chipHover
                                     }
-                                    AppTextField {
-                                        Layout.preferredWidth: 72 * ui.unit
-                                        visible: !stepRow.last
-                                        enabled: !page.standard
-                                        horizontalAlignment: Text.AlignRight
-                                        font.features: { "tnum": 1 }
-                                        inputMethodHints: Qt.ImhDigitsOnly
-                                        validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
-                                        text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
-                                        onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
-                                                               page.setStep(stepRow.step, { delay: Number(text) })
-                                    }
-                                    Label {
-                                        Layout.preferredWidth: (72 + 6 + 24) * ui.unit
-                                        visible: stepRow.last
-                                        horizontalAlignment: Text.AlignRight
-                                        text: qsTr("1 ms (end)")
-                                        color: theme.secondary
-                                        font.features: { "tnum": 1 }
-                                    }
-                                    Label {
-                                        Layout.preferredWidth: 24 * ui.unit
-                                        visible: !stepRow.last
-                                        text: "ms"
-                                        color: theme.secondary
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "↑"
-                                        enabled: stepRow.index > 0
-                                        onClicked: page.moveStep(stepRow.step, page.newestFirst ? 1 : -1)
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "↓"
-                                        enabled: stepRow.index < page.draft.steps.length - 1
-                                        onClicked: page.moveStep(stepRow.step, page.newestFirst ? -1 : 1)
-                                    }
-                                    AppButton {
-                                        kind: "quiet"
-                                        text: "✕"
-                                        onClicked: page.removeStep(stepRow.step)
+
+                                    RowLayout {
+                                        id: stepLine
+                                        width: parent.width
+                                        spacing: 6 * ui.unit
+
+                                        // Drag handle: press and move to put the step elsewhere.
+                                        Item {
+                                            objectName: "stepHandle"
+                                            implicitWidth: 20 * ui.unit
+                                            implicitHeight: 34 * ui.unit
+                                            Icon {
+                                                anchors.centerIn: parent
+                                                name: "grip-vertical"
+                                                color: grip.containsMouse || grip.pressed ? theme.foreground : theme.secondary
+                                            }
+                                            MouseArea {
+                                                id: grip
+                                                anchors.fill: parent
+                                                hoverEnabled: true
+                                                preventStealing: true
+                                                cursorShape: pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor
+                                                onPressed: (mouse) => {
+                                                    const p = mapToItem(null, mouse.x, mouse.y)
+                                                    page.startDrag(stepRow.index, p.x, p.y)
+                                                }
+                                                onPositionChanged: (mouse) => {
+                                                    if (pressed) {
+                                                        const p = mapToItem(null, mouse.x, mouse.y)
+                                                        page.dragTo(p.x, p.y)
+                                                    }
+                                                }
+                                                onReleased: page.endDrag(true)
+                                                onCanceled: page.endDrag(false)
+                                            }
+                                        }
+                                        Chip {
+                                            Layout.preferredWidth: 90 * ui.unit
+                                            text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
+                                            onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
+                                        }
+                                        Label {
+                                            Layout.fillWidth: true
+                                            leftPadding: 6 * ui.unit
+                                            text: names.usageName(stepRow.modelData.usage)
+                                            font.weight: Font.DemiBold
+                                            elide: Text.ElideRight
+                                        }
+                                        AppTextField {
+                                            Layout.preferredWidth: 72 * ui.unit
+                                            visible: !stepRow.last
+                                            enabled: !page.standard
+                                            horizontalAlignment: Text.AlignRight
+                                            font.features: { "tnum": 1 }
+                                            inputMethodHints: Qt.ImhDigitsOnly
+                                            validator: IntValidator { bottom: 0; top: page.limits.maxDelay }
+                                            text: page.standard ? page.limits.standardDelay : stepRow.modelData.delay
+                                            onEditingFinished: if (acceptableInput && Number(text) !== stepRow.modelData.delay)
+                                                                   page.setStep(stepRow.step, { delay: Number(text) })
+                                        }
+                                        Label {
+                                            Layout.preferredWidth: (72 + 6 + 24) * ui.unit
+                                            visible: stepRow.last
+                                            horizontalAlignment: Text.AlignRight
+                                            text: qsTr("1 ms (end)")
+                                            color: theme.secondary
+                                            font.features: { "tnum": 1 }
+                                        }
+                                        Label {
+                                            Layout.preferredWidth: 24 * ui.unit
+                                            visible: !stepRow.last
+                                            text: "ms"
+                                            color: theme.secondary
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "↑"
+                                            enabled: stepRow.index > 0
+                                            onClicked: page.moveStep(stepRow.step, page.newestFirst ? 1 : -1)
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "↓"
+                                            enabled: stepRow.index < page.draft.steps.length - 1
+                                            onClicked: page.moveStep(stepRow.step, page.newestFirst ? -1 : 1)
+                                        }
+                                        AppButton {
+                                            kind: "quiet"
+                                            text: "✕"
+                                            onClicked: page.removeStep(stepRow.step)
+                                        }
                                     }
                                 }
                             }

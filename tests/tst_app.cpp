@@ -1772,6 +1772,34 @@ private slots:
         QCOMPARE(steps()[3].toMap().value("delay").toInt(), 50);   // before the second take
         QCOMPARE(steps()[4].toMap().value("usage").toInt(), 0x16);
         QCOMPARE(steps()[4].toMap().value("delay").toInt(), 30);
+        // Dragging the first row by its handle to under the third: the rows between slide up
+        // and an outlined slot marks where it lands.
+        QTRY_COMPARE(row(0)->property("step").toInt(), 0);
+        QTRY_VERIFY(row(2)->y() > row(1)->y() && row(1)->y() > row(0)->y());   // laid out
+        auto *handle = findItem(row(0), "stepHandle");
+        QVERIFY(handle);
+        const QPoint from = handle->mapToScene(QPointF(handle->width() / 2, handle->height() / 2)).toPoint();
+        const QPoint to(from.x(), qRound(row(2)->mapToScene(QPointF(0, row(2)->height() * 0.8)).y()));
+        QTest::mousePress(w.window, Qt::LeftButton, {}, from);
+        for (int i = 1; i <= 5; ++i)
+            QTest::mouseMove(w.window, from + (to - from) * i / 5);
+        QCOMPARE(page->property("dropGap").toInt(), 3);
+        QVERIFY(findItem(row(0), "dropSlot")->isVisible());
+        QCOMPARE(page->property("dropTarget").toInt(), 2);
+        QTRY_VERIFY(row(2)->property("shift").toDouble() < 0);
+        QTest::mouseRelease(w.window, Qt::LeftButton, {}, to);
+        QCOMPARE(page->property("dragFrom").toInt(), -1);
+        QCOMPARE(steps().size(), 6);
+        QCOMPARE(steps()[0].toMap().value("press").toBool(), false);   // 05 release
+        QCOMPARE(steps()[1].toMap().value("usage").toInt(), 0x04);
+        QCOMPARE(steps()[2].toMap().value("usage").toInt(), 0x05);
+        QCOMPARE(steps()[2].toMap().value("press").toBool(), true);
+        // While recording the rows are newest first: a row moved on screen moves the other way.
+        page->setProperty("newestFirst", true);
+        QMetaObject::invokeMethod(page, "moveRow", Q_ARG(QVariant, 0), Q_ARG(QVariant, 1));   // the last step goes one up
+        QCOMPARE(steps()[4].toMap().value("press").toBool(), false);
+        QCOMPARE(steps()[5].toMap().value("press").toBool(), true);
+        page->setProperty("newestFirst", false);
         call("select", {0});
 
         // Bound to Insert, played three times: the drawing and the Keys page name it.
