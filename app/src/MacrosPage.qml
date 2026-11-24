@@ -719,15 +719,16 @@ Item {
                         enabled: page.draft.steps.length > 0
                         onClicked: page.clearSteps()
                     }
-                    Item { Layout.fillWidth: true }
-                    IconButton {
-                        objectName: "deleteMacro"
-                        visible: page.saved !== null
-                        kind: "quiet"
-                        iconName: "trash-2"
-                        text: qsTr("Delete macro")
-                        onClicked: deleteDialog.open()
-                    }
+                }
+
+                // Under Save and Clear, inside the editor column.
+                IconButton {
+                    objectName: "deleteMacro"
+                    visible: page.saved !== null
+                    kind: "quiet"
+                    iconName: "trash-2"
+                    text: qsTr("Delete macro")
+                    onClicked: deleteDialog.open()
                 }
 
                 Item { Layout.fillHeight: true }
