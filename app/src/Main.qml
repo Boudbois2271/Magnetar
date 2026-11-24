@@ -114,6 +114,7 @@ ApplicationWindow {
                         model: [
                             { label: qsTr("Keys"), icon: "keyboard" },
                             { label: qsTr("Lighting"), icon: "lightbulb" },
+                            { label: qsTr("Mural"), icon: "audio-lines" },
                             { label: qsTr("Macros"), icon: "clapperboard" },
                             { label: qsTr("Settings"), icon: "settings" }
                         ]
@@ -206,6 +207,7 @@ ApplicationWindow {
 
                     KeysPage { objectName: "keysPage" }
                     LightingPage { objectName: "lightingPage" }
+                    MuralPage { objectName: "muralPage" }
                     MacrosPage { objectName: "macrosPage" }
                     SettingsPage { objectName: "settingsPage" }
                 }

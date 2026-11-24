@@ -11,6 +11,7 @@
 #include "backend.h"
 #include "color_palette.h"
 #include "desktop_size.h"
+#include "mural_controller.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -37,8 +38,12 @@ int main(int argc, char *argv[])
     Theme theme;
     DesktopSize ui;
     Backend backend;
-    // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours.
-    ColorPalette colorPalette(QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini");
+    // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours and the Mural.
+    const QString settings = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini";
+    ColorPalette colorPalette(settings);
+    // The audio visualiser; declared after the backend, so it stops streaming before the
+    // backend goes.
+    MuralController mural(backend, settings);
 
     QQmlApplicationEngine engine;
     QObject::connect(&translator, &Translator::changed, &engine, &QQmlEngine::retranslate);
@@ -47,6 +52,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("backend", &backend);
     engine.rootContext()->setContextProperty("ui", &ui);
     engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
+    engine.rootContext()->setContextProperty("mural", &mural);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;

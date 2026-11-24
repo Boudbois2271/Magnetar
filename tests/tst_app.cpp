@@ -210,7 +210,7 @@ std::map<std::uint8_t, std::uint16_t> lastMuralFrame(FakeBoard &board)
 }  // namespace
 
 // Sidebar order; pages are told apart by these, never by bare numbers.
-enum Page { PageKeys, PageLighting, PageMacros, PageSettings };
+enum Page { PageKeys, PageLighting, PageMural, PageMacros, PageSettings };
 
 // The window on the Keys page with a fake keyboard, read and ready.
 struct KeysWindow {
@@ -221,6 +221,8 @@ struct KeysWindow {
     Translator translator{dir.filePath("language"), ":/i18n"};
     DesktopSize ui{"/nonexistent-gsettings"};
     ColorPalette colorPalette{dir.filePath("settings.ini")};
+    FakeAudio audio;
+    MuralController mural{backend, dir.filePath("settings.ini"), audio.factory()};
     QQmlApplicationEngine engine;
     QList<QQmlError> warnings;
     QQuickWindow *window = nullptr;
@@ -234,6 +236,7 @@ struct KeysWindow {
         engine.rootContext()->setContextProperty("backend", &backend);
         engine.rootContext()->setContextProperty("ui", &ui);
         engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
+        engine.rootContext()->setContextProperty("mural", &mural);
         engine.load(QUrl("qrc:/Main.qml"));
         window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window)
@@ -1360,6 +1363,8 @@ private slots:
         Translator translator(dir.filePath("language"), ":/i18n");
         DesktopSize ui("/nonexistent-gsettings");
         ColorPalette colorPalette(dir.filePath("settings.ini"));
+        FakeAudio audio;
+        MuralController mural(backend, dir.filePath("settings.ini"), audio.factory());
 
         QQmlApplicationEngine engine;
         QList<QQmlError> warnings;
@@ -1369,6 +1374,7 @@ private slots:
         engine.rootContext()->setContextProperty("backend", &backend);
         engine.rootContext()->setContextProperty("ui", &ui);
         engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
+        engine.rootContext()->setContextProperty("mural", &mural);
         engine.load(QUrl("qrc:/Main.qml"));
         QCOMPARE(engine.rootObjects().size(), 1);
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
@@ -1797,6 +1803,59 @@ private slots:
         QTest::qWait(200);
         QCOMPARE(w.board.writesOf(0x04, 0x01), writes);
         QCOMPARE(w.backend.brightness(), 7);
+
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    void muralPageDrivesTheVisualiser()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.show("muralPage");
+        auto *preview = w.item("muralPreview");
+        const auto fill = [&](int key) { return findItem(preview, "key_" + QByteArray::number(key))->property("fill").toString(); };
+        QCOMPARE(fill(0x43), QString());
+
+        // The switch turns it on; until the sound opens, the page says so.
+        auto *sw = w.item("muralSwitch");
+        QMetaObject::invokeMethod(sw, "toggle");
+        QMetaObject::invokeMethod(sw, "toggled");
+        QVERIFY(w.mural.on());
+        QCOMPARE(w.audio.open, 1);
+        QTRY_VERIFY(w.item("muralNoSound")->isVisible());
+        w.audio.status(true);
+        QTRY_VERIFY(!w.item("muralNoSound")->isVisible());
+
+        // A low note lights the bottom-left key on the drawing, and on the board.
+        w.audio.play(sineWave(100, 0.3));
+        QTRY_VERIFY(!fill(0x43).isEmpty());
+        QTRY_VERIFY(lastMuralFrame(w.board)[*muralLed(0x43)] != 0);
+
+        // Colours: the mode, and picking a colour switches to it.
+        auto *mode = w.item("muralColorMode");
+        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 1));
+        QVERIFY(!w.mural.rainbow());
+        QMetaObject::invokeMethod(mode, "activated", Q_ARG(int, 0));
+        QVERIFY(w.mural.rainbow());
+        QMetaObject::invokeMethod(w.item("muralColorPicker"), "picked", Q_ARG(QString, "#00ff00"));
+        QCOMPARE(w.mural.color(), QString("#00ff00"));
+        QVERIFY(!w.mural.rainbow());
+        QTRY_COMPARE(mode->property("currentIndex").toInt(), 1);
+
+        // Sensitivity: the slider goes in doubling steps.
+        auto *slider = w.item("muralSensitivity");
+        QCOMPARE(slider->property("value").toDouble(), 0.0);
+        slider->setProperty("value", 1.0);
+        QMetaObject::invokeMethod(slider, "moved");
+        QCOMPARE(w.mural.sensitivity(), 2.0);
+
+        // Off: capture stops, the drawing goes back to plain caps.
+        QMetaObject::invokeMethod(sw, "toggle");
+        QMetaObject::invokeMethod(sw, "toggled");
+        QVERIFY(!w.mural.on());
+        QCOMPARE(w.audio.open, 0);
+        QTRY_COMPARE(fill(0x43), QString());
 
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
@@ -2315,6 +2374,11 @@ private slots:
         check("lighting");
         call(w.item("lightingPage"), "select", threeKeys);
         check("lighting, three keys");
+        w.show("muralPage");
+        check("mural");
+        w.mural.setOn(true);  // not hearing yet: the warning shows beside the switch
+        check("mural, on, no sound");
+        w.mural.setOn(false);
         w.window->setProperty("page", PageSettings);
         check("settings");
         QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");

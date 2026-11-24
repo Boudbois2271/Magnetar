@@ -16,6 +16,7 @@
         <file alias="AppSpinBox.qml">AppSpinBox.qml</file>
         <file alias="LightingPage.qml">LightingPage.qml</file>
         <file alias="ColorPicker.qml">ColorPicker.qml</file>
+        <file alias="MuralPage.qml">MuralPage.qml</file>
         <file alias="KeysPage.qml">KeysPage.qml</file>
         <file alias="ActionTab.qml">ActionTab.qml</file>
         <file alias="TravelTab.qml">TravelTab.qml</file>
@@ -41,6 +42,7 @@
         <file alias="icons/plus.svg">icons/plus.svg</file>
         <file alias="icons/grip-vertical.svg">icons/grip-vertical.svg</file>
         <file alias="icons/keycap.svg">icons/keycap.svg</file>
+        <file alias="icons/audio-lines.svg">icons/audio-lines.svg</file>
         <file alias="i18n/en.json">i18n/en.json</file>
         <file alias="i18n/fr.json">i18n/fr.json</file>
     </qresource>
