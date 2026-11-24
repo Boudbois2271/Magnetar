@@ -8,7 +8,11 @@
 #include <filesystem>
 #include <fstream>
 #include <iterator>
+#include <cstring>
 #include <optional>
+#include <string_view>
+#include <utility>
+#include <vector>
 
 #include <pwd.h>
 #include <unistd.h>
@@ -21,7 +25,7 @@ namespace {
 
 constexpr int kMaxSpeed = 4;
 
-// Only "lastBrightness" is ever stored. A missing or unreadable file means no value.
+// A missing or unreadable file, or no "lastBrightness" in it, means no value.
 std::optional<long long> loadLastBrightness(const std::string &stateFile)
 {
     std::ifstream in(stateFile);
@@ -53,6 +57,136 @@ std::optional<long long> loadLastBrightness(const std::string &stateFile)
     } catch (...) {
         return std::nullopt;
     }
+}
+
+// A small JSON reader for state.json: just enough to split the top-level object into its members,
+// each kept as written (key and value text), so saving keeps keys we don't use. Every function
+// returns the position after what it read, or npos when the text isn't valid JSON.
+constexpr std::size_t kBad = std::string::npos;
+
+std::size_t skipSpace(const std::string &t, std::size_t i)
+{
+    while (i < t.size() && (t[i] == ' ' || t[i] == '\t' || t[i] == '\n' || t[i] == '\r'))
+        ++i;
+    return i;
+}
+
+std::size_t readString(const std::string &t, std::size_t i)
+{
+    if (i >= t.size() || t[i] != '"')
+        return kBad;
+    for (++i; i < t.size(); ++i) {
+        const unsigned char c = static_cast<unsigned char>(t[i]);
+        if (c == '"')
+            return i + 1;
+        if (c < 0x20)
+            return kBad;
+        if (c == '\\') {
+            if (++i >= t.size())
+                return kBad;
+            if (t[i] == 'u') {
+                for (int k = 0; k < 4; ++k)
+                    if (++i >= t.size() || !std::isxdigit(static_cast<unsigned char>(t[i])))
+                        return kBad;
+            } else if (std::string_view("\"\\/bfnrt").find(t[i]) == std::string_view::npos) {
+                return kBad;
+            }
+        }
+    }
+    return kBad;
+}
+
+std::size_t readNumber(const std::string &t, std::size_t i)
+{
+    auto digits = [&](std::size_t j) {
+        const std::size_t from = j;
+        while (j < t.size() && std::isdigit(static_cast<unsigned char>(t[j])))
+            ++j;
+        return j == from ? kBad : j;
+    };
+    if (i < t.size() && t[i] == '-')
+        ++i;
+    if (i < t.size() && t[i] == '0')
+        ++i;
+    else if ((i = digits(i)) == kBad)
+        return kBad;
+    if (i < t.size() && t[i] == '.' && (i = digits(i + 1)) == kBad)
+        return kBad;
+    if (i < t.size() && (t[i] == 'e' || t[i] == 'E')) {
+        ++i;
+        if (i < t.size() && (t[i] == '+' || t[i] == '-'))
+            ++i;
+        if ((i = digits(i)) == kBad)
+            return kBad;
+    }
+    return i;
+}
+
+std::size_t readValue(const std::string &t, std::size_t i, int depth = 0);
+
+// Reads "[...]" or "{...}"; members, when given, collects an object's key and value texts.
+std::size_t readContainer(const std::string &t, std::size_t i, int depth,
+                          std::vector<std::pair<std::string, std::string>> *members = nullptr)
+{
+    const bool object = t[i] == '{';
+    const char close = object ? '}' : ']';
+    i = skipSpace(t, i + 1);
+    if (i < t.size() && t[i] == close)
+        return i + 1;
+    for (;;) {
+        std::size_t keyStart = i, keyEnd = i;
+        if (object) {
+            if ((keyEnd = readString(t, i)) == kBad)
+                return kBad;
+            i = skipSpace(t, keyEnd);
+            if (i >= t.size() || t[i] != ':')
+                return kBad;
+            i = skipSpace(t, i + 1);
+        }
+        const std::size_t valueStart = i;
+        if ((i = readValue(t, i, depth + 1)) == kBad)
+            return kBad;
+        if (members)
+            members->emplace_back(t.substr(keyStart, keyEnd - keyStart), t.substr(valueStart, i - valueStart));
+        i = skipSpace(t, i);
+        if (i < t.size() && t[i] == close)
+            return i + 1;
+        if (i >= t.size() || t[i] != ',')
+            return kBad;
+        i = skipSpace(t, i + 1);
+    }
+}
+
+std::size_t readValue(const std::string &t, std::size_t i, int depth)
+{
+    if (i >= t.size() || depth > 64)
+        return kBad;
+    if (t[i] == '"')
+        return readString(t, i);
+    if (t[i] == '{' || t[i] == '[')
+        return readContainer(t, i, depth);
+    for (const char *word : {"true", "false", "null"})
+        if (t.compare(i, std::strlen(word), word) == 0)
+            return i + std::strlen(word);
+    return readNumber(t, i);
+}
+
+// The members of the file's top-level object, in order; empty when the file is missing, isn't
+// valid JSON or isn't an object (the Python tool started over from {} then too).
+std::vector<std::pair<std::string, std::string>> loadMembers(const fs::path &path)
+{
+    std::ifstream in(path);
+    if (!in)
+        return {};
+    const std::string text((std::istreambuf_iterator<char>(in)), {});
+    std::vector<std::pair<std::string, std::string>> members;
+    std::size_t i = skipSpace(text, 0);
+    if (i >= text.size() || text[i] != '{')
+        return {};
+    i = readContainer(text, i, 0, &members);
+    if (i == kBad || skipSpace(text, i) != text.size())
+        return {};
+    return members;
 }
 
 }  // namespace
@@ -90,7 +224,22 @@ void rememberBrightness(const std::string &stateFile, int value)
     const fs::path tmp = path.string() + ".tmp";
     {
         std::ofstream out(tmp, std::ios::trunc);
-        out << "{\"lastBrightness\": " << value << "}";
+        // Other keys stay, as written and in order (the Python tool's json.dump kept them too); a
+        // repeated "lastBrightness" collapses into its first place, as Python's dict did.
+        auto members = loadMembers(path);
+        const std::string key = "\"lastBrightness\"";
+        bool placed = false;
+        std::string text = "{";
+        for (const auto &[k, v] : members) {
+            if (k == key && placed)
+                continue;
+            text += text.size() > 1 ? ", " : "";
+            text += k + ": " + (k == key ? std::to_string(value) : v);
+            placed = placed || k == key;
+        }
+        if (!placed)
+            text += (text.size() > 1 ? ", " : "") + key + ": " + std::to_string(value);
+        out << text << "}";
         if (!out.flush())
             throw Error("cannot write " + tmp.string());
     }

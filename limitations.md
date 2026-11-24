@@ -57,8 +57,8 @@ reflected in `akko-protocol.md`.
   `bin/package` links the packaged widget there, so installing the `.pkg.tar.zst` by other means
   leaves it unlinked. A dev `~/.local/bin/akkoctl` (from `bin/install`) wins over the packaged one,
   in the widget and in most shells' `PATH`, and goes stale unless reinstalled.
-- The CLI's `state.json` only keeps `lastBrightness`: any other key written there by hand is dropped
-  on the next save (the Python version kept them).
+- The CLI's `state.json`: other keys are kept as written, but a file that isn't a valid JSON object
+  is replaced by `{"lastBrightness": N}` on the next save (as the Python version did).
 - The CLI's behaviour is pinned to recorded runs of the old Python tool
   (`tests/fixtures/python-cli.jsonl`), against a fake keyboard. Real-board checks were done by hand.
 - The widget depends on Omarchy's own QML modules

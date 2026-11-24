@@ -4,6 +4,7 @@
 // what it left behind. The C++ CLI must do exactly the same.
 #include "cli.h"
 #include "fake_transport.h"
+#include "lights.h"
 
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -208,7 +209,7 @@ private slots:
         cli::logCall(log, {"profile", "2"}, "error: profile must be 1..3", 7);
         const QStringList lines = readAll(QString::fromStdString(log)).split('\n', Qt::SkipEmptyParts);
         QCOMPARE(lines.size(), 2);
-        const QRegularExpression re(R"(^\d\d:\d\d:\d\d\.\d{3} pid=\d+ ppid=\d+ (.*)$)");
+        const QRegularExpression re("^\\d\\d:\\d\\d:\\d\\d\\.\\d{3} pid=\\d+ ppid=\\d+ (.*)$");
         auto m = re.match(lines[0]);
         QVERIFY(m.hasMatch());
         QCOMPARE(m.captured(1), QString("status -> ok (42 ms)"));
@@ -239,6 +240,45 @@ private slots:
         QCOMPARE(QString::fromStdString(cli::defaultStateFile()),
                  QString(qgetenv("HOME")) + "/.local/state/akkoctl/state.json");
         QCOMPARE(QString::fromStdString(cli::logFileFor("/a/akkoctl/state.json")), QString("/a/akkoctl/akkoctl.log"));
+    }
+
+    // Saving the brightness keeps every other key, as the Python tool's json.dump did; a file that
+    // isn't a JSON object starts over from {}.
+    void stateKeepsOtherKeys_data()
+    {
+        QTest::addColumn<QString>("before");
+        QTest::addColumn<QString>("after");
+        QTest::newRow("none") << QString() << "{\"lastBrightness\": 7}";
+        QTest::newRow("only") << "{\"lastBrightness\": 3}" << "{\"lastBrightness\": 7}";
+        QTest::newRow("kept in place")
+            << "{ \"a\" : [1, {\"b\": null}],\n \"lastBrightness\":3, \"s\": \"x\\\"y\\u00e9\", \"n\": -1.5e3 }\n"
+            << "{\"a\": [1, {\"b\": null}], \"lastBrightness\": 7, \"s\": \"x\\\"y\\u00e9\", \"n\": -1.5e3}";
+        QTest::newRow("appended") << "{\"theme\": \"dark\", \"x\": true}" << "{\"theme\": \"dark\", \"x\": true, \"lastBrightness\": 7}";
+        QTest::newRow("repeated") << "{\"lastBrightness\": 1, \"a\": 2, \"lastBrightness\": 3}" << "{\"lastBrightness\": 7, \"a\": 2}";
+        QTest::newRow("empty object") << "{}" << "{\"lastBrightness\": 7}";
+        QTest::newRow("broken") << "{\"a\": 1,}" << "{\"lastBrightness\": 7}";
+        QTest::newRow("trailing") << "{\"a\": 1} x" << "{\"lastBrightness\": 7}";
+        QTest::newRow("not an object") << "[1, 2]" << "{\"lastBrightness\": 7}";
+        QTest::newRow("bad number") << "{\"a\": 01}" << "{\"lastBrightness\": 7}";
+    }
+
+    void stateKeepsOtherKeys()
+    {
+        QFETCH(QString, before);
+        QFETCH(QString, after);
+        QTemporaryDir dir;
+        const QString file = dir.path() + "/akkoctl/state.json";
+        if (!before.isNull()) {
+            QDir().mkpath(dir.path() + "/akkoctl");
+            QFile f(file);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(before.toUtf8());
+        }
+        rememberBrightness(file.toStdString(), 7);
+        QFile f(file);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(QString::fromUtf8(f.readAll()), after);
+        QCOMPARE(lastBrightnessOr(file.toStdString(), 0), 7);
     }
 };
 
