@@ -48,7 +48,7 @@ std::size_t macroSize(const Macro &m);
 std::size_t macroStorageUsed(std::span<const Macro> macros);
 
 // Why the macro can't be stored, or "" if it can: name of 2–255 printable ASCII characters,
-// at least one step, no step with usage 0.
+// no step with usage 0. A macro with no steps is allowed (the blob holds just its name).
 std::string macroProblem(const Macro &m);
 // The same for a whole list, and that it fits in kMacroStorage.
 std::string macrosProblem(std::span<const Macro> macros);

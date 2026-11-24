@@ -26,8 +26,6 @@ std::string macroProblem(const Macro &m)
         return "a macro name needs 2 to 255 characters";
     if (!std::all_of(m.name.begin(), m.name.end(), [](char c) { return c >= 0x20 && c <= 0x7e; }))
         return "a macro name can only hold plain ASCII characters";
-    if (m.steps.empty())
-        return "a macro needs at least one step";
     if (std::any_of(m.steps.begin(), m.steps.end(), [](const MacroStep &s) { return s.usage == 0; }))
         return "a macro step has no key";
     return {};

@@ -719,11 +719,20 @@ private slots:
         QTRY_COMPARE(b.macros()[0].toMap().value("name").toString(), QString("gh"));
         QCOMPARE(b.macros().size(), 2);
 
+        // A macro with a name and no steps is saved as just its name.
+        const QVariantMap emptyRecord{{"name", "kl"}, {"steps", QVariantList{}}};
+        QVERIFY(b.macroValid(emptyRecord));
+        QVERIFY(b.saveMacro(-1, emptyRecord));
+        QTRY_COMPARE(b.macros().size(), 3);
+        QCOMPARE(b.macros()[2].toMap().value("name").toString(), QString("kl"));
+        QCOMPARE(b.macros()[2].toMap().value("steps").toList().size(), 0);
+        QVERIFY(b.deleteMacro(2));
+        QTRY_COMPARE(b.macros().size(), 2);
+
         // Refused, nothing sent: bad records, a missing index, more than the storage.
         const int writes = board.writesOf(0x05, 0x00);
         QVERIFY(!b.macroValid(record("a", 0x04)));
         QVERIFY(!b.saveMacro(-1, record("a", 0x04)));
-        QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{}}}));
         QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0, 50)}}}));
         QVERIFY(!b.saveMacro(-1, QVariantMap{{"name", "ok"}, {"steps", QVariantList{step(true, 0x100, 50)}}}));
         QVERIFY(!b.saveMacro(2, record("ij", 0x04)));
