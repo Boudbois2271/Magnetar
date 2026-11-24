@@ -15,7 +15,7 @@ Item {
     property var draft: page.blank()   // {name, steps: [{press, usage, delay}]}
     property bool standard: false      // every delay is the standard one
     property bool recording: false
-    property double lastEvent: 0       // ms timestamp of the last recorded step
+    property double lastEvent: -1      // ms timestamp of the last recorded step, -1 before the first
     property var held: []              // usages pressed during this recording
     property bool selectNew: false     // select the macro a save adds, once it is read back
     property string loadedFrom: "null" // the read-back the draft was loaded from
@@ -133,7 +133,7 @@ Item {
     function clearSteps() {
         page.setSteps([])
         page.held = []
-        page.lastEvent = 0
+        page.lastEvent = -1
     }
     function addKey(usage) {
         const d = page.limits.standardDelay
@@ -142,11 +142,11 @@ Item {
     }
 
     // ---- recording -----------------------------------------------------------
-    // Recording replaces the steps; each step's delay is the time until the next one.
+    // Recording adds to the steps already there (only Clear removes them); each recorded step's
+    // delay is the time until the next one, and the step before the take waits the standard delay.
     function startRecording() {
-        page.setSteps([])
         page.held = []
-        page.lastEvent = 0
+        page.lastEvent = -1
         page.editing = true
         page.recording = true
         recorder.forceActiveFocus()
@@ -165,7 +165,8 @@ Item {
         let steps = page.draft.steps.slice()
         if (steps.length > 0)
             steps[steps.length - 1] = Object.assign({}, steps[steps.length - 1], {
-                delay: Math.max(0, Math.min(page.limits.maxDelay, Math.round(now - page.lastEvent))) })
+                delay: page.lastEvent < 0 ? page.limits.standardDelay
+                       : Math.max(0, Math.min(page.limits.maxDelay, Math.round(now - page.lastEvent))) })
         steps.push({ press: press, usage: usage, delay: page.limits.standardDelay })
         page.lastEvent = now
         page.setSteps(steps)

@@ -1754,6 +1754,24 @@ private slots:
         QCOMPARE(steps().size(), 0);
         QCOMPARE(page->property("draft").toMap().value("name").toString(), QString("ab"));
         QVERIFY(!need("clearMacro")->property("enabled").toBool());
+        // Recording again adds to the steps there: a key added by hand, then a recorded take.
+        call("addKey", {0x05});
+        call("startRecording");
+        call("recordEvent", {true, 30 + 8, 5000.0});
+        call("recordEvent", {false, 30 + 8, 5040.0});
+        call("stopRecording");
+        call("startRecording");
+        call("recordEvent", {true, 31 + 8, 9000.0});
+        call("recordEvent", {false, 31 + 8, 9030.0});
+        call("stopRecording");
+        QCOMPARE(steps().size(), 6);
+        QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0x05);
+        QCOMPARE(steps()[1].toMap().value("delay").toInt(), 50);   // before the first take
+        QCOMPARE(steps()[2].toMap().value("usage").toInt(), 0x04);
+        QCOMPARE(steps()[2].toMap().value("delay").toInt(), 40);
+        QCOMPARE(steps()[3].toMap().value("delay").toInt(), 50);   // before the second take
+        QCOMPARE(steps()[4].toMap().value("usage").toInt(), 0x16);
+        QCOMPARE(steps()[4].toMap().value("delay").toInt(), 30);
         call("select", {0});
 
         // Bound to Insert, played three times: the drawing and the Keys page name it.
