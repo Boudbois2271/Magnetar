@@ -53,13 +53,15 @@ reflected in `akko-protocol.md`.
 
 ## Existing tooling (`akkoctl`, widget)
 
-- `bin/install` covers the CLI only: the widget is still copied by hand to
-  `~/.config/omarchy/plugins/`, and the two copies can drift apart.
+- Omarchy only loads plugins from `~/.config/omarchy/plugins/`, which a package can't write to:
+  `bin/package` links the packaged widget there, so installing the `.pkg.tar.zst` by other means
+  leaves it unlinked. A dev `~/.local/bin/akkoctl` (from `bin/install`) wins over the packaged one,
+  in the widget and in most shells' `PATH`, and goes stale unless reinstalled.
 - The CLI's `state.json` only keeps `lastBrightness`: any other key written there by hand is dropped
   on the next save (the Python version kept them).
 - The CLI's behaviour is pinned to recorded runs of the old Python tool
   (`tests/fixtures/python-cli.jsonl`), against a fake keyboard. Real-board checks were done by hand.
-- The widget hardcodes `~/.local/bin/akkoctl` and depends on Omarchy's own QML modules
+- The widget depends on Omarchy's own QML modules
   (`qs.Commons`, `qs.Ui`), so it only runs inside Omarchy's shell.
 - The widget shows the colour picker on profile 1 only.
 - `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
@@ -144,7 +146,6 @@ reflected in `akko-protocol.md`.
   error would leave it showing that colour. Beside the option rows it needs a page about 1100 u
   wide: at the default window it fits, near the minimum width (900 u) it is cut off on the right.
   Saved colours live in `~/.config/magnetar/settings.ini`, shared by every profile.
-- No Arch package for `akkoctl` or the widget yet: `bin/package` installs Magnetar only.
 - Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.

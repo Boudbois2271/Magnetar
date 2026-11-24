@@ -6,8 +6,9 @@ import qs.Commons
 import qs.Ui
 
 // Akko TAC75 HE: onboard profile picker, lighting on/off, brightness and
-// colour. All device I/O goes through ~/.local/bin/akkoctl, which prints the
-// keyboard state as JSON after every command.
+// colour. All device I/O goes through akkoctl (~/.local/bin/akkoctl from bin/install if
+// present, else the packaged /usr/bin/akkoctl), which prints the keyboard state as JSON after
+// every command.
 Panel {
   id: root
   moduleName: "boudbois.akko"
@@ -22,7 +23,8 @@ Panel {
   readonly property bool lightsOn: connected && kb.on === true
   readonly property int profileCount: connected ? (kb.profileCount || 3) : 0
   readonly property bool showColor: connected && kb.profile === 1
-  readonly property string akkoctl: Quickshell.env("HOME") + "/.local/bin/akkoctl"
+  readonly property var akkoctl: ["sh", "-c",
+    'p="$HOME/.local/bin/akkoctl"; [ -x "$p" ] || p=/usr/bin/akkoctl; exec "$p" "$@"', "akkoctl"]
   readonly property string glyph: "󰌌"
 
   readonly property var swatches: [
@@ -50,7 +52,7 @@ Panel {
     if (proc.running || queue.length === 0) return
     var next = queue[0]
     queue = queue.slice(1)
-    proc.command = [root.akkoctl].concat(next)
+    proc.command = root.akkoctl.concat(next)
     proc.running = true
   }
 

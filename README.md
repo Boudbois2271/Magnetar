@@ -55,21 +55,18 @@ Build requirements: Linux, a C++20 compiler, `make` and Qt 6 (on Arch:
 sudo cp udev/70-akko-tac75-he.rules /etc/udev/rules.d/
 sudo udevadm control --reload && sudo udevadm trigger   # or replug the keyboard
 
-# CLI: builds, then installs to ~/.local/bin/akkoctl
-bin/install
-
-# Magnetar, as an Arch package (shows up in the app launcher; asks for your password)
+# Arch package: Magnetar (in the app launcher), akkoctl, the udev rule, and on Omarchy the bar
+# widget, linked into ~/.config/omarchy/plugins (asks for your password)
 bin/package
 
 # Tests (optional, no keyboard needed)
 bin/test
 
-# Omarchy widget (optional)
-mkdir -p ~/.config/omarchy/plugins
-cp -r omarchy-widget/boudbois.akko ~/.config/omarchy/plugins/
+# CLI only, without the package: builds, then installs to ~/.local/bin/akkoctl
+bin/install
 ```
 
-The widget expects `akkoctl` at `~/.local/bin/akkoctl`.
+The widget runs `~/.local/bin/akkoctl` when it exists, else the packaged `/usr/bin/akkoctl`.
 
 ## Usage
 

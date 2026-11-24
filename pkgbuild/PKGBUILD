@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Builds Magnetar from this checkout and installs it with its launcher entry and icon.
+# Builds Magnetar from this checkout and installs it with its launcher entry and icon, plus the
+# akkoctl CLI, the udev rule and the Omarchy bar widget (linked into ~/.config by bin/package).
 # Run bin/package (makepkg -fsi): pacman asks for your password to install.
 pkgname=magnetar
 pkgver=0.1.0
@@ -23,4 +24,9 @@ package() {
   install -Dm644 LICENSE "$pkgdir/usr/share/licenses/$pkgname/LICENSE"
   install -Dm644 "$startdir/magnetar.svg" "$pkgdir/usr/share/icons/hicolor/scalable/apps/magnetar.svg"
   install -Dm644 "$startdir/magnetar.desktop" "$pkgdir/usr/share/applications/magnetar.desktop"
+  install -Dm755 build/cli/akkoctl "$pkgdir/usr/bin/akkoctl"
+  install -Dm644 udev/70-akko-tac75-he.rules "$pkgdir/usr/lib/udev/rules.d/70-akko-tac75-he.rules"
+  local widget="$pkgdir/usr/share/magnetar/omarchy-widget/boudbois.akko"
+  install -Dm644 omarchy-widget/boudbois.akko/manifest.json "$widget/manifest.json"
+  install -Dm644 omarchy-widget/boudbois.akko/Panel.qml "$widget/Panel.qml"
 }

@@ -28,12 +28,12 @@ there: capture logs stay local and are gitignored.
 |---|---|
 | `README.md` | Public overview: unofficial disclaimer, install, usage. Keep it in sync when tools change. |
 | `core/` | Protocol library, plain C++20 + POSIX, **no Qt**: frames and checksum, session lock, hidraw discovery and transport, KNOWN commands. Everything that talks to the keyboard goes through it. |
-| `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Installed as `~/.local/bin/akkoctl`. |
+| `cli/` | `akkoctl` CLI on top of `core/`, no Qt. Prints the keyboard state as one JSON line after every command. Packaged as `/usr/bin/akkoctl`; `bin/install` puts a dev copy in `~/.local/bin`. |
 | `tests/` | Qt Test suite, no keyboard needed (fake device, temp sysfs). `fixtures/` holds frames and CLI runs recorded from the original Python tool (removed; it is in git history) and frames from captures: the reference the C++ code must match. |
 | `app/` | Magnetar (Qt Quick). `src/backend` = state/actions for QML; `src/device_worker` = keyboard work off the UI thread, lock taken per batch only, Mural streamed between batches in ~1 s sessions; QML: `Main.qml` (sidebar), one `*Page.qml` per page in a `PageLayout` frame, `MacrosPage.qml` records and edits macros; `SettingsPage.qml` pushes `CalibrationPage.qml` (a calibration session) on its own StackView; `KeysPage.qml` hosts `ActionTab`/`TravelTab`/`AdvancedTab` around a shared `KeyboardView`; `LightingPage.qml` has its own `KeyboardView` for per-key colours and a `ColorPicker.qml` (HSV maths and saved colours in `src/color_palette`, `QSettings`); `LightingPage.qml`'s Visualiser effect drives `src/mural_controller` (`mural` in QML: settings in `QSettings`, `src/audio_capture` = default output's monitor via libpulse-simple, `src/visualiser` = Qt-free spectrum → key colours); `src/scancodes` = evdev → HID usages for macro recording; `src/desktop_size` = the desktop text size, `ui` in QML; `src/theme`, `src/translator` from the Omarchy app templates (MIT notice kept); `src/i18n/fr.json` = French. |
 | `pkgbuild/` | Arch package for Magnetar: `PKGBUILD`, `.desktop` entry, icon. |
-| `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar via `makepkg -fsi`; needs sudo, so Ilan runs it). |
-| `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl`, one process at a time. |
+| `bin/` | `build` (qmake6 + make into `build/`, gitignored), `test`, `install` (CLI to `~/.local/bin`), `package` (Magnetar, `akkoctl`, udev rule and widget via `makepkg -fsi`, then links the widget into `~/.config/omarchy/plugins`; needs sudo, so Ilan runs it). |
+| `omarchy-widget/boudbois.akko/` | Omarchy (Quickshell/QML) bar widget: profile picker, lights toggle, brightness, colour. Shells out to `~/.local/bin/akkoctl` if present, else `/usr/bin/akkoctl`, one process at a time. |
 | `udev/70-akko-tac75-he.rules` | Grants the logged-in user access to the keyboard's hidraw nodes. Goes in `/etc/udev/rules.d/`. |
 | `akko-protocol.md` | **Source of truth** for everything decoded. Update it whenever a capture teaches us something. |
 | `akko-capture.js` | WebHID logger pasted into the browser DevTools console on the vendor configurator. Read-only: it wraps `sendReport`/`sendFeatureReport`/`receiveFeatureReport` and `inputreport` events, then calls the originals unchanged. |
@@ -44,7 +44,7 @@ there: capture logs stay local and are gitignored.
 | `CLAUDE.local.md` | Private, gitignored session state and handoff notes (may not exist on your machine). |
 
 The repo copies are the source of truth; the installed copies don't update themselves. After
-editing, run `bin/test`, then `bin/install` for the CLI; the widget is still copied by hand.
+editing, run `bin/test`, then `bin/install` for the CLI; `bin/package` updates everything.
 
 ## Clean-room rules (legal)
 

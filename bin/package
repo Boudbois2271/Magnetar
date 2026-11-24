@@ -1,8 +1,26 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-3.0-or-later
-# Build Magnetar as an Arch package and install it, so it shows in the app launcher.
-# pacman asks for your password: run this in your own terminal.
+# Build Magnetar as an Arch package (app, akkoctl, udev rule, bar widget) and install it, so it
+# shows in the app launcher. pacman asks for your password: run this in your own terminal.
+# Omarchy loads plugins from ~/.config/omarchy/plugins only, which a package can't write to, so
+# the widget is linked there to the packaged copy (updates follow the package). A real directory
+# in the way is left alone; an older link is replaced.
 set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$root/pkgbuild"
-exec makepkg -fsi "$@"
+makepkg -fsi "$@"
+
+widget=/usr/share/magnetar/omarchy-widget/boudbois.akko
+plugins="$HOME/.config/omarchy/plugins"
+link="$plugins/boudbois.akko"
+if [[ -d $HOME/.config/omarchy ]]; then
+  if [[ -e $link && ! -L $link ]]; then
+    echo "widget: $link is a real directory, left as is (remove it to use the packaged widget)"
+  elif [[ $(readlink "$link" 2>/dev/null) != "$widget" ]]; then
+    [[ -L $link ]] && echo "widget: link was -> $(readlink "$link")"
+    mkdir -p "$plugins"
+    ln -sfn "$widget" "$link"
+    echo "widget: $link -> $widget"
+    command -v omarchy-shell >/dev/null && omarchy-shell shell rescanPlugins >/dev/null 2>&1 || true
+  fi
+fi
