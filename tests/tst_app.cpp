@@ -7,6 +7,7 @@
 #include "fake_transport.h"
 #include "theme.h"
 #include "translator.h"
+#include "visualiser.h"
 
 #include <QDirIterator>
 #include <QJsonDocument>
@@ -28,6 +29,7 @@
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
+#include <set>
 
 using namespace akko;
 using namespace akko::test;
@@ -874,6 +876,99 @@ private slots:
         QCOMPARE(usage(84), 0);  // no key
         QCOMPARE(b.usageForScanCode(0), 0);
         QCOMPARE(b.usageForScanCode(100000), 0);
+    }
+
+    // ---- Mural visualiser --------------------------------------------------
+    void visualiserBarsFollowThePitch()
+    {
+        const auto sine = [](double hz, double seconds, double amplitude = 0.5) {
+            std::vector<float> s(std::size_t(seconds * Visualiser::kRate));
+            for (std::size_t i = 0; i < s.size(); ++i)
+                s[i] = float(amplitude * std::sin(2 * M_PI * hz * double(i) / Visualiser::kRate));
+            return s;
+        };
+        const auto brightness = [](const std::vector<KeyColor> &colors, std::uint16_t key) {
+            const auto it = std::find_if(colors.begin(), colors.end(), [&](const KeyColor &c) { return c.key == key; });
+            return it == colors.end() ? -1 : int(*std::max_element(it->rgb.begin(), it->rgb.end()));
+        };
+        const std::uint16_t leftCtrl = 0x43, right = 0x4d;
+
+        Visualiser v;
+        // Every key gets a colour, once; silence leaves them all dark.
+        QVERIFY(!v.feed(std::vector<float>(Visualiser::kHop - 1)));
+        QVERIFY(v.feed(std::vector<float>(Visualiser::kRate)));
+        auto colors = v.colors();
+        QCOMPARE(colors.size(), layout().size());
+        for (const auto &k : layout())
+            QCOMPARE(brightness(colors, k.id), 0);
+
+        // A low note lights the left, a high one the right, from the bottom row up to the top.
+        const auto litSide = [&](const std::vector<KeyColor> &c, bool left, bool topRow) {
+            for (const auto &k : layout())
+                if ((k.x + k.w / 2.0 < 33) == left && (!topRow || k.y == 0) && brightness(c, k.id) > 0)
+                    return true;
+            return false;
+        };
+        v.feed(sine(100, 0.5));
+        colors = v.colors();
+        QCOMPARE(brightness(colors, leftCtrl), 255);
+        QVERIFY(litSide(colors, true, true));
+        QVERIFY(!litSide(colors, false, false));
+
+        v.feed(sine(8000, 1.0));  // long enough for the low bars to fall
+        colors = v.colors();
+        QCOMPARE(brightness(colors, right), 255);
+        QVERIFY(litSide(colors, false, false));
+        QVERIFY(!litSide(colors, true, false));
+
+        // The bars drop back once the sound stops.
+        v.feed(std::vector<float>(Visualiser::kRate));
+        for (const auto &c : v.colors())
+            QCOMPARE(int(*std::max_element(c.rgb.begin(), c.rgb.end())), 0);
+    }
+
+    void visualiserColoursAndSensitivity()
+    {
+        std::vector<float> noise(Visualiser::kRate / 2);
+        std::uint32_t seed = 1;
+        for (auto &s : noise) {
+            seed = seed * 1664525 + 1013904223;
+            s = float(int(seed >> 8) % 2001 - 1000) / 4000.0f;
+        }
+        const auto total = [](const Visualiser &v) {
+            double sum = 0;
+            for (double l : v.levels())
+                sum += l;
+            return sum;
+        };
+
+        Visualiser rainbow;
+        rainbow.feed(noise);
+        QVERIFY(total(rainbow) > 0);
+        std::set<std::array<std::uint8_t, 3>> hues;
+        for (const auto &c : rainbow.colors())
+            if (c.rgb == std::array<std::uint8_t, 3>{} || *std::max_element(c.rgb.begin(), c.rgb.end()) == 255)
+                hues.insert(c.rgb);
+        QVERIFY2(hues.size() > 5, "a rainbow across the board");
+
+        Visualiser red;
+        red.setSettings({1.0, false, {255, 0, 0}});
+        red.feed(noise);
+        bool lit = false;
+        for (const auto &c : red.colors()) {
+            QCOMPARE(int(c.rgb[1]), 0);
+            QCOMPARE(int(c.rgb[2]), 0);
+            lit = lit || c.rgb[0] > 0;
+        }
+        QVERIFY(lit);
+
+        Visualiser quiet;
+        quiet.setSettings({Visualiser::kSensitivityMin, true, {}});
+        quiet.feed(noise);
+        QVERIFY(total(quiet) < total(rainbow));
+
+        rainbow.reset();
+        QCOMPARE(total(rainbow), 0.0);
     }
 
     void actionInfoDescribesEveryKind()
