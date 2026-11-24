@@ -1719,6 +1719,13 @@ private slots:
         QVERIFY(!save->property("enabled").toBool());
         call("setName", {"ab"});
         QVERIFY(save->property("enabled").toBool());
+        // "New macro" closes the open form; opening it again brings the unsaved draft back.
+        QMetaObject::invokeMethod(need("newMacro"), "clicked");
+        QVERIFY(!page->property("editing").toBool());
+        QMetaObject::invokeMethod(need("newMacro"), "clicked");
+        QVERIFY(page->property("editing").toBool());
+        QCOMPARE(steps().size(), 4);
+        QCOMPARE(page->property("draft").toMap().value("name").toString(), QString("ab"));
         QMetaObject::invokeMethod(save, "clicked");
         QTRY_COMPARE(w.backend.macros().size(), 1);
         // The new macro is selected and shows the read-back: nothing left to save.

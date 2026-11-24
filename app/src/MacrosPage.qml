@@ -19,6 +19,7 @@ Item {
     property var held: []              // usages pressed during this recording
     property bool selectNew: false     // select the macro a save adds, once it is read back
     property string loadedFrom: "null" // the read-back the draft was loaded from
+    property var newDraft: null        // an unsaved new macro, kept while its form is closed
 
     KeyNames { id: names }
 
@@ -76,15 +77,35 @@ Item {
         page.standard = steps.length > 1 && steps.slice(0, -1).every(s => s.delay === page.limits.standardDelay)
     }
     function select(i) {
+        page.keepNewDraft()
         page.index = i
         page.editing = true
         page.load()
+        // Reopening the new macro form brings back what was left in it.
+        if (i < 0 && page.newDraft) {
+            page.draft = page.copy(page.newDraft.draft)
+            page.standard = page.newDraft.standard
+        }
     }
     // Back to no macro selected: the editor closes.
     function close() {
+        page.keepNewDraft()
         page.index = -1
         page.editing = false
         page.load()
+    }
+    // "New macro" opens the form, and closes it when it is already open.
+    function toggleNew() {
+        if (page.editing && page.index < 0)
+            page.close()
+        else
+            page.select(-1)
+    }
+    // Leaving the new macro form keeps its unsaved draft for the next time it opens: nothing typed
+    // or recorded is lost, and nothing asks.
+    function keepNewDraft() {
+        if (page.editing && page.index < 0)
+            page.newDraft = page.dirty ? { draft: page.copy(page.draft), standard: page.standard } : null
     }
     function setSteps(steps) {
         page.draft = { name: page.draft.name, steps: steps }
@@ -165,6 +186,7 @@ Item {
         if (page.selectNew && page.macros.length > 0) {
             page.selectNew = false
             page.select(page.macros.length - 1)
+            page.newDraft = null  // it was saved
         } else if (page.index >= page.macros.length) {
             page.close()
         } else if (JSON.stringify(page.saved) !== page.loadedFrom) {
@@ -310,7 +332,7 @@ Item {
                             kind: page.editing && page.index < 0 ? "primary" : "quiet"
                             iconName: "plus"
                             text: qsTr("New macro")
-                            onClicked: page.select(-1)
+                            onClicked: page.toggleNew()
                         }
                     }
                 }
