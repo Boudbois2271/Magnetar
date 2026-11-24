@@ -10,7 +10,7 @@ INCLUDEPATH += ../core
 LIBS += -L$$OUT_PWD/../core -lakkocore
 PRE_TARGETDEPS += $$OUT_PWD/../core/libakkocore.a
 
-HEADERS = src/backend.h src/device_worker.h src/desktop_size.h src/theme.h src/translator.h src/scancodes.h src/color_palette.h src/visualiser.h src/audio_capture.h src/mural_controller.h src/hotplug_watch.h
-SOURCES = src/main.cpp src/backend.cpp src/device_worker.cpp src/desktop_size.cpp src/theme.cpp src/translator.cpp src/scancodes.cpp src/color_palette.cpp src/visualiser.cpp src/audio_capture.cpp src/mural_controller.cpp src/hotplug_watch.cpp
+HEADERS = src/backend.h src/device_worker.h src/desktop_size.h src/theme.h src/translator.h src/scancodes.h src/color_palette.h src/visualiser.h src/audio_capture.h src/mural_controller.h src/hotplug_watch.h src/report_listener.h
+SOURCES = src/main.cpp src/backend.cpp src/device_worker.cpp src/desktop_size.cpp src/theme.cpp src/translator.cpp src/scancodes.cpp src/color_palette.cpp src/visualiser.cpp src/audio_capture.cpp src/mural_controller.cpp src/hotplug_watch.cpp src/report_listener.cpp
 LIBS += -lpulse-simple -lpulse -ludev
 RESOURCES = src/resources.qrc

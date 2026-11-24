@@ -246,6 +246,15 @@ void rememberBrightness(const std::string &stateFile, int value)
     fs::rename(tmp, path);
 }
 
+std::optional<int> brightnessReport(std::span<const std::uint8_t> report)
+{
+    if (report.size() != kReportLen || report[0] != kReportId || report[1] != 0xfe || report[2] != 0x0b
+        || report[3] != 0x02 || report[4] > kMaxBrightness
+        || checksum(report.subspan(1)) != report[kReportLen - 1])
+        return std::nullopt;
+    return report[4];
+}
+
 std::array<std::uint8_t, 3> parseColor(const std::string &text)
 {
     std::size_t b = 0, e = text.size();

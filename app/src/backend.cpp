@@ -962,6 +962,15 @@ void Backend::keyboardAdded()
         refresh();
 }
 
+void Backend::brightnessReported(int value)
+{
+    auto &b = m_state.lighting[akko::Lighting::Brightness];
+    if (!m_ready || b == value)
+        return;
+    b = static_cast<std::uint8_t>(value);
+    emit stateChanged();
+}
+
 int Backend::calibrationFull() const
 {
     return int(std::count_if(m_calibrationDepth.begin(), m_calibrationDepth.end(),

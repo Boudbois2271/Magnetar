@@ -13,6 +13,7 @@
 #include "desktop_size.h"
 #include "hotplug_watch.h"
 #include "mural_controller.h"
+#include "report_listener.h"
 #include "theme.h"
 #include "translator.h"
 
@@ -43,6 +44,15 @@ int main(int argc, char *argv[])
     HotplugWatch hotplug;
     backend.setHotplugWatched(hotplug.active());
     QObject::connect(&hotplug, &HotplugWatch::keyboardAdded, &backend, &Backend::keyboardAdded);
+    // Brightness changed on the board (Fn shortcut) shows at once. The node is opened again
+    // whenever the keyboard is (re)connected.
+    ReportListener reports;
+    QObject::connect(&reports, &ReportListener::brightnessReported, &backend, &Backend::brightnessReported);
+    QObject::connect(&backend, &Backend::connectionChanged, &reports, [&] {
+        if (backend.connected())
+            reports.open();
+    });
+    reports.open();
     // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours and the Mural.
     const QString settings = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini";
     ColorPalette colorPalette(settings);

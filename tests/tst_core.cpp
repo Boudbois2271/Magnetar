@@ -3,6 +3,7 @@
 #include "device.h"
 #include "fake_transport.h"
 #include "keyboard.h"
+#include "lights.h"
 #include "mural.h"
 
 #include <QTemporaryDir>
@@ -180,6 +181,33 @@ class CoreTests : public QObject {
 
 private slots:
     // ---- frames ----------------------------------------------------------
+    // fe 0b reports as captured (akko-capture11.txt mark 14), whole 64-byte reports.
+    void brightnessReports()
+    {
+        auto report = [](std::uint8_t cmd, std::uint8_t sub, std::uint8_t a, std::uint8_t b) {
+            std::vector<std::uint8_t> r(kReportLen, 0);
+            r[0] = kReportId;
+            r[1] = cmd, r[2] = sub, r[3] = a, r[4] = b;
+            r[kReportLen - 1] = checksum(std::span(r).subspan(1));
+            return r;
+        };
+        auto r = report(0xfe, 0x0b, 0x02, 0x05);
+        QCOMPARE(r[kReportLen - 1], std::uint8_t(0xe6));  // the captured checksum
+        QCOMPARE(brightnessReport(r), std::optional<int>(5));
+        QCOMPARE(brightnessReport(report(0xfe, 0x0b, 0x02, 0x00)), std::optional<int>(0));
+        QCOMPARE(brightnessReport(report(0xfe, 0x0b, 0x02, 0x14)), std::optional<int>(20));
+        QVERIFY(!brightnessReport(report(0xfe, 0x0b, 0x02, 0x15)));  // past the maximum
+        QVERIFY(!brightnessReport(report(0xfe, 0x0c, 0x02, 0x05)));
+        QVERIFY(!brightnessReport(report(0x98, 0x01, 0x02, 0x05)));
+        QVERIFY(!brightnessReport(report(0xfe, 0x0b, 0x01, 0x05)));
+        r[kReportLen - 1] ^= 1;
+        QVERIFY(!brightnessReport(r));  // bad checksum
+        r = report(0xfe, 0x0b, 0x02, 0x05);
+        QVERIFY(!brightnessReport(std::span(r).first(10)));
+        r[0] = 0x07;
+        QVERIFY(!brightnessReport(r));
+    }
+
     void framesMatchPythonTool()
     {
         const auto cases = loadFrames("python-frames.txt");

@@ -135,8 +135,10 @@ reflected in `akko-protocol.md`.
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
-- Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R; the
-  unsolicited `fe 0b` brightness reports aren't listened to.
+- Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R;
+  brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only,
+  tested against a fake node only, not with Fn on the board yet). Other unsolicited reports are
+  ignored.
 - Plugging in is noticed through a udev watch (`hidraw` add events of `38ee:0016`), tested against
   the fake keyboard only, not by replugging the board yet. Without udev it retries every 3 s; with
   it, "not found" is retried every 10 s as a fallback. Unplugging is still noticed on the next read.

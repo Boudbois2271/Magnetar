@@ -142,6 +142,8 @@ public:
     // fallback, and keyboardAdded() reconnects at once.
     void setHotplugWatched(bool watched) { m_hotplugWatched = watched; }
     void keyboardAdded();  // the keyboard's node appeared: read it if we aren't connected
+    // The board reported a new brightness on its own (fe 0b, Fn shortcut): show it.
+    void brightnessReported(int value);
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
     // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |

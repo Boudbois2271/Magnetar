@@ -3,6 +3,10 @@
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
 #include "hotplug_watch.h"
+#include "report_listener.h"
+
+#include <fcntl.h>
+#include <unistd.h>
 #include "color_palette.h"
 #include "desktop_size.h"
 #include "fake_transport.h"
@@ -426,6 +430,41 @@ private slots:
         QVERIFY(!HotplugWatch::isKeyboard(nullptr, "0016"));
         HotplugWatch watch;  // opens and closes cleanly, whether udev is reachable or not
         Q_UNUSED(watch.active());
+    }
+
+    // An Fn brightness change on the board (fe 0b) shows without a read.
+    void brightnessReportsAreShown()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        const int before = b.brightness();
+        const int value = before == 5 ? 10 : 5;
+        int fds[2];
+        QCOMPARE(::pipe2(fds, O_NONBLOCK | O_CLOEXEC), 0);
+        ReportListener listener;
+        connect(&listener, &ReportListener::brightnessReported, &b, &Backend::brightnessReported);
+        listener.listen(fds[0]);
+        QVERIFY(listener.listening());
+        QSignalSpy changed(&b, &Backend::stateChanged);
+        const auto sentBefore = [&] { std::lock_guard lock(board.mutex); return board.written.size(); }();
+        std::vector<std::uint8_t> r(akko::kReportLen, 0);
+        r[0] = akko::kReportId;
+        r[1] = 0xfe, r[2] = 0x0b, r[3] = 0x02, r[4] = std::uint8_t(value);
+        r[akko::kReportLen - 1] = akko::checksum(std::span(r).subspan(1));
+        std::vector<std::uint8_t> other = r;
+        other[1] = 0x98;  // another unsolicited report: ignored
+        QCOMPARE(::write(fds[1], other.data(), other.size()), ssize_t(other.size()));
+        QCOMPARE(::write(fds[1], r.data(), r.size()), ssize_t(r.size()));
+        QTRY_COMPARE(b.brightness(), value);
+        QCOMPARE(changed.count(), 1);
+        {
+            std::lock_guard lock(board.mutex);
+            QCOMPARE(board.written.size(), sentBefore);  // nothing sent, nothing read
+        }
+        ::close(fds[1]);  // like an unplug: the listener lets go
+        QTRY_VERIFY(!listener.listening());
     }
 
     void settingsAreWrittenAndReadBack()

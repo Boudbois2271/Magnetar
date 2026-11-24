@@ -8,6 +8,8 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
+#include <span>
 #include <string>
 
 namespace akko {
@@ -24,6 +26,10 @@ void rememberBrightness(const std::string &stateFile, int value);
 // "#rgb", "rrggbb", "##rrggbb", surrounding spaces... as the CLI has always accepted.
 // Throws Error("bad colour '…', expected #rrggbb").
 std::array<std::uint8_t, 3> parseColor(const std::string &text);
+
+// The brightness in an unsolicited `fe 0b 02 bb` input report (64 bytes, report ID included),
+// sent after a brightness change made on the board (Fn shortcut). nullopt for anything else.
+std::optional<int> brightnessReport(std::span<const std::uint8_t> report);
 
 enum class LightsAction { On, Off, Toggle };
 
