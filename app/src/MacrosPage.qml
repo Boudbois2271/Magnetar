@@ -35,10 +35,27 @@ Item {
             delay: i === n - 1 ? 1 : page.standard ? page.limits.standardDelay : s.delay })) }
     }
     // The steps as listed: newest first while recording, so each new one shows at the top; the
-    // draft (and the board) keep them in time order.
-    readonly property var shownSteps: page.recording ? page.draft.steps.slice().reverse() : page.draft.steps
+    // draft (and the board) keep them in time order. The list fades out and back in around the
+    // switch, so the rows don't jump.
+    property bool newestFirst: false
+    readonly property var shownSteps: page.newestFirst ? page.draft.steps.slice().reverse() : page.draft.steps
     function stepAt(row) {
-        return page.recording ? page.draft.steps.length - 1 - row : row
+        return page.newestFirst ? page.draft.steps.length - 1 - row : row
+    }
+    onRecordingChanged: {
+        if (page.newestFirst === page.recording)
+            return
+        if (page.draft.steps.length < 2) {
+            page.newestFirst = page.recording
+            return
+        }
+        resort.restart()
+    }
+    SequentialAnimation {
+        id: resort
+        NumberAnimation { target: stepsView; property: "opacity"; to: 0; duration: 150; easing.type: Easing.InQuad }
+        ScriptAction { script: page.newestFirst = page.recording }
+        NumberAnimation { target: stepsView; property: "opacity"; to: 1; duration: 180; easing.type: Easing.OutQuad }
     }
     readonly property bool dirty: page.key(page.record) !== page.key(page.saved || page.blank())
     // Compares macros by content (the board's records list their fields in another order).
@@ -71,6 +88,10 @@ Item {
     }
     function load() {
         page.recording = false
+        // Another macro shows at once, in time order.
+        resort.stop()
+        stepsView.opacity = 1
+        page.newestFirst = false
         page.loadedFrom = JSON.stringify(page.saved)
         page.draft = page.saved ? page.copy(page.saved) : page.blank()
         const steps = page.draft.steps
@@ -514,13 +535,13 @@ Item {
                                         kind: "quiet"
                                         text: "↑"
                                         enabled: stepRow.index > 0
-                                        onClicked: page.moveStep(stepRow.step, page.recording ? 1 : -1)
+                                        onClicked: page.moveStep(stepRow.step, page.newestFirst ? 1 : -1)
                                     }
                                     AppButton {
                                         kind: "quiet"
                                         text: "↓"
                                         enabled: stepRow.index < page.draft.steps.length - 1
-                                        onClicked: page.moveStep(stepRow.step, page.recording ? -1 : 1)
+                                        onClicked: page.moveStep(stepRow.step, page.newestFirst ? -1 : 1)
                                     }
                                     AppButton {
                                         kind: "quiet"
