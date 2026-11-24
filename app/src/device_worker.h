@@ -3,11 +3,14 @@
 // shared lock plus the device), runs the actions in order, reads the keyboard's state back and
 // closes the session again. So the lock is only held for a moment, and the bar widget and
 // akkoctl keep working while the app is open.
+// With a Mural source set, the worker streams it (08 04) whenever nothing is queued, in slices of
+// about a second, letting go of the lock between slices and as soon as an action is queued.
 #pragma once
 
 #include "keyboard.h"
 #include "transport.h"
 
+#include <chrono>
 #include <condition_variable>
 #include <deque>
 #include <functional>
@@ -89,12 +92,25 @@ public:
     // Read the whole keymap and travel again at the end of the next batch.
     void invalidateKeymap();
 
+    // Fills `colors` with the colours to show now and returns true when they changed since the
+    // last call. Called on the worker thread.
+    using MuralSource = std::function<bool(std::vector<akko::KeyColor> &colors)>;
+    // Streams the source while it is set; an empty one stops. Slices that fail (no keyboard,
+    // lock busy) are dropped quietly and tried again a second later: the board just shows its
+    // own effect meanwhile, and queued actions report errors as usual.
+    void setMural(MuralSource source);
+    static constexpr std::chrono::milliseconds kMuralSlice{1000};  // session length
+    static constexpr std::chrono::milliseconds kMuralGap{60};      // > akkoctl's 20 ms lock poll
+    static constexpr std::chrono::milliseconds kMuralRetry{1000};  // after a failed slice
+
 private:
     struct Item {
         std::string key;
         Action action;
     };
     void loop();
+    // One Mural session; false if it failed.
+    bool streamSlice(const MuralSource &source, unsigned generation);
 
     SessionFactory sessions_;
     std::function<void(const Snapshot &)> onState_;
@@ -105,5 +121,7 @@ private:
     bool stopping_ = false;
     Snapshot state_;  // worker thread only, apart from keymapStale_
     bool keymapStale_ = true;
+    MuralSource mural_;
+    unsigned muralGeneration_ = 0;  // bumped by every setMural, so a slice sees the change
     std::thread thread_;  // last, so it starts after everything it uses exists
 };

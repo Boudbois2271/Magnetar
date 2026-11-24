@@ -7,6 +7,8 @@
 #include "fake_transport.h"
 #include "theme.h"
 #include "translator.h"
+#include "mural.h"
+#include "mural_controller.h"
 #include "visualiser.h"
 
 #include <QDirIterator>
@@ -140,6 +142,69 @@ QStringList overflows(QQuickItem *item, QQuickItem *root, const QStringList &scr
     for (auto *child : item->childItems())
         found << overflows(child, root, scrolls);
     return found;
+}
+
+// Stands in for the desktop's audio: the test feeds the sink itself.
+struct FakeAudio {
+    std::mutex mutex;
+    AudioCapture::Sink sink;
+    AudioCapture::Status status;
+    int open = 0;
+
+    struct Handle : AudioCapture {
+        explicit Handle(FakeAudio &a) : audio(a) {}
+        ~Handle() override
+        {
+            std::lock_guard lock(audio.mutex);
+            audio.sink = {};
+            --audio.open;
+        }
+        FakeAudio &audio;
+    };
+    AudioCaptureFactory factory()
+    {
+        return [this](AudioCapture::Sink sink, AudioCapture::Status status) -> std::unique_ptr<AudioCapture> {
+            std::lock_guard lock(mutex);
+            this->sink = std::move(sink);
+            this->status = std::move(status);
+            ++open;
+            return std::make_unique<Handle>(*this);
+        };
+    }
+    void play(std::span<const float> samples)
+    {
+        std::lock_guard lock(mutex);
+        if (sink)
+            sink(samples);
+    }
+};
+
+std::vector<float> sineWave(double hz, double seconds, double amplitude = 0.5)
+{
+    std::vector<float> s(std::size_t(seconds * Visualiser::kRate));
+    for (std::size_t i = 0; i < s.size(); ++i)
+        s[i] = float(amplitude * std::sin(2 * M_PI * hz * double(i) / Visualiser::kRate));
+    return s;
+}
+
+// The last whole Mural frame the board got, LED → RGB565; empty if none.
+std::map<std::uint8_t, std::uint16_t> lastMuralFrame(FakeBoard &board)
+{
+    std::lock_guard lock(board.mutex);
+    const auto &m = board.keyboard.mural;
+    for (std::size_t end = m.size(); end > 0; --end) {
+        const std::size_t count = m[end - 1][4], index = m[end - 1][5];
+        if (index + 1 != count || end < count)
+            continue;
+        std::vector<Frame> packets;
+        for (std::size_t i = end - count; i < end; ++i) {
+            Frame f{};
+            std::copy(m[i].begin() + 1, m[i].end(), f.begin());
+            packets.push_back(f);
+        }
+        return muralDecode(packets);
+    }
+    return {};
 }
 
 }  // namespace
@@ -879,6 +944,103 @@ private slots:
     }
 
     // ---- Mural visualiser --------------------------------------------------
+    void muralStreamsBetweenActions()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        const int sessionsBefore = board.sessions;
+
+        // Esc red and Right blue, every other LED dark: decoded from the 08 04 frames sent.
+        b.setMural([](std::vector<KeyColor> &colors) {
+            colors = {{0x01, {255, 0, 0}}, {0x4d, {0, 0, 255}}};
+            return false;  // never changes: the first frame of each session must still carry them
+        });
+        QTRY_VERIFY(!lastMuralFrame(board).empty());
+        auto frame = lastMuralFrame(board);
+        QCOMPARE(frame.size(), kMuralLeds);
+        for (const auto &[led, colour] : frame)
+            QCOMPARE(colour, led == *muralLed(0x01) ? std::uint16_t(0xf800) : led == *muralLed(0x4d) ? std::uint16_t(0x001f) : std::uint16_t(0));
+
+        // An action gets in mid-stream, and is read back as usual.
+        b.setBrightness(2);
+        QTRY_COMPARE(b.brightness(), 2);
+        // Sessions come and go (the lock is let go between slices), still showing the colours.
+        QTRY_VERIFY_WITH_TIMEOUT(board.sessions >= sessionsBefore + 4, 5000);
+        frame = lastMuralFrame(board);
+        QCOMPARE(frame[*muralLed(0x01)], std::uint16_t(0xf800));
+
+        // Off: no more frames.
+        b.setMural({});
+        QTest::qWait(200);
+        std::size_t sent;
+        {
+            std::lock_guard lock(board.mutex);
+            sent = board.keyboard.mural.size();
+        }
+        QTest::qWait(400);
+        std::lock_guard lock(board.mutex);
+        QCOMPARE(board.keyboard.mural.size(), sent);
+        for (const auto &w : board.keyboard.mural)
+            QVERIFY(w[1] == 0x08 && w[2] == 0x04);
+    }
+
+    void muralControllerFollowsTheSound()
+    {
+        FakeBoard board;
+        FakeAudio audio;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.ready());
+        {
+            MuralController m(b, dir.filePath("settings.ini"), audio.factory());
+            QVERIFY(!m.on());
+            QCOMPARE(audio.open, 0);
+            QVERIFY(m.colors().isEmpty());
+
+            m.setOn(true);
+            QCOMPARE(audio.open, 1);
+            audio.status(true);
+            QTRY_VERIFY(m.hearing());
+            QTRY_COMPARE(m.colors().size(), qsizetype(layout().size()));
+            QCOMPARE(m.colors().value("67").toString(), QString("#000000"));  // LCtrl, silence
+
+            // A low note: the bottom-left key lights, on the page and on the board.
+            audio.play(sineWave(100, 0.3));
+            QTRY_VERIFY(m.colors().value("67").toString() != "#000000");
+            QTRY_VERIFY(lastMuralFrame(board)[*muralLed(0x43)] != 0);
+
+            // One colour: lit keys are red only.
+            m.setRainbow(false);
+            m.setColor("#ff0000");
+            audio.play(sineWave(100, 0.1));
+            QTRY_COMPARE(m.colors().value("67").toString(), QString("#ff0000"));
+            m.setSensitivity(100);
+            QCOMPARE(m.sensitivity(), Visualiser::kSensitivityMax);
+            m.setColor("not a colour");
+            QCOMPARE(m.color(), QString("#ff0000"));
+
+            // No samples (a suspended output): that is silence, the bars fall.
+            QTRY_COMPARE_WITH_TIMEOUT(m.colors().value("67").toString(), QString("#000000"), 3000);
+
+            m.setOn(false);
+            QCOMPARE(audio.open, 0);
+            QVERIFY(m.colors().isEmpty());
+            QVERIFY(!m.hearing());
+            m.setOn(true);
+        }
+        QCOMPARE(audio.open, 0);  // the app quits: capture stops
+
+        // Everything comes back with the app, on included.
+        MuralController again(b, dir.filePath("settings.ini"), audio.factory());
+        QVERIFY(again.on());
+        QCOMPARE(audio.open, 1);
+        QVERIFY(!again.rainbow());
+        QCOMPARE(again.color(), QString("#ff0000"));
+        QCOMPARE(again.sensitivity(), Visualiser::kSensitivityMax);
+    }
+
     void visualiserBarsFollowThePitch()
     {
         const auto sine = [](double hz, double seconds, double amplitude = 0.5) {

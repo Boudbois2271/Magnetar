@@ -233,6 +233,9 @@ public:
 
     static QString classifyError(const QString &message);
 
+    // Streams Mural colours between actions while set (see DeviceWorker::setMural); empty stops.
+    void setMural(DeviceWorker::MuralSource source) { m_worker->setMural(std::move(source)); }
+
 signals:
     void connectionChanged();
     void stateChanged();

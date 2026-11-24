@@ -63,6 +63,36 @@ void DeviceWorker::invalidateKeymap()
     keymapStale_ = true;
 }
 
+void DeviceWorker::setMural(MuralSource source)
+{
+    {
+        std::lock_guard lock(mutex_);
+        mural_ = std::move(source);
+        ++muralGeneration_;
+    }
+    wake_.notify_one();
+}
+
+bool DeviceWorker::streamSlice(const MuralSource &source, unsigned generation)
+{
+    try {
+        const auto session = sessions_();
+        akko::Keyboard kb(session->transport());
+        const auto end = std::chrono::steady_clock::now() + kMuralSlice;
+        bool first = true;  // a new session starts from the current colours, not from dark
+        kb.streamMural(
+            [&] {
+                std::lock_guard lock(mutex_);
+                return !stopping_ && queue_.empty() && muralGeneration_ == generation
+                    && std::chrono::steady_clock::now() < end;
+            },
+            [&](std::vector<akko::KeyColor> &colors) { return source(colors) || std::exchange(first, false); });
+        return true;
+    } catch (const std::exception &) {
+        return false;
+    }
+}
+
 void DeviceWorker::loop()
 {
     for (;;) {
@@ -70,9 +100,22 @@ void DeviceWorker::loop()
         bool keymapStale = false;
         {
             std::unique_lock lock(mutex_);
-            wake_.wait(lock, [this] { return stopping_ || !queue_.empty(); });
+            wake_.wait(lock, [this] { return stopping_ || !queue_.empty() || mural_; });
             if (stopping_)
                 return;
+            if (queue_.empty()) {
+                // Nothing to do but the Mural: one slice, then a gap long enough for anyone
+                // waiting on the lock to get it. Actions and changes cut both short.
+                const auto source = mural_;
+                const unsigned generation = muralGeneration_;
+                lock.unlock();
+                const bool ok = streamSlice(source, generation);
+                lock.lock();
+                wake_.wait_for(lock, ok ? kMuralGap : kMuralRetry, [&] {
+                    return stopping_ || !queue_.empty() || muralGeneration_ != generation;
+                });
+                continue;
+            }
             batch.swap(queue_);
             keymapStale = std::exchange(keymapStale_, false);
         }
