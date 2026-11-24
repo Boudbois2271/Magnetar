@@ -70,7 +70,8 @@ reflected in `akko-protocol.md`.
 
 ## Magnetar (desktop app)
 
-- Pages: Keys (tabs Action, Travel, Advanced), Macros, Lighting (with per-key colours), Settings (with Calibration and Device).
+- Pages: Keys (tabs Action, Travel, Advanced), Lighting (with per-key colours and the Visualiser
+  effect), Mural (workbench for app-streamed effects), Macros, Settings (with Calibration and Device).
 - Settings page: the four writes were sent by Magnetar's core and read back on the board, but the
   page itself hasn't been used by hand on the board yet. Whether these settings are per profile is
   unknown (they're read with every batch, so a profile switch would show it). What Combo
@@ -148,9 +149,8 @@ reflected in `akko-protocol.md`.
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
   the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
 - UI redesign (`docs/ui-plan.md`, items 1–18): checked offscreen only (tests, EN/FR screenshots in
-  a dark and the flexoki-light theme), then reviewed once on the desktop: findings R1–R8 in
-  `docs/ui-plan.md` are open (key deselect, Action tab anchoring, Lighting/Settings layout, sidebar
-  order, macro recording order, icon, per-key colour moving to Lighting). Not used on the board yet. Light
+  a dark and the flexoki-light theme), then reviewed once on the desktop (findings R1–R8 in
+  `docs/ui-plan.md`, all fixed). Not used on the board yet. Light
   themes were tried with one theme only. Keyboard focus is tested with Tab offscreen; real keyboard
   use on the desktop isn't. Space toggles the lights only while no control has keyboard focus.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
