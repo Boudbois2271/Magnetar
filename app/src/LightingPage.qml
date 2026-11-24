@@ -91,7 +91,7 @@ Item {
     // The drawing is as large as on the Keys page: as wide as the page allows, up to the same
     // largest keys, leaving room for the options under it.
     readonly property real drawingWidth: {
-        const room = frame.height - heading.height - 2 * frame.spacing - options.implicitHeight - 34 * ui.unit
+        const room = frame.height - frame.headerHeight - 2 * frame.spacing - options.implicitHeight - 34 * ui.unit
         const perWidth = 1 / preview.aspect + preview.bezel / (preview.columns + 2 * preview.bezel)
         return Math.max(400 * ui.unit, Math.min(frame.width, preview.implicitWidth, room / perWidth))
     }
@@ -126,16 +126,10 @@ Item {
     // One column under the drawing, one option per row, each row the control height.
     PageLayout {
         id: frame
+        title: qsTr("Lighting")
         // Nothing to show until the keyboard has been read once: no made-up values.
         visible: backend.ready
         enabled: backend.connected
-
-        Label {
-            id: heading
-            text: qsTr("Lighting")
-            font.pixelSize: ui.title
-            font.weight: Font.DemiBold
-        }
 
         // What the board shows now; a click or a box picks keys to colour one by one.
         // The box takes in the drawing's drag margin, so a drag that starts there reaches it.

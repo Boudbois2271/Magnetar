@@ -21,11 +21,13 @@ Item {
     }
 
     PageLayout {
+        id: frame
         visible: backend.ready
         enabled: backend.connected && !backend.restarting
 
         RowLayout {
             Layout.leftMargin: -12 * ui.unit  // the back arrow lines up with the margin
+            Layout.minimumHeight: frame.headerHeight
             spacing: 8 * ui.unit
             AppButton {
                 id: back
@@ -51,11 +53,7 @@ Item {
                 }
                 onClicked: { backend.finishCalibration(); page.StackView.view.pop() }
             }
-            Label {
-                text: qsTr("Calibration")
-                font.pixelSize: ui.title
-                font.weight: Font.DemiBold
-            }
+            PageTitle { text: qsTr("Calibration") }
         }
 
         Card {

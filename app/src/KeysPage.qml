@@ -97,12 +97,9 @@ Item {
         RowLayout {
             id: header
             Layout.fillWidth: true
+            Layout.minimumHeight: frame.headerHeight
             spacing: 24 * ui.unit
-            Label {
-                text: qsTr("Keys")
-                font.pixelSize: ui.title
-                font.weight: Font.DemiBold
-            }
+            PageTitle { text: qsTr("Keys") }
             TabBar {
                 id: tabBar
                 objectName: "keysTabs"
