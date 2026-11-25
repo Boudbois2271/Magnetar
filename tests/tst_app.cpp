@@ -2489,9 +2489,26 @@ private slots:
         check("macros");
         auto *macros = w.item("macrosPage");
         call(macros, "select", -1);
-        for (int usage = 4; usage < 20; ++usage)
+        // A list that fits shows no scrollbar; a long one does.
+        auto scrollBar = [&](const char *list) -> QQuickItem * {
+            for (auto *bar : w.item(list)->findChildren<QQuickItem *>())
+                if (bar->inherits("QQuickScrollBar") && bar->property("orientation").toInt() == Qt::Vertical)
+                    return bar;
+            return nullptr;
+        };
+        auto scrolls = [&](const char *list) {
+            auto *bar = scrollBar(list);
+            QTest::qWait(60);
+            return bar->isVisible() && bar->property("size").toReal() < 1.0;
+        };
+        for (int usage = 4; usage < 6; ++usage)
+            call(macros, "addKey", usage);
+        QVERIFY(!scrolls("macroSteps"));
+        QVERIFY(!scrolls("macroList"));
+        for (int usage = 6; usage < 20; ++usage)
             call(macros, "addKey", usage);
         check("macros, 32 steps", {"macroSteps"});
+        QVERIFY(scrolls("macroSteps"));
 
         w.show("lightingPage");
         check("lighting");

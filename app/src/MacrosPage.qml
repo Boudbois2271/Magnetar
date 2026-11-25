@@ -373,13 +373,17 @@ Item {
                         spacing: 6 * ui.unit
 
                         ListView {
+                            id: macroListView
                             objectName: "macroList"
                             Layout.fillWidth: true
                             Layout.fillHeight: true
                             clip: true
                             spacing: 2 * ui.unit
                             boundsBehavior: Flickable.StopAtBounds
-                            ScrollBar.vertical: ScrollBar {}
+                            ScrollBar.vertical: ScrollBar {
+                                policy: macroListView.contentHeight > macroListView.height + 1
+                                        ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
+                            }
                             model: page.macros
                             delegate: AbstractButton {
                                 id: macroRow
@@ -540,6 +544,10 @@ Item {
                         anchors.fill: parent
                         anchors.margins: stepsBox.pad
                         contentWidth: availableWidth
+                        // The box is sized to the steps, but rounding leaves the content a
+                        // fraction of a pixel taller: no scrollbar until a step really overflows.
+                        ScrollBar.vertical.policy: contentHeight > availableHeight + 1
+                                                   ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
 
                         ColumnLayout {
                             id: steps
