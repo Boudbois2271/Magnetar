@@ -58,6 +58,8 @@ Item {
     // Advanced tab's editor is taller (Dynamic keystroke has eight rows) and its key list sits
     // beside the drawing, so there the drawing is smaller.
     readonly property bool sidePanel: page.tab === 2
+    // In a narrow window the list goes under the keyboard instead, as a short box.
+    readonly property bool sideBelow: frame.width < 400 * ui.unit + page.sideMinWidth + 16 * ui.unit
     readonly property real sideMinWidth: 220 * ui.unit
     readonly property real sideMaxWidth: 320 * ui.unit
     // (In a small window it gives way first: the keyboard keeps a usable size.)
@@ -67,8 +69,9 @@ Item {
         // Height for the plate and the bar under it; both grow with the width (the bar by the
         // plate's bezel).
         const room = frame.height - header.height - 2 * frame.spacing - page.controlsHeight - 34 * ui.unit
+                     - (page.sidePanel && page.sideBelow ? 126 * ui.unit : 0)
         const perWidth = 1 / drawing.aspect + drawing.bezel / (drawing.columns + 2 * drawing.bezel)
-        const across = frame.width - (page.sidePanel ? page.sideMinWidth + keyboardRow.spacing : 0)
+        const across = frame.width - (page.sidePanel && !page.sideBelow ? page.sideMinWidth + keyboardRow.columnSpacing : 0)
         return Math.max(400 * ui.unit, Math.min(across, drawing.implicitWidth, room / perWidth))
     }
 
@@ -76,7 +79,11 @@ Item {
     component IconButton: AppButton {
         id: iconButton
         property string iconName
+        property bool iconOnly: false  // in a narrow window: the word moves to a tooltip
         implicitWidth: iconRow.implicitWidth + 24 * ui.unit
+        ToolTip.visible: iconOnly && hovered
+        ToolTip.text: text
+        ToolTip.delay: 500
         contentItem: Item {
             implicitWidth: iconRow.implicitWidth
             implicitHeight: iconRow.implicitHeight
@@ -90,6 +97,7 @@ Item {
                 }
                 Label {
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: !iconButton.iconOnly
                     text: iconButton.text
                 }
             }
@@ -123,6 +131,7 @@ Item {
                 objectName: "undoTravel"
                 visible: page.tab === 1
                 iconName: "undo-2"
+                iconOnly: frame.width < 640 * ui.unit
                 text: qsTr("Undo last change")
                 enabled: backend.canUndoTravel
                 onClicked: backend.undoTravel()
@@ -131,10 +140,12 @@ Item {
 
         // ---- the keyboard and its selection bar ----------------------------
         // The box takes in the drawing's drag margin, so a drag that starts there reaches it.
-        RowLayout {
+        GridLayout {
             id: keyboardRow
             Layout.fillWidth: true
-            spacing: 16 * ui.unit
+            columns: page.sideBelow ? 1 : 3
+            columnSpacing: 16 * ui.unit
+            rowSpacing: 16 * ui.unit
 
             Item {
                 id: keyboardBox
@@ -172,19 +183,18 @@ Item {
                     x: drawing.x
                     y: drawing.y + drawing.height
                     width: drawing.width
-                    height: 34 * ui.unit + drawing.inset
+                    height: bar.implicitHeight + drawing.inset
                     bottomLeftRadius: theme.radius
                     bottomRightRadius: theme.radius
                     color: theme.plate
 
-                    RowLayout {
+                    BarRow {
                         id: bar
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.leftMargin: drawing.inset
                         anchors.rightMargin: drawing.inset
-                        spacing: 6 * ui.unit
 
                         AppButton { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
                         AppButton { text: qsTr("Invert"); onClicked: page.invert() }
@@ -197,15 +207,17 @@ Item {
                             objectName: "selectedCount"
                             visible: page.selection.length > 0
                             Layout.leftMargin: 10 * ui.unit
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             text: page.selection.length === 1 ? qsTr("1 key selected")
                                                               : qsTr("%1 keys selected").arg(page.selection.length)
+                            elide: Text.ElideRight
                             color: theme.secondary
                             font.features: { "tnum": 1 }
                         }
-                        Item { Layout.fillWidth: true }
 
                         // The keymap has layers; the drawing shows the one being edited.
-                        Segmented {
+                        trailing: Segmented {
                             objectName: "layerSwitch"
                             visible: page.tab === 0
                             model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
@@ -223,8 +235,8 @@ Item {
                 visible: page.sidePanel
                 Layout.alignment: Qt.AlignTop
                 Layout.fillWidth: true
-                Layout.maximumWidth: page.sideMaxWidth
-                Layout.preferredHeight: drawing.height + selectionBar.height
+                Layout.maximumWidth: page.sideBelow ? Number.POSITIVE_INFINITY : page.sideMaxWidth
+                Layout.preferredHeight: page.sideBelow ? 110 * ui.unit : drawing.height + selectionBar.height
                 radius: theme.radius
                 color: theme.plate
 

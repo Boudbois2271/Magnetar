@@ -68,6 +68,13 @@ RowLayout {
 
     spacing: 10 * ui.unit
 
+    // As wide as it wants to be: every classic colour on one row. Given less, the swatches wrap.
+    readonly property real swatchSize: 26 * ui.unit
+    readonly property real swatchGap: 8 * ui.unit
+    readonly property int naturalColumns: Math.max(10, picker.classics.length)
+    readonly property real sideWidth: picker.naturalColumns * picker.swatchSize + (picker.naturalColumns - 1) * picker.swatchGap
+    readonly property real naturalWidth: 176 * ui.unit + 14 * ui.unit + 2 * picker.spacing + 6 * ui.unit + picker.sideWidth
+
     // ---- saturation / brightness -------------------------------------------
     Rectangle {
         id: field
@@ -215,6 +222,9 @@ RowLayout {
         id: side
         Layout.alignment: Qt.AlignTop
         Layout.leftMargin: 6 * ui.unit
+        Layout.fillWidth: true
+        Layout.preferredWidth: picker.sideWidth
+        Layout.minimumWidth: 4 * picker.swatchSize + 3 * picker.swatchGap
         spacing: 8 * ui.unit
 
         RowLayout {
@@ -245,8 +255,9 @@ RowLayout {
             }
         }
 
-        Row {
-            spacing: 8 * ui.unit
+        Flow {
+            Layout.fillWidth: true
+            spacing: picker.swatchGap
             Repeater {
                 model: picker.classics
                 delegate: Swatch {
@@ -263,8 +274,8 @@ RowLayout {
         // replaces or removes a saved one.
         Grid {
             objectName: "savedColors"
-            columns: 10
-            spacing: 8 * ui.unit
+            columns: Math.max(4, Math.min(10, Math.floor((side.width + picker.swatchGap) / (picker.swatchSize + picker.swatchGap))))
+            spacing: picker.swatchGap
             Repeater {
                 model: colorPalette.slotCount
                 delegate: Swatch {
@@ -316,8 +327,8 @@ RowLayout {
         signal chosen
         signal edit(real x, real y)
 
-        width: 26 * ui.unit
-        height: 26 * ui.unit
+        width: picker.swatchSize
+        height: picker.swatchSize
         radius: theme.radius
         color: value !== "" ? value : "transparent"
         border.width: current ? 3 : 1

@@ -205,18 +205,18 @@ Item {
                 x: preview.x
                 y: preview.y + preview.height
                 width: preview.width
-                height: 34 * ui.unit + preview.inset
+                height: bar.implicitHeight + preview.inset
                 bottomLeftRadius: theme.radius
                 bottomRightRadius: theme.radius
                 color: theme.plate
 
-                RowLayout {
+                BarRow {
+                    id: bar
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.top: parent.top
                     anchors.leftMargin: preview.inset
                     anchors.rightMargin: preview.inset
-                    spacing: 6 * ui.unit
 
                     AppButton { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
                     AppButton {
@@ -232,39 +232,48 @@ Item {
                         objectName: "lightingSelectedCount"
                         visible: page.perKey
                         Layout.leftMargin: 10 * ui.unit
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         text: page.selection.length === 1 ? qsTr("1 key selected")
                                                           : qsTr("%1 keys selected").arg(page.selection.length)
+                        elide: Text.ElideRight
                         color: theme.secondary
                         font.features: { "tnum": 1 }
                     }
-                    Item { Layout.fillWidth: true }
 
                     // Key colours only show under the Custom effect.
-                    Label {
-                        objectName: "customHint"
-                        visible: page.perKey && !page.customOn
-                        text: qsTr("Custom effect is off")
-                        color: theme.secondary
-                    }
-                    AppButton {
-                        objectName: "switchToCustom"
-                        visible: page.perKey && !page.customOn
-                        kind: "primary"
-                        text: qsTr("Switch to Custom")
-                        onClicked: page.setEffect(backend.customEffect)
-                    }
+                    trailing: [
+                        Label {
+                            objectName: "customHint"
+                            visible: page.perKey && !page.customOn
+                            text: qsTr("Custom effect is off")
+                            color: theme.secondary
+                        },
+                        AppButton {
+                            objectName: "switchToCustom"
+                            visible: page.perKey && !page.customOn
+                            kind: "primary"
+                            text: qsTr("Switch to Custom")
+                            onClicked: page.setEffect(backend.customEffect)
+                        }
+                    ]
                 }
             }
         }
 
         // ---- the options: the settings, then the colour beside them -------------
-        RowLayout {
+        // In a narrow window the colour goes under the settings.
+        GridLayout {
             id: options
             objectName: "lightingOptions"
+            readonly property bool stacked: settingsColumn.implicitWidth + 48 * ui.unit + picker.naturalWidth > frame.width
             Layout.fillWidth: true
-            spacing: 0
+            columns: options.stacked ? 1 : 2
+            columnSpacing: 0
+            rowSpacing: 16 * ui.unit
 
             ColumnLayout {
+                id: settingsColumn
                 Layout.alignment: Qt.AlignTop
                 spacing: 6 * ui.unit
 
@@ -414,7 +423,8 @@ Item {
             // The colour: the board's, or the selected keys'.
             ColumnLayout {
                 Layout.alignment: Qt.AlignTop
-                Layout.leftMargin: 48 * ui.unit
+                Layout.leftMargin: options.stacked ? 0 : 48 * ui.unit
+                Layout.fillWidth: options.stacked
                 spacing: 6 * ui.unit
                 Label {
                     objectName: "colorLabel"
@@ -428,6 +438,8 @@ Item {
                 ColorPicker {
                     id: picker
                     objectName: "colorPicker"
+                    Layout.fillWidth: true
+                    Layout.maximumWidth: naturalWidth
                     color: page.shownColor
                     classics: page.swatches
                     // With rainbow on, the board's colour is the one it goes back to.

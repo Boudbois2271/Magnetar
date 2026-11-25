@@ -134,7 +134,7 @@ ColumnLayout {
         }
         RowLayout {
             id: tail
-            Layout.leftMargin: 32 * ui.unit
+            Layout.leftMargin: page.width < 560 * ui.unit ? 12 * ui.unit : 32 * ui.unit  // closer in a narrow window
             spacing: 0
         }
     }

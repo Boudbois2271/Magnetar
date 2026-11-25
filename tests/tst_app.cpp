@@ -2453,15 +2453,20 @@ private slots:
     void pagesFitTheDefaultWindow_data()
     {
         QTest::addColumn<QString>("language");
-        QTest::newRow("en") << "en";
-        QTest::newRow("fr") << "fr";
+        QTest::addColumn<QSize>("size");  // empty: the default window
+        QTest::newRow("en") << "en" << QSize();
+        QTest::newRow("fr") << "fr" << QSize();
+        // Half of a 1920×1080 desktop, as a tiling window manager makes it.
+        QTest::newRow("en, half width") << "en" << QSize(960, 1030);
+        QTest::newRow("fr, half width") << "fr" << QSize(960, 1030);
     }
 
-    // At the default window size and 12 px text (Omarchy's small text size), every page shows
-    // all of itself without scrolling. Only growing lists scroll, in their own boxes.
+    // At the default window size, and at half a 1080p desktop, with 12 px text (Omarchy's small
+    // text size), every page shows all of itself without scrolling. Only growing lists scroll, in their own boxes.
     void pagesFitTheDefaultWindow()
     {
         QFETCH(QString, language);
+        QFETCH(QSize, size);
         KeysWindow w;
         QFont small("Sans");
         small.setPixelSize(12);
@@ -2478,6 +2483,8 @@ private slots:
         QTRY_VERIFY(w.backend.ready() && w.backend.macrosReady() && w.backend.colorsReady());
         QCOMPARE(w.window->width(), 1234);
         QCOMPARE(w.window->height(), 789);
+        if (size.isValid())
+            w.window->resize(size);
 
         QStringList problems;
         auto check = [&](const QString &state, const QStringList &scrolls = {}) {
