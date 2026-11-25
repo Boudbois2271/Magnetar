@@ -40,9 +40,6 @@ ColumnLayout {
     function count(field) {
         return page.values(field).filter(x => x).length
     }
-    function highest(field) {
-        return Math.max.apply(null, [0].concat(page.values(field)))
-    }
 
     function mm(v, decimals) {
         if (v === undefined)
@@ -159,7 +156,6 @@ ColumnLayout {
             label: qsTr("Actuation point")
             shown: page.common("actuation")
             mixed: page.mixed("actuation")
-            highest: page.highest("actuation")
             from: page.limits.minActuation
             to: page.limits.maxActuation
             step: 0.01
@@ -215,7 +211,6 @@ ColumnLayout {
             label: qsTr("Sensitivity")
             shown: page.common("press")
             mixed: page.mixed("press") || page.mixed("release")
-            highest: Math.max(page.highest("press"), page.highest("release"))
             from: page.limits.minRapidTrigger
             to: page.limits.maxRapidTrigger
             step: page.limits.step
@@ -232,7 +227,6 @@ ColumnLayout {
             label: qsTr("Press (types again after)")
             shown: page.common("press")
             mixed: page.mixed("press")
-            highest: page.highest("press")
             from: page.limits.minRapidTrigger
             to: page.limits.maxRapidTrigger
             step: page.limits.step
@@ -249,7 +243,6 @@ ColumnLayout {
             label: qsTr("Release (lets go after)")
             shown: page.common("release")
             mixed: page.mixed("release")
-            highest: page.highest("release")
             from: page.limits.minRapidTrigger
             to: page.limits.maxRapidTrigger
             step: page.limits.step
@@ -278,7 +271,6 @@ ColumnLayout {
             label: qsTr("Top")
             shown: page.common("deadTop")
             mixed: page.mixed("deadTop")
-            highest: page.highest("deadTop")
             from: 0
             to: page.limits.maxDeadZone
             step: page.limits.step
@@ -294,7 +286,6 @@ ColumnLayout {
             label: qsTr("Bottom")
             shown: page.common("deadBottom")
             mixed: page.mixed("deadBottom")
-            highest: page.highest("deadBottom")
             from: 0
             to: page.limits.maxDeadZone
             step: page.limits.step

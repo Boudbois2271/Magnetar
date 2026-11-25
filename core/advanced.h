@@ -28,9 +28,11 @@ enum class AdvancedType : std::uint8_t {
 // SOCD: what wins when both keys are down. The vendor app offers only these four.
 enum class SocdMode : std::uint8_t { Neutral = 0x00, LastInput = 0x01, Key1 = 0x03, Key2 = 0x04 };
 
-// Our limits. Depths: the actuation range (0.1 to 3.5 mm). Hold time: the vendor app's slider
-// range was never captured (seen: 200 default, 322, 965), so we stay inside 100 to 1000 ms.
-constexpr std::uint16_t kMinHoldMs = 100, kMaxHoldMs = 1000;
+// Limits. Hold time: the vendor app's 0 to 1000 ms (Mod-Tap, akko-capture13.txt; Toggle assumed
+// the same). Multi-Point depths: the vendor app's 0.1 to 3.4 mm (akko-capture13.txt). DKS depths:
+// ours, the actuation range (0.1 to 3.5 mm); the vendor's were never captured.
+constexpr std::uint16_t kMinHoldMs = 0, kMaxHoldMs = 1000;
+constexpr std::uint16_t kMaxPointDepth = 680;
 constexpr std::size_t kMultiPointSlots = 3;  // the vendor app always sends three
 constexpr std::size_t kDksRows = 4, kDksStages = 4;
 constexpr Action kNoAction{0, 0, 0, 0};  // an empty Multi-Point or DKS slot

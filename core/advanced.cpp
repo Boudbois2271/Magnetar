@@ -171,6 +171,11 @@ bool depthOk(std::uint16_t d)
     return d >= kMinActuation && d <= kMaxActuation;
 }
 
+bool pointDepthOk(std::uint16_t d)
+{
+    return d >= kMinActuation && d <= kMaxPointDepth;
+}
+
 }  // namespace
 
 std::vector<std::uint8_t> encodeAdvanced(const AdvancedKey &a)
@@ -320,7 +325,7 @@ std::string advancedProblem(const AdvancedKey &a)
         if (std::all_of(a.points.begin(), a.points.end(), [](const PointSlot &p) { return p.action == kNoAction; }))
             return key + "Multi-Point needs at least one action";
         for (const auto &p : a.points)
-            if (!depthOk(p.depth))
+            if (!pointDepthOk(p.depth))
                 return key + "depth out of range";
         break;
     case AdvancedType::Dks: {

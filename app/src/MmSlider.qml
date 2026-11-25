@@ -11,7 +11,6 @@ ColumnLayout {
     property string label
     property var shown        // the selected keys' most common value
     property bool mixed: false
-    property real highest: 0  // largest value among the selected keys
     property real from: 0
     property real to: 1
     property real step: 0.005
@@ -24,7 +23,6 @@ ColumnLayout {
     // Where the slider's track starts, from the left edge: other rows line up with it.
     readonly property real trackLeft: slider.x + slider.leftPadding
 
-    readonly property bool beyond: ms.highest > ms.to + 1e-9
     Layout.fillWidth: true
     spacing: 0
 
@@ -78,7 +76,6 @@ ColumnLayout {
             Layout.preferredWidth: ms.boxWidth
             horizontalAlignment: TextInput.AlignRight
             font.features: { "tnum": 1 }
-            enabled: !ms.beyond
             inputMethodHints: Qt.ImhFormattedNumbersOnly
             validator: RegularExpressionValidator { regularExpression: /[0-9]{0,1}([.,][0-9]{0,3})?/ }
             Binding on text {
@@ -111,7 +108,6 @@ ColumnLayout {
             from: ms.from
             to: ms.to
             // No stepSize: Material draws a tick per step. send() rounds to the step instead.
-            enabled: !ms.beyond
             onPressedChanged: if (!pressed) ms.send(value)
             onMoved: if (!pressed) ms.send(value)  // arrow keys
             Binding on value {
@@ -120,12 +116,5 @@ ColumnLayout {
                 restoreMode: Binding.RestoreNone
             }
         }
-    }
-    Label {
-        Layout.fillWidth: true
-        visible: ms.beyond
-        text: qsTr("Some selected keys are set beyond %1 mm, so Magnetar leaves this value as it is.").arg(ms.text(ms.to))
-        wrapMode: Text.WordWrap
-        color: theme.secondary
     }
 }

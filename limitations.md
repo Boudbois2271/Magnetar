@@ -108,8 +108,10 @@ reflected in `akko-protocol.md`.
 - Advanced keys: Toggle (holds the action until the next tap), Multi-Point, Release and DKS were
   used from the page on the board (2026-11-25); Mod-Tap, SOCD and the clear were sent by the core
   and read back (2026-11-21).
-- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor app
-  offers 0–1000 ms and Multi-Point 0.100–3.400 mm (`akko-capture13.txt`), not adopted yet.
+- Advanced tab: hold time 0–1000 ms and Multi-Point depths 0.10–3.40 mm are the vendor app's
+  (`akko-capture13.txt`). Hold time was captured on Mod-Tap only; Toggle uses the same range,
+  assumed. DKS depths (0.10–3.50 mm) are still ours: the vendor's were never captured. Multi-Point
+  and DKS depths move in 0.01 mm steps (the vendor shows 0.100, its step isn't known).
 - Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
   on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
   known. Assumed per profile (read again on a profile switch).
@@ -134,11 +136,9 @@ reflected in `akko-protocol.md`.
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).
-- Travel page: the Rapid Trigger cap (up to 1.00 mm) is ours; the vendor app goes to 3.5 mm (0.005–3.5
-  for press and release, `akko-capture13.txt`), not adopted yet. The dead-zone cap (0.50 mm) is the
-  vendor's too. Keys set beyond our caps by the vendor app are shown but their slider is locked.
-  The locked slider's note adds a line under it; with press and release apart, the tab's column
-  (seven rows) then runs past the default window's height.
+- Travel page: Rapid Trigger 0.005–3.5 mm and dead zones 0–0.5 mm are the vendor app's ranges
+  (`akko-capture13.txt`), so nothing the vendor app sets falls outside the sliders. Dragging a
+  3.5 mm slider moves about 0.02 mm per pixel; finer values are typed in the mm box.
 - Calibration screen (Settings → Calibrate): "pressed all the way down" (green) means 95 % of the travel stored at Start.
   A key whose stored bottom is already too shallow turns green early. No undo: Finish is the
   board's only way out, and the old values can't be written back.

@@ -700,7 +700,7 @@ private slots:
         // Bad input sends nothing.
         QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 0.05}}));              // under 0.1 mm
         QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 4.0}}));               // over 3.5 mm
-        QVERIFY(!b.changeTravel({0x0d}, {{"press", 1.5}}));                   // over our cap
+        QVERIFY(!b.changeTravel({0x0d}, {{"press", 3.6}}));                   // over 3.5 mm
         QVERIFY(!b.changeTravel({0x0d}, {{"actuation", 1.0}, {"press", 0.1}}));  // two parts
         QVERIFY(!b.changeTravel({0x7f}, {{"actuation", 1.0}}));               // no such key
         QVERIFY(!b.changeTravel({}, {{"actuation", 1.0}}));

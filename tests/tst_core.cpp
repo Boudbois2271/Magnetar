@@ -1160,7 +1160,7 @@ private slots:
         }
         k.rapidTrigger = true;  // on needs at least 0.005 mm
         QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::RapidTrigger, std::span(&k, 1)));
-        k.press = k.release = 201;
+        k.press = k.release = 701;
         QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::RapidTrigger, std::span(&k, 1)));
         k.deadBottom = 101;
         QVERIFY_THROWS_EXCEPTION(Error, kb.setTravel(TravelPart::DeadZones, std::span(&k, 1)));
@@ -1404,7 +1404,7 @@ private slots:
         Keyboard kb(t);
         AdvancedKey tgl = makeAdvanced(AdvancedType::Toggle, 0x31);
         tgl.action = keyAction(0x0e);
-        tgl.holdMs = 50;
+        tgl.holdMs = 1001;
         QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(tgl));
         tgl.holdMs = 965;
         tgl.key = 0x50;  // not a key on this board
@@ -1423,7 +1423,56 @@ private slots:
         AdvancedKey mpt = advancedOf(advancedFrames("mpt-a", true)[0]);
         mpt.points.pop_back();
         QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(mpt));
+        mpt = advancedOf(fixtureSection("vendor-ranges.txt", "multipoint-depth-max")[0]);
+        mpt.points[0].depth = 681;  // past the vendor app's 3.4 mm
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setAdvanced(mpt));
         QVERIFY(t.written.empty());
+    }
+
+    // The vendor app's extremes (akko-capture13.txt) pass our checks and encode the same bytes.
+    void vendorRangesAreAccepted()
+    {
+        for (const char *name : {"modtap-hold-max", "multipoint-depth-max"}) {
+            const Bytes f = fixtureSection("vendor-ranges.txt", name)[0];
+            const AdvancedKey a = advancedOf(f);
+            QVERIFY2(advancedProblem(a).empty(), name);
+            const Frame built = buildFrame(0x12, 0x00, encodeAdvanced(a), 1, 0, f[2]);
+            QCOMPARE(Bytes(built.begin(), built.end()), f);
+        }
+        AdvancedKey mt = advancedOf(fixtureSection("vendor-ranges.txt", "modtap-hold-max")[0]);
+        mt.holdMs = 0;  // the slider's other end
+        QVERIFY(advancedProblem(mt).empty());
+
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const std::uint16_t f12[] = {0x0d};
+        KeyTravel k = kb.readTravel(f12)[0];
+        auto u16 = [](const Bytes &f, int i) { return std::uint16_t(f[i] << 8 | f[i + 1]); };
+        int checked = 0;
+        for (const char *name : {"rt-on", "rt-press-min", "rt-both-min", "rt-press-max", "rt-both-max", "rt-off",
+                                 "deadzone-both-min", "deadzone-bottom-max", "deadzone-both-max", "deadzone-off"}) {
+            const Bytes f = fixtureSection("vendor-ranges.txt", name)[0];
+            TravelPart part;
+            if (f[0] == 0x19) {
+                part = TravelPart::RapidTrigger;
+                k.rapidTrigger = f[8];
+                k.press = u16(f, 9);
+                k.release = u16(f, 11);
+            } else {
+                part = TravelPart::DeadZones;
+                k.deadTop = u16(f, 8);
+                k.deadBottom = u16(f, 10);
+                k.deadZones = u16(f, 12);
+            }
+            t.written.clear();
+            const auto back = kb.setTravel(part, std::span(&k, 1));
+            QVERIFY2(sent(t, 0) == f, name);
+            QVERIFY(back[0] == k);
+            ++checked;
+        }
+        QCOMPARE(checked, 10);
     }
 
     void setAdvancedFailsWhenTheBoardKeepsTheOldRecord()

@@ -10,11 +10,10 @@ namespace akko {
 
 constexpr double kMmPerUnit = 0.005;
 
-// What Magnetar lets you set. Actuation is the vendor app's own range (0.1 to 3.5 mm). The Rapid
-// Trigger and dead zone caps are ours: the vendor's maxima were never captured, so we stay well
-// inside the values seen (limitations.md).
+// What Magnetar lets you set: the vendor app's own ranges. Actuation 0.1 to 3.5 mm, Rapid Trigger
+// 0.005 to 3.5 mm, dead zones 0 to 0.5 mm (akko-capture13.txt, tests/fixtures/vendor-ranges.txt).
 constexpr std::uint16_t kMinActuation = 20, kMaxActuation = 700;
-constexpr std::uint16_t kMinRapidTrigger = 1, kMaxRapidTrigger = 200;
+constexpr std::uint16_t kMinRapidTrigger = 1, kMaxRapidTrigger = 700;
 constexpr std::uint16_t kMaxDeadZone = 100;
 
 struct KeyTravel {

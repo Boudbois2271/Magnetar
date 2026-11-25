@@ -458,7 +458,7 @@ ColumnLayout {
                         sliderWidth: 140 * ui.unit
                         shown: page.draft.points[index].depth
                         from: page.limits.minDepth
-                        to: page.limits.maxDepth
+                        to: page.limits.maxPointDepth
                         step: 0.01
                         decimals: 2
                         french: page.french

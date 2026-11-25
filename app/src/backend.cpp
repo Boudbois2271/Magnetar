@@ -595,6 +595,7 @@ QVariantMap Backend::advancedLimits() const
             {"defaultHoldMs", 200},
             {"minDepth", mm(akko::kMinActuation)},
             {"maxDepth", mm(akko::kMaxActuation)},
+            {"maxPointDepth", mm(akko::kMaxPointDepth)},
             {"step", akko::kMmPerUnit},
             {"dksDepths", QVariantList{1.0, 3.0, 3.0, 1.0}},
             {"pointDepths", QVariantList{0.5, 1.0, 1.5}},
