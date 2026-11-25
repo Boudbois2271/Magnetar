@@ -172,19 +172,18 @@ Item {
                     x: drawing.x
                     y: drawing.y + drawing.height
                     width: drawing.width
-                    height: 34 * ui.unit + drawing.inset
+                    height: bar.implicitHeight + drawing.inset
                     bottomLeftRadius: theme.radius
                     bottomRightRadius: theme.radius
                     color: theme.plate
 
-                    RowLayout {
+                    BarRow {
                         id: bar
                         anchors.left: parent.left
                         anchors.right: parent.right
                         anchors.top: parent.top
                         anchors.leftMargin: drawing.inset
                         anchors.rightMargin: drawing.inset
-                        spacing: 6 * ui.unit
 
                         AppButton { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
                         AppButton { text: qsTr("Invert"); onClicked: page.invert() }
@@ -197,15 +196,17 @@ Item {
                             objectName: "selectedCount"
                             visible: page.selection.length > 0
                             Layout.leftMargin: 10 * ui.unit
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             text: page.selection.length === 1 ? qsTr("1 key selected")
                                                               : qsTr("%1 keys selected").arg(page.selection.length)
+                            elide: Text.ElideRight
                             color: theme.secondary
                             font.features: { "tnum": 1 }
                         }
-                        Item { Layout.fillWidth: true }
 
                         // The keymap has layers; the drawing shows the one being edited.
-                        Segmented {
+                        trailing: Segmented {
                             objectName: "layerSwitch"
                             visible: page.tab === 0
                             model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
