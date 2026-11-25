@@ -23,14 +23,16 @@ void ReportListener::open()
 {
     if (listening())
         return;
-    try {
-        const std::string path = akko::findHidraw();
-        const int fd = ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
-        if (fd >= 0)
-            listen(fd);
-    } catch (const akko::Error &) {
-        // Not plugged in: the next connection or hotplug event tries again.
-    }
+    const int fd = m_opener ? m_opener() : [] {
+        try {
+            const std::string path = akko::findHidraw();
+            return ::open(path.c_str(), O_RDONLY | O_NONBLOCK | O_CLOEXEC);
+        } catch (const akko::Error &) {
+            return -1;  // not plugged in: the next read of the board tries again
+        }
+    }();
+    if (fd >= 0)
+        listen(fd);
 }
 
 void ReportListener::listen(int fd)
@@ -60,7 +62,10 @@ void ReportListener::readReports()
             break;
         if (n <= 0) {  // unplugged (or end of a test pipe): stop until the next open()
             close();
-            break;
+            if (last >= 0)
+                emit brightnessReported(last);
+            emit lost();
+            return;
         }
         if (const auto v = akko::brightnessReport(std::span(buf.data(), std::size_t(n))))
             last = *v;

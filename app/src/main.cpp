@@ -40,19 +40,15 @@ int main(int argc, char *argv[])
     Theme theme;
     DesktopSize ui;
     Backend backend;
-    // Plugging the keyboard in is noticed through udev; the retry timer stays as a fallback.
+    // Plugging the keyboard in or out is noticed through udev; the retry timer stays as a fallback.
     HotplugWatch hotplug;
     backend.setHotplugWatched(hotplug.active());
     QObject::connect(&hotplug, &HotplugWatch::keyboardAdded, &backend, &Backend::keyboardAdded);
-    // Brightness changed on the board (Fn shortcut) shows at once. The node is opened again
-    // whenever the keyboard is (re)connected.
+    QObject::connect(&hotplug, &HotplugWatch::keyboardRemoved, &backend, &Backend::keyboardRemoved);
+    // Brightness changed on the board (Fn shortcut) shows at once. The backend reopens the node
+    // after every read of the board.
     ReportListener reports;
-    QObject::connect(&reports, &ReportListener::brightnessReported, &backend, &Backend::brightnessReported);
-    QObject::connect(&backend, &Backend::connectionChanged, &reports, [&] {
-        if (backend.connected())
-            reports.open();
-    });
-    reports.open();
+    backend.setReportListener(&reports);
     // ~/.config/magnetar/settings.ini: app preferences, such as the saved colours and the Mural.
     const QString settings = QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation) + "/settings.ini";
     ColorPalette colorPalette(settings);

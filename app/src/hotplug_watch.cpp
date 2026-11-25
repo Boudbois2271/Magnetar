@@ -2,6 +2,7 @@
 #include "hotplug_watch.h"
 
 #include <QSocketNotifier>
+#include <QStringList>
 
 #include <cstring>
 
@@ -34,10 +35,17 @@ bool HotplugWatch::isKeyboard(const char *vendor, const char *product)
     return vendor && product && std::strcmp(vendor, "38ee") == 0 && std::strcmp(product, "0016") == 0;
 }
 
+bool HotplugWatch::isKeyboardDevpath(const char *devpath)
+{
+    // The HID device's directory is named bus:vendor:product.instance, in upper-case hex.
+    return devpath && std::strstr(devpath, ":38EE:0016.") != nullptr;
+}
+
 void HotplugWatch::readEvents()
 {
     bool added = false;
-    // The socket is non-blocking: drain every queued event, then signal once.
+    QStringList removed;
+    // The socket is non-blocking: drain every queued event, then signal.
     while (udev_device *dev = udev_monitor_receive_device(m_monitor)) {
         const char *action = udev_device_get_action(dev);
         if (action && std::strcmp(action, "add") == 0) {
@@ -45,9 +53,15 @@ void HotplugWatch::readEvents()
             if (usb && isKeyboard(udev_device_get_sysattr_value(usb, "idVendor"),
                                   udev_device_get_sysattr_value(usb, "idProduct")))
                 added = true;
+        } else if (action && std::strcmp(action, "remove") == 0
+                   && isKeyboardDevpath(udev_device_get_devpath(dev))) {
+            if (const char *node = udev_device_get_devnode(dev))
+                removed << QString::fromUtf8(node);
         }
         udev_device_unref(dev);  // also frees the parent, which it owns
     }
+    for (const QString &node : removed)
+        emit keyboardRemoved(node);
     if (added)
         emit keyboardAdded();
 }
