@@ -1643,6 +1643,7 @@ private slots:
 
         // Restore default puts every selected key back.
         auto *restore = w.item("restoreButton");
+        QVERIFY(tab->isAncestorOf(restore));  // beside the current action, not in the page header
         QVERIFY(restore->property("enabled").toBool());
         QMetaObject::invokeMethod(restore, "clicked");
         QTRY_VERIFY(w.cap(0x62) == "Ins" && w.cap(0x63) != "A");

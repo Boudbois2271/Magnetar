@@ -15,9 +15,6 @@ ColumnLayout {
     property int activeLayer: 0
     property string pendingCode: ""  // waiting for the "last Fn key" confirmation
     property string pendingLayer: ""  // the layer key's name, for the dialog
-    // The page's controls sit in three equal columns.
-    readonly property real column: (width - 48 * ui.unit) / 3
-    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     KeyNames { id: names }
 
@@ -81,45 +78,74 @@ ColumnLayout {
             backend.restoreKeyDefault(tab.activeLayer, id)
     }
 
-    // ---- what they do now | what to change it to --------------------------------
-    GridLayout {
+    // ---- what they do now, then what to change it to ---------------------------
+    // One column from the left edge, under the keyboard: the current action on one line, with
+    // the reset for the selection beside it, then the picker.
+    ColumnLayout {
         visible: tab.selection.length > 0
         Layout.fillWidth: true
         Layout.fillHeight: true
-        columns: 3
-        columnSpacing: 24 * ui.unit
-        rowSpacing: 16 * ui.unit
+        spacing: 12 * ui.unit
 
-        Card {
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: tab.span(1)
-            Layout.maximumWidth: tab.span(1)
-            title: qsTr("Current action")
+        RowLayout {
+            Layout.fillWidth: true
+            spacing: 12 * ui.unit
 
             Label {
+                text: qsTr("Current action")
+                font.pixelSize: ui.section
+                font.weight: Font.DemiBold
+            }
+            Label {
                 objectName: "currentAction"
-                Layout.fillWidth: true
+                Layout.maximumWidth: 280 * ui.unit
                 text: tab.current ? names.name(tab.current) : qsTr("Different actions")
                 elide: Text.ElideRight
+                font.pixelSize: ui.section
+                color: theme.accent  // like the selected keys on the drawing
             }
             Label {
                 readonly property var factory: tab.selection.length === 1
                     ? backend.factoryAction(tab.activeLayer, tab.selection[0]) : undefined
-                Layout.fillWidth: true
                 text: tab.notFactory.length === 0 ? (tab.selection.length > 1 ? qsTr("These are the factory settings.")
                                                                              : qsTr("This is the factory setting."))
                       : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
                       : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
-                wrapMode: Text.WordWrap
+                elide: Text.ElideRight
                 color: theme.secondary
             }
+            // Resets the selected keys on this layer, not the whole layer.
+            AppButton {
+                id: restoreButton
+                objectName: "restoreButton"
+                Layout.leftMargin: 4 * ui.unit
+                implicitWidth: restoreRow.implicitWidth + 24 * ui.unit
+                text: qsTr("Restore default")
+                enabled: tab.notFactory.length > 0
+                onClicked: tab.restoreDefaults()
+                contentItem: Item {
+                    implicitWidth: restoreRow.implicitWidth
+                    implicitHeight: restoreRow.implicitHeight
+                    Row {
+                        id: restoreRow
+                        anchors.centerIn: parent
+                        spacing: 6 * ui.unit
+                        Icon {
+                            anchors.verticalCenter: parent.verticalCenter
+                            name: "rotate-ccw"
+                        }
+                        Label {
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: restoreButton.text
+                        }
+                    }
+                }
+            }
+            Item { Layout.fillWidth: true }
         }
 
         Card {
             title: qsTr("Change it to")
-            Layout.columnSpan: 2
-            Layout.preferredWidth: tab.span(2)
-            Layout.maximumWidth: tab.span(2)
             Layout.alignment: Qt.AlignTop
             Layout.fillHeight: true
             Layout.maximumHeight: implicitHeight
