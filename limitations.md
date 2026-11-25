@@ -7,10 +7,12 @@ reflected in `akko-protocol.md`.
 
 ### Partly decoded
 - **Macros** (`akko-capture7.txt`): blob, actions and binding decoded (`akko-capture7.txt`, `7b`).
-  Unknown: what a key does if its macro index points past the last macro (the app prevents it);
+  A key bound past the last macro sends one empty mouse report and nothing else (2026-11-25);
   modifier steps (dir `10`/`90`) work on the board, but the firmware sends the modifier on interface 0
   and the keys on interface 1 (NKRO), so on Linux (Hyprland) the modifier doesn't apply: a Shift+A
-  macro types "a". No workaround known yet. Directories over 56 bytes
+  macro types "a" (seen again on the board 2026-11-25). Workaround: a shortcut in Keys → Action.
+  Pressing the key again while its macro plays restarts it; the cut-off run's pending steps (e.g.
+  the Shift release) are never sent. Directories over 56 bytes
   (15+ macros) are read in packets by our code, never captured.
 
 ### Not captured at all
@@ -21,8 +23,8 @@ reflected in `akko-protocol.md`.
 ### Captured but not decoded
 - **Mural**: the app streams an audio visualiser only (no paint or still-image page: Lighting's
   per-key colours already store a still). How long the board keeps the last frame was only timed
-  by eye (1–3 s), and there is no stop command, so after another effect is picked or the app
-  quits the board keeps the last frame that long before its own effect comes back; frames more than 6 packets long can't happen (83 LEDs × 4 B at most). Between
+  by eye (1–3 s; about 4 s on video after a kill, 2026-11-25), and there is no stop command, so
+  after another effect is picked or the app quits the board keeps the last frame that long before its own effect comes back; frames more than 6 packets long can't happen (83 LEDs × 4 B at most). Between
   ~1 s streaming sessions the board gets no frames for ~60 ms (longer while an action runs), far
   under that fallback. Audio comes from `@DEFAULT_MONITOR@`, resolved when capture opens:
   changing the default output while it runs is not followed until it is turned off and on.
@@ -30,8 +32,8 @@ reflected in `akko-protocol.md`.
   the board's brightness itself (linearly; the board's own curve for effects is not known).
   Visualiser is an app effect, not the board's: `akkoctl` and the bar widget show the board's own
   effect underneath while it runs, and setting an effect there doesn't stop it.
-- **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11); `04`
-  and `08` were never sent alone.
+- **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11).
+  `04` alone and `08` alone are dropped by the board (read back `00`, the key types nothing).
 - **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is
   SEEN; the rest are guessed from defaults. The System & Shortcuts tab gave a plain RGui key, not `07`.
 - **`11 00` layer reset**: payload `01` seen on Default Layer only; its meaning is a guess.
@@ -39,8 +41,9 @@ reflected in `akko-protocol.md`.
   press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
   unknown (not "reached bottom": it is set on untouched keys too). Bottom drift between sessions is
   guessed to be Adaptive Calibration. Calibration mode stops the keys typing.
-- **Calibration timeout**: what the board does if keep-alives (`94 00`) stop without a Finish (app
-  killed) is not known. Magnetar sends Finish on quit, on leaving the page and on errors.
+- **Calibration timeout**: when the app is killed mid-session (no Finish), the keys stay dead for
+  15 s or more, until the next command from any tool (a read is enough). How long the board
+  waits on its own is not known. Magnetar sends Finish on quit, on leaving the page and on errors.
 - `84 11` (`01`), `84 13` (`00 b4`), `84 1d`/`84 1e` (`00`), `84 20` (`01`), `85 00`, `87 00`, `a6 ff`: unknown.
 
 ### Units
@@ -74,33 +77,40 @@ reflected in `akko-protocol.md`.
 
 - Pages: Keys (tabs Action, Travel, Advanced), Lighting (with per-key colours and the Visualiser
   effect), Mural (workbench for app-streamed effects), Macros, Settings (with Calibration and Device).
-- Settings page: the four writes were sent by Magnetar's core and read back on the board, but the
-  page itself hasn't been used by hand on the board yet. Whether these settings are per profile is
+- Settings page: used by hand on the board (2026-11-25): Win Key Lock and polling rates 8000,
+  4000, 2000 and 1000 Hz all work (typing checked after each). Whether these settings are per profile is
   unknown (they're read with every batch, so a profile switch would show it). What Combo
   Optimization actually changes is unknown; the page's description stays vague on purpose.
 - Polling rate: the board drops off USB right after the write and is back after ~1 s. The app waits
   1.2 s, then retries quietly for up to 10 s before showing an error. Anything queued in the same
-  batch after the change is dropped. 8000/4000/2000 Hz were written by the vendor app only.
-- Per-key colours (Lighting page): tested against the fake keyboard only, not used on the board yet. Assumed per profile
+  batch after the change is dropped.
+- Per-key colours (Lighting page): used on the board (2026-11-25): the LEDs match the drawing,
+  and a colour set while Breathing runs is there on switching back to Custom. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
 - Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
   `akkoctl` (and shown as read). The Lighting drawing is sized like the Keys one by the same rule,
   not shared with it: the two can differ by a few pixels.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
-  is tested against the fake keyboard only. The board's maximum number of advanced keys is unknown.
-- Advanced keys: Mod-Tap, DKS, SOCD and the clear were sent by Magnetar's core and read back on the
-  board; Toggle, Multi-Point and Release were not (frames match the vendor captures only). The page
-  itself hasn't been used by hand on the board yet.
+  was used on the board for Nothing / Restore default on three keys (2026-11-25); the rest is
+  tested against the fake keyboard only.
+- **Advanced keys past 28 (bug)**: the board keeps one on every key (80 tried, 2026-11-25), but
+  the `92 00` list reply is one frame: its len goes past 56 (`a0` for 80 keys) while only 28 IDs
+  fit. Magnetar trusts the list, so with more than 28 it can't show, verify or remove the rest
+  (writes past the 28th report "kept another advanced key"). Not fixed yet.
+- Advanced keys: Toggle (holds the action until the next tap), Multi-Point, Release and DKS were
+  used from the page on the board (2026-11-25); Mod-Tap, SOCD and the clear were sent by the core
+  and read back (2026-11-21).
 - Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
   app's ranges were never captured (seen: 200 default, 322, 965 ms).
-- Advanced tab: whether an advanced key applies on every layer, and how it combines with the
-  key's keymap action, isn't known. Assumed per profile (read again on a profile switch).
+- Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
+  on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
+  known. Assumed per profile (read again on a profile switch).
 - Advanced tab: clearing one key of a SOCD pair might leave the other key's record on the
   board; Magnetar always clears both, like the vendor app.
 - Advanced tab: a DKS row can hold several strokes (e.g. once at ↓1, then held ↑1→↑2): all 34
   patterns of the four points are offered. Rows of several strokes are composed from the stage
-  bits (`02`/`04`/`08`), never captured nor tried on the board; whether the vendor app can make
-  them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
+  bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected
+  (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: no Undo (Remove, or saving the old values again).
 - Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
@@ -109,8 +119,8 @@ reflected in `akko-protocol.md`.
 - Macros page: steps can only use keyboard usages (no mouse
   or media steps: never captured). A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
-- Macros page: a macro with a name and no steps can be saved (the blob format allows it); never
-  written to the board or captured from the vendor app, so what the board does with it is unverified.
+- Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
+  board its key sends one empty keyboard report and nothing else (2026-11-25).
 - Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
   vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
   their slider is locked.
@@ -138,8 +148,9 @@ reflected in `akko-protocol.md`.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R;
-  brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only,
-  tested against a fake node only, not with Fn on the board yet). Other unsolicited reports are
+  brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only;
+  the board's reports match the parser, 2026-11-25, but the page following them isn't checked
+  by hand yet). Other unsolicited reports are
   ignored.
 - Plugging in is noticed through a udev watch (`hidraw` add events of `38ee:0016`), tested against
   the fake keyboard only, not by replugging the board yet. Without udev it retries every 3 s; with
@@ -171,8 +182,8 @@ reflected in `akko-protocol.md`.
   arrives. Any tool must serialise access; the web app and our code can't run together.
 - Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 - Per-key colours (`06 00`): writes go in frames of at most 8 keys, the most ever captured in one
-  frame (11 would fit). Verified on the board under Custom only; whether writes stick while another
-  effect is on is untested.
+  frame (11 would fit). Verified on the board under Custom; a write made while Breathing ran
+  stuck (2026-11-25).
 
 ## Repo / docs
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked

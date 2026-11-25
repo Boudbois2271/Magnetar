@@ -73,7 +73,7 @@ KNOWN: sent by Magnetar's core (each switch toggled and restored, polling 1000 �
 |---|---|---|
 | `04 01` / `84 01` | KNOWN | `[effect, colour mode, R, G, B, brightness 0–20, speed 0–4]`. Colour mode 07 = random/rainbow, 00 = fixed colour |
 | `04 02` | KNOWN | effect only `[effect]`. Switching effect resets speed to 2 |
-| `fe 0b` | SEEN | unsolicited IN `fe 0b 02 bb` after an on-board brightness change: bb = new brightness (`00 05 0a 0f 14` while cycling). `akko-capture11.txt` mark 14 |
+| `fe 0b` | SEEN | unsolicited IN `fe 0b 02 bb` after an on-board brightness change: bb = new brightness (`00 05 0a 0f 14` while cycling). `akko-capture11.txt` mark 14; the same seen on the vendor node with Fn shortcuts and no app open, checksum valid (2026-11-25) |
 | `06 00` / `86 00` | KNOWN | custom per-key colour: list of `key u16, R, G, B` (5 B each). Read: key IDs, 11 per packet, 8 packets for all keys. Write: one single-packet frame per batch (up to 8 keys seen, `akko-capture2.txt` "selecting F row"), the vendor app reads each batch back with `86 00`. Shown under effect `13` (Custom). KNOWN 2026-11-21: core `setColors` set F12 blue under Custom, read back and seen on the board, then restored. Whether a write sticks under another effect is untested |
 | `08 04` | KNOWN | **Mural** frame, not echoed, nothing stored. Payload = one byte stream of groups `colour u16 (RGB565, BE), n, n × LED index`, cut into 56-byte (`len 38`) packets, groups running across packets; every LED appears once per frame. Solid red/green/blue = `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, 2 packets (`akko-capture10.txt` Mural marks). The vendor app resends a still image every ~1008 ms and streams animations (Rainbow, 5 packets) every ~32 ms (`akko-capture11.txt` mark 8); Colour Enhancement is applied in the browser. There is no stop command: the app stops sending and the board returns to its stored effect (`akko-capture11.txt` marks 8–11). KNOWN 2026-11-22: core `streamMural` showed solid red, a one-key sweep in key order, and an 83-colour frame (6 packets, more than the vendor app sent), then the board went back to its Custom colours 1–3 s after the last frame |
 
@@ -118,12 +118,12 @@ the board. The factory keymap of layers 00 and 01 is the first `83` read of `akk
 | type | Status | Payload |
 |---|---|---|
 | 00 | KNOWN | clear: `key` (sent before every save, and per key on restore) |
-| 01 Toggle | SEEN | `key, action(4), hold ms u16` |
+| 01 Toggle | KNOWN | `key, action(4), hold ms u16`. A tap holds the action down until the next tap (Magnetar, B on Insert, 2026-11-25) |
 | 02 Mod-Tap | KNOWN | `key, hold action(4), tap action(4), hold ms u16` |
-| 03 DKS | KNOWN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once. B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). In `akko-capture11.txt` marks 29–31: B held bottom → release from bottom = stages `00 0e 00 00`, C fire-once at full release = `00 00 00 0a`; the board did exactly that. Depths there: `00c8 0258 0258 00c8` |
+| 03 DKS | KNOWN | `key, depth×4 u16 (press start, bottom, release from bottom, full release), then 4 × [action(4), stages(4)]`. stages = one byte per stage (press 1st depth, bottom, release from bottom, full release), bit flags: `02` key down here, `04` stay held until the next stage, `08` key up (at the next stage if `04`, else here). `0a` = fire once; `0a` at press 1st depth and at release from bottom (`0a 00 0a 00`) taps twice, as composed (Magnetar 2026-11-25). `04` alone and `08` alone are not kept: they read back `00` (2026-11-25). B held 1st depth→bottom = `0e 00 00 00`; held across all four = `06 04 0c 00` (`akko-capture10.txt` DKS marks; the board kept B held over the 2-stage bar). In `akko-capture11.txt` marks 29–31: B held bottom → release from bottom = stages `00 0e 00 00`, C fire-once at full release = `00 00 00 0a`; the board did exactly that. Depths there: `00c8 0258 0258 00c8` |
 | 04 SOCD | KNOWN | `02, keyA u16, keyB u16, mode` — mode 00 Neutral, 01 Last input, 03 Absolute key 1, 04 Absolute key 2. The UI offers only these four (screenshot 2026-11-18-29); `02` is unused |
-| 05 Multipoint | SEEN | `key, count, count × [action(4), depth u16]` |
-| 06 Release (END) | SEEN | `key, action(4)` fired on release |
+| 05 Multipoint | KNOWN | `key, count, count × [action(4), depth u16]`. Each depth takes over from the previous one, held (B 0.50 / C 1.50 / D 3.00 mm on Insert, Magnetar 2026-11-25) |
+| 06 Release (END) | KNOWN | `key, action(4)` fired on release (Magnetar, B on Insert, 2026-11-25) |
 
 Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Details from
 `akko-capture2.txt` Advanced Key marks, `akko-capture10.txt` DKS marks, `akko-capture11.txt` marks 29–32:
@@ -141,8 +141,12 @@ Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Det
 - Sent by Magnetar and checked on the board 2026-11-21: Mod-Tap on Insert (hold R, tap T, 322 ms),
   DKS on End (depths 200/600/600/200, B held bottom → release from bottom, C once at full release),
   SOCD PgUp + PgDn (last input). Each read back identical (list and per key), then cleared with type
-  `00`; the list was empty and the layer-0 actions unchanged afterwards. Toggle, Multi-Point and
-  Release were not sent (still SEEN).
+  `00`; the list was empty and the layer-0 actions unchanged afterwards. Toggle, Multi-Point,
+  Release and DKS were sent from Magnetar's Advanced tab and typed as expected on 2026-11-25.
+- An advanced key fires on the Default layer only: with a Release on Insert, Fn+Insert did not fire
+  it (2026-11-25).
+- No limit found on the count: the board kept a Mod-Tap on 80 keys at once (every key but Esc,
+  Insert and Fn), each checked with a per-key read, then all cleared (2026-11-25).
 
 Read: `92 00` with no key (`pkt_count 1`, len 0) → the IDs (u16) of the keys that have an advanced key,
 both keys of a SOCD pair; empty when none (captures 2, 10, 11). `92 00` with `key` → the type in the arg
@@ -151,6 +155,9 @@ reads both like that (`core/`; checked on the board 2026-11-21, see above).
 In `akko-capture.txt` (the oldest, 2026-10-03) the list read answered 4 packets (216 B) of what looks
 like the physical layout: column-major, 6 rows × 18 cols, 0 = no key. Later captures never did;
 Magnetar asks for any extra packets and skips IDs that aren't keys.
+The list answer always says `pkt_count 01`, but its len counts every ID: `38` (56) at 28 keys, `3a`
+at 29, `a0` at 80 (2026-11-25). Only the first 28 IDs fit in the frame, and how to get the rest is
+unknown; per-key reads see all of them.
 
 ### Per-key travel (Parameter Settings → Actuation Settings)
 Source: `akko-capture3.txt` (2026-11-18). Test key F12 = `0d`. Writes are echoed, then the web app
@@ -187,7 +194,13 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
 - Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app
   refuses to delete a macro that is bound, or to bind a key that already has one (both client-side:
-  no traffic). What the firmware does with a key whose index points past the last macro is unknown.
+  no traffic). A key whose index points past the last macro sends one empty mouse report (report
+  `02`, all zero) and nothing else; a macro with a name and no steps sends one empty keyboard report
+  (2026-11-25, listened on the keyboard's input interfaces).
+- Playback: the macro's keys go out on interface 1 (NKRO bitmap, report `07`, usages `00`–`9f`) and
+  its modifiers on interface 0 (boot report), so they arrive from two input devices (Hyprland
+  doesn't share Shift between them). Pressing the key again during playback restarts the macro and
+  drops the pending steps of the run in progress (2026-11-25).
 - Sent by Magnetar 2026-11-21: one macro written, read back, bound to Insert (`03 01 01 00`), ran on
   the board; then the empty blob written and Insert restored.
 - **Per profile**: after that write, profile 2 read as empty storage.
@@ -219,7 +232,7 @@ Source: `akko-capture4.txt` (2026-11-18).
 | `94 05` | KNOWN | read calibration: request = list of `key u16` (10 packets), reply `key u16, rest u16, bottom u16` (raw sensor, e.g. `01`: 10634 / 1743) = the **stored** calibration. Sent on Start Calibration |
 | `94 00` | KNOWN | calibration keep-alive, every 1 s while calibrating (echoed). Keys don't type in this mode. No `94 02` report comes while no key moves (live run 2026-11-22: 5 s, none) |
 | `94 02` | DECODED | unsolicited IN every 50 ms while calibrating: `len / 6` × `key u16, cur u16, min u16` (1–9 entries, the keys moved most recently; bytes past `len` are stale). cur bits 0–14 = raw sensor; min = lowest value seen this session. cur bit 15: set almost always, untouched keys included; clear for one report as a key comes back up after a full press (capture5, 125 of 6600 entries). Meaning unknown, not used |
-| `94 04` | KNOWN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below. Leaving calibration without Finish sends it too (marks "leave … WITHOUT Save", "leave calibration without Save") |
+| `94 04` | KNOWN | Finish Calibration (the only other button; there is no Save/Cancel). Commits the session, see below. Leaving calibration without Finish sends it too (marks "leave … WITHOUT Save", "leave calibration without Save"). If the app dies mid-session (no Finish), the keys stay dead for 15 s or more, until the next command (a read is enough; 2026-11-25) |
 
 Calibration semantics, from `akko-capture5.txt` (each Start Calibration reads all 83 keys, so each
 session shows the result of the previous one):
