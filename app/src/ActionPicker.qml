@@ -97,6 +97,8 @@ ColumnLayout {
         AppTextField {
             objectName: "searchField"
             Layout.fillWidth: true
+            // No wider than the rows of categories under it.
+            Layout.maximumWidth: picker.compact ? Number.POSITIVE_INFINITY : Math.max(categoryChips.childrenRect.width, 200 * ui.unit)
             placeholderText: qsTr("Search, e.g. volume or F5")
             text: picker.search
             onTextEdited: picker.search = text
@@ -113,6 +115,7 @@ ColumnLayout {
     }
 
     Flow {
+        id: categoryChips
         Layout.fillWidth: true
         visible: picker.search.trim() === "" && !picker.compact
         spacing: 6 * ui.unit

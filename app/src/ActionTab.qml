@@ -111,6 +111,10 @@ ColumnLayout {
                                                                              : qsTr("This is the factory setting."))
                       : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
                       : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
+                // Gives way first in a narrow window, so Restore default stays in it.
+                Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.maximumWidth: implicitWidth
                 elide: Text.ElideRight
                 color: theme.secondary
             }
