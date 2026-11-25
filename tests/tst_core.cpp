@@ -434,6 +434,42 @@ private slots:
         QVERIFY(!parseAction("00 00 00 29 "));
     }
 
+    void vendorActionsEncodeLikeTheVendorApp()
+    {
+        // akko-capture13.txt marks 10 and 12: each action set on Insert (Fn layer), in the
+        // fixture's order. Our encoders must give the same 03 01 frames, and read back as the same kind.
+        using T = LightingTarget;
+        using S = LightingStep;
+        std::vector<Action> ours;
+        for (T t : {T::Effect, T::Direction, T::Colour, T::Brightness, T::Speed})
+            for (S s : {S::Cycle, S::Increase, S::Decrease})
+                ours.push_back(lightingAction(t, s));
+        ours.push_back(layerAction(1));               // Fn1
+        ours.push_back(*parseAction("11 00 00 00"));  // www: shown, never offered
+        for (std::uint8_t b : {1, 2, 3, 5, 4})
+            ours.push_back(mouseAction(b));
+        for (std::uint16_t u : {0xcd, 0x183, 0xe2, 0xb7, 0xb6, 0xb5, 0xe9, 0xea, 0x223, 0x192, 0x18a, 0x194, 0x22a})
+            ours.push_back(consumerAction(u));
+
+        auto vendor = fixtureSection("vendor-actions.txt", "lighting");
+        const auto media = fixtureSection("vendor-actions.txt", "mouse-media");
+        vendor.insert(vendor.end(), media.begin(), media.end());
+        QCOMPARE(vendor.size(), ours.size());
+
+        FakeTransport t;
+        FakeKeyboard board;
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        for (std::size_t i = 0; i < ours.size(); ++i) {
+            QVERIFY(kb.setKey(1, 0x62, ours[i]) == ours[i]);
+            QCOMPARE(Bytes(t.written[2 * i].begin() + 1, t.written[2 * i].end()), vendor[i]);
+        }
+        QCOMPARE(int(actionKind(ours[0])), int(ActionKind::Lighting));
+        QCOMPARE(int(actionKind(ours[16])), int(ActionKind::Special));
+        QCOMPARE(int(actionKind(ours[17])), int(ActionKind::Mouse));
+        QCOMPARE(int(actionKind(ours.back())), int(ActionKind::Consumer));
+    }
+
     void readLayerLikeTheVendorApp()
     {
         FakeTransport t;

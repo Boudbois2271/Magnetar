@@ -53,11 +53,12 @@ ColumnLayout {
         { name: qsTr("Macros"), macros: true, items: backend.macros.map((m, i) => ({
               label: names.macroName(i), code: backend.macroCode(i, picker.macroLoop, picker.macroCount) })) },
         { name: qsTr("Media"), items: names.media.map(m => ({ label: m.name, code: backend.consumerCode(m.usage) })) },
-        { name: qsTr("Mouse"), items: [1, 2, 3].map(b => ({ label: names.mouseName(b), code: backend.mouseCode(b) })) },
-        { name: qsTr("Layers and lighting"), items: [
+        { name: qsTr("Mouse"), items: [1, 2, 3, 4, 5].map(b => ({ label: names.mouseName(b), code: backend.mouseCode(b) })) },
+        { name: qsTr("Lighting"), items: [].concat(...names.lighting.map((row, t) => row.map(
+              (label, s) => ({ label: label, code: backend.lightingCode(t, s) })))) },
+        { name: qsTr("Layers"), items: [
               { label: "Fn", code: backend.layerCode(0) },
-              { label: "Fn1", code: backend.layerCode(1) },
-              { label: qsTr("Brightness cycle"), code: backend.brightnessCycleCode() }] },
+              { label: "Fn1", code: backend.layerCode(1) }] },
         { name: qsTr("Nothing"), items: [{ label: qsTr("Nothing (the key does nothing)"), code: backend.unboundCode() }] }
     ].filter(c => picker.offerNothing || c.items.length === 0 || c.items[0].code !== backend.unboundCode())
     readonly property bool onMacros: picker.search.trim() === "" && picker.categories[picker.category].macros === true

@@ -102,12 +102,14 @@ QtObject {
         { usage: 0xcd, name: qsTr("Play / pause") },
         { usage: 0xb5, name: qsTr("Next track") },
         { usage: 0xb6, name: qsTr("Previous track") },
+        { usage: 0xb7, name: qsTr("Stop playback") },
         { usage: 0x183, name: qsTr("Media player") },
         { usage: 0x18a, name: qsTr("Mail") },
         { usage: 0x192, name: qsTr("Calculator") },
         { usage: 0x194, name: qsTr("File manager") },
         { usage: 0x221, name: qsTr("Search") },
-        { usage: 0x223, name: qsTr("Browser home") }
+        { usage: 0x223, name: qsTr("Browser home") },
+        { usage: 0x22a, name: qsTr("Bookmarks") }
     ]
 
     function consumerName(u) {
@@ -122,8 +124,24 @@ QtObject {
         case 1: return qsTr("Left click")
         case 2: return qsTr("Right click")
         case 3: return qsTr("Middle click")
+        case 4: return qsTr("Back (mouse)")
+        case 5: return qsTr("Forward (mouse)")
         }
         return qsTr("Mouse button %1").arg(b)
+    }
+
+    // Lighting control keys (08 gg oo 00), by target (gg) then step (oo), as the vendor lists them.
+    readonly property var lighting: [
+        [qsTr("Effect cycle"), qsTr("Effect +"), qsTr("Effect −")],
+        [qsTr("Direction cycle"), qsTr("Direction left"), qsTr("Direction right")],
+        [qsTr("Color cycle"), qsTr("Color +"), qsTr("Color −")],
+        [qsTr("Brightness cycle"), qsTr("Brightness +"), qsTr("Brightness −")],
+        [qsTr("Speed cycle"), qsTr("Speed +"), qsTr("Speed −")]
+    ]
+
+    function lightingName(value) {
+        const row = lighting[value >> 8]
+        return row && row[value & 0xff] !== undefined ? row[value & 0xff] : qsTr("Lighting control")
     }
 
     // Shorter names for the keycaps of the drawing; anything else uses name().
@@ -190,7 +208,8 @@ QtObject {
         }
         case "layer": return info.value === 0 ? "Fn" : "Fn" + info.value
         case "profile": return qsTr("Profile %1").arg(info.value + 1)
-        case "lighting": return info.code === "08 03 00 00" ? qsTr("Brightness cycle") : qsTr("Lighting control")
+        case "lighting": return info.code.endsWith(" 00") ? lightingName(info.value) : qsTr("Lighting control")
+        case "special": return info.code === "11 00 00 00" ? "www" : info.code
         case "system": return qsTr("System function")
         case "unbound": return qsTr("Nothing")
         }

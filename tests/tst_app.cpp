@@ -621,7 +621,11 @@ private slots:
         QVERIFY(!b.setKeyAction(0, 0x7f, "00 00 00 04"));
         QVERIFY(!b.setKeyAction(0, 0x62, "nonsense"));
         QCOMPARE(b.comboCode(0, {0x04, 0x05}), QString());
-        QCOMPARE(b.mouseCode(4), QString());
+        QCOMPARE(b.mouseCode(6), QString());
+        QCOMPARE(b.mouseCode(5), QString("01 05 01 00"));
+        QCOMPARE(b.lightingCode(1, 2), QString("08 01 02 00"));
+        QCOMPARE(b.lightingCode(5, 0), QString());
+        QCOMPARE(b.actionInfo("11 00 00 00").value("kind").toString(), QString("special"));
     }
 
     void keyColorsAreSetAndReadBack()
@@ -1667,6 +1671,39 @@ private slots:
         QTRY_VERIFY(confirm->property("visible").toBool());
         QCOMPARE(w.board.writesOf(0x03, 0x00), writes);
 
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
+    void actionTabNamesAndOffersTheVendorActions()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady());
+        auto *tab = w.item("actionTab");
+        tab->setProperty("activeLayer", 1);
+        // The factory Fn layer's lighting keys by their names (akko-capture13.txt mark 14).
+        QTRY_COMPARE(w.cap(0x4a), QString("Brightness +"));
+        QCOMPARE(w.cap(0x4b), QString("Brightness −"));
+        QCOMPARE(w.cap(0x29), QString("Color cycle"));
+        QCOMPARE(w.cap(0x4c), QString("Direction right"));  // Fn+Left, as the vendor labels it
+        QCOMPARE(w.cap(0x19), QString("Speed −"));
+
+        w.click(0x62);
+        auto *picker = w.item("actionPicker");
+        QVERIFY(picker);
+        QStringList offered;
+        for (const auto &c : picker->property("categories").toList())
+            for (const auto &i : c.toMap().value("items").toList())
+                offered << i.toMap().value("code").toString();
+        for (const char *code : {"08 00 00 00", "08 01 01 00", "08 04 02 00", "01 04 01 00", "01 05 01 00",
+                                 "02 00 00 b7", "02 00 02 2a", "0d 01 00 00"})
+            QVERIFY2(offered.contains(code), code);
+        QVERIFY(!offered.contains("11 00 00 00"));  // www: shown when read, never offered
+        QCOMPARE(offered.removeDuplicates(), 0);
+
+        QMetaObject::invokeMethod(tab, "assign", Q_ARG(QVariant, w.backend.lightingCode(4, 0)));
+        QTRY_COMPARE(w.cap(0x62), QString("Speed cycle"));
+        QCOMPARE(w.item("currentAction")->property("text").toString(), QString("Speed cycle"));
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 

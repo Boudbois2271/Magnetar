@@ -155,6 +155,7 @@ ColumnLayout {
             Layout.maximumHeight: implicitHeight
 
             ActionPicker {
+                objectName: "actionPicker"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 currentCode: tab.current !== undefined ? tab.current.code : ""
