@@ -58,6 +58,8 @@ Item {
     // Advanced tab's editor is taller (Dynamic keystroke has eight rows) and its key list sits
     // beside the drawing, so there the drawing is smaller.
     readonly property bool sidePanel: page.tab === 2
+    // In a narrow window the list goes under the keyboard instead, as a short box.
+    readonly property bool sideBelow: frame.width < 400 * ui.unit + page.sideMinWidth + 16 * ui.unit
     readonly property real sideMinWidth: 220 * ui.unit
     readonly property real sideMaxWidth: 320 * ui.unit
     // (In a small window it gives way first: the keyboard keeps a usable size.)
@@ -67,8 +69,9 @@ Item {
         // Height for the plate and the bar under it; both grow with the width (the bar by the
         // plate's bezel).
         const room = frame.height - header.height - 2 * frame.spacing - page.controlsHeight - 34 * ui.unit
+                     - (page.sidePanel && page.sideBelow ? 126 * ui.unit : 0)
         const perWidth = 1 / drawing.aspect + drawing.bezel / (drawing.columns + 2 * drawing.bezel)
-        const across = frame.width - (page.sidePanel ? page.sideMinWidth + keyboardRow.spacing : 0)
+        const across = frame.width - (page.sidePanel && !page.sideBelow ? page.sideMinWidth + keyboardRow.columnSpacing : 0)
         return Math.max(400 * ui.unit, Math.min(across, drawing.implicitWidth, room / perWidth))
     }
 
@@ -131,10 +134,12 @@ Item {
 
         // ---- the keyboard and its selection bar ----------------------------
         // The box takes in the drawing's drag margin, so a drag that starts there reaches it.
-        RowLayout {
+        GridLayout {
             id: keyboardRow
             Layout.fillWidth: true
-            spacing: 16 * ui.unit
+            columns: page.sideBelow ? 1 : 3
+            columnSpacing: 16 * ui.unit
+            rowSpacing: 16 * ui.unit
 
             Item {
                 id: keyboardBox
@@ -224,8 +229,8 @@ Item {
                 visible: page.sidePanel
                 Layout.alignment: Qt.AlignTop
                 Layout.fillWidth: true
-                Layout.maximumWidth: page.sideMaxWidth
-                Layout.preferredHeight: drawing.height + selectionBar.height
+                Layout.maximumWidth: page.sideBelow ? Number.POSITIVE_INFINITY : page.sideMaxWidth
+                Layout.preferredHeight: page.sideBelow ? 110 * ui.unit : drawing.height + selectionBar.height
                 radius: theme.radius
                 color: theme.plate
 

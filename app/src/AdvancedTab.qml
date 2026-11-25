@@ -308,10 +308,19 @@ ColumnLayout {
     // column stays where it is (in a window too narrow for both, the picker takes its place). The
     // keys that have a function are listed beside the keyboard (KeysPage).
     readonly property real rowHeight: 34 * ui.unit
-    readonly property real controlsWidth: 470 * ui.unit
+    // Narrower in a narrow window, so the column stays in it.
+    readonly property real controlsWidth: Math.max(300 * ui.unit, Math.min(470 * ui.unit, page.width - page.labelWidth))
+    // The function chips on one line: the column is at least that wide when the page is.
+    readonly property real typesWidth: {
+        let w = (typeRepeater.count - 1) * typeCard.spacing
+        for (let i = 0; i < typeRepeater.count; ++i)
+            w += typeRepeater.itemAt(i) ? typeRepeater.itemAt(i).implicitWidth : 0
+        return Math.ceil(w)
+    }
+    readonly property real editorWidth: Math.min(page.width, Math.max(page.labelWidth + page.controlsWidth, page.typesWidth))
     readonly property real slotWidth: 150 * ui.unit
     readonly property bool picking: page.draft !== null && page.slot >= 0
-    readonly property bool pickerBeside: page.width >= page.labelWidth + page.controlsWidth + 24 * ui.unit + 320 * ui.unit
+    readonly property bool pickerBeside: page.width >= page.editorWidth + 24 * ui.unit + 320 * ui.unit
     readonly property real labelWidth: Math.ceil(Math.max(...[qsTr("When held"), qsTr("When tapped"),
         qsTr("Hold time"), qsTr("Key action"), qsTr("On release"), qsTr("Point %1").arg(3), qsTr("Action %1").arg(4),
         qsTr("Second key"), qsTr("Both pressed"), qsTr("Going down"), qsTr("Coming up")].map(t => page.measure(t))))
@@ -319,8 +328,11 @@ ColumnLayout {
     // DKS points, two to a row: "↓1", slider, value, "mm" each.
     readonly property real pointLabelWidth: Math.ceil(Math.max(...page.pointNames.map(t => page.measure(t)))) + 2
     readonly property real pointBoxWidth: 56 * ui.unit
-    readonly property real pointSliderWidth: (page.controlsWidth - 16 * ui.unit) / 2 - page.pointLabelWidth
-                                             - page.pointBoxWidth - 3 * 8 * ui.unit - page.measure("mm") - 2
+    // In a narrow column the two points of a row go one under the other.
+    readonly property real pointFixedWidth: page.pointLabelWidth + page.pointBoxWidth + 3 * 8 * ui.unit + page.measure("mm") + 2
+    readonly property bool pointsStacked: (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth < 90 * ui.unit
+    readonly property real pointSliderWidth: page.pointsStacked ? page.controlsWidth - page.pointFixedWidth
+                                                                : (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth
     FontMetrics { id: metrics; font.pixelSize: ui.body }
     function measure(t) {
         return metrics.advanceWidth(t)
@@ -354,8 +366,8 @@ ColumnLayout {
             objectName: "advancedEditor"
             visible: page.selectedKey >= 0 && (page.pickerBeside || !page.picking)
             Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: page.labelWidth + page.controlsWidth
-            Layout.maximumWidth: page.labelWidth + page.controlsWidth
+            Layout.preferredWidth: page.editorWidth
+            Layout.maximumWidth: page.editorWidth
             spacing: 4 * ui.unit
 
             readonly property string type: page.draft !== null ? page.draft.type : ""
@@ -374,6 +386,7 @@ ColumnLayout {
                 Layout.bottomMargin: 8 * ui.unit
                 spacing: 6 * ui.unit
                 Repeater {
+                    id: typeRepeater
                     model: page.types
                     delegate: Chip {
                         required property string modelData
@@ -469,26 +482,33 @@ ColumnLayout {
                     id: pair
                     required property int index
                     spacing: 0
-                    RowLabel { text: pair.index === 0 ? qsTr("Going down") : qsTr("Coming up") }
-                    Repeater {
-                        model: 2
-                        delegate: MmSlider {
-                            required property int index
-                            readonly property int point: 2 * pair.index + index
-                            objectName: "dksDepth" + point
-                            Layout.fillWidth: false
-                            Layout.leftMargin: index === 1 ? 16 * ui.unit : 0
-                            labelWidth: page.pointLabelWidth
-                            boxWidth: page.pointBoxWidth
-                            sliderWidth: page.pointSliderWidth
-                            label: page.pointNames[point]
-                            shown: page.draft.depths[point]
-                            from: page.limits.minDepth
-                            to: page.limits.maxDepth
-                            step: 0.01
-                            decimals: 2
-                            french: page.french
-                            onCommit: (v) => page.edit(d => d.depths[point] = v)
+                    RowLabel {
+                        Layout.alignment: Qt.AlignTop
+                        text: pair.index === 0 ? qsTr("Going down") : qsTr("Coming up")
+                    }
+                    GridLayout {
+                        columns: page.pointsStacked ? 1 : 2
+                        columnSpacing: 16 * ui.unit
+                        rowSpacing: 4 * ui.unit
+                        Repeater {
+                            model: 2
+                            delegate: MmSlider {
+                                required property int index
+                                readonly property int point: 2 * pair.index + index
+                                objectName: "dksDepth" + point
+                                Layout.fillWidth: false
+                                labelWidth: page.pointLabelWidth
+                                boxWidth: page.pointBoxWidth
+                                sliderWidth: page.pointSliderWidth
+                                label: page.pointNames[point]
+                                shown: page.draft.depths[point]
+                                from: page.limits.minDepth
+                                to: page.limits.maxDepth
+                                step: 0.01
+                                decimals: 2
+                                french: page.french
+                                onCommit: (v) => page.edit(d => d.depths[point] = v)
+                            }
                         }
                     }
                 }
