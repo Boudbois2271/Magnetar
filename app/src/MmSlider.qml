@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // A distance in mm: slider and typed value. Sends commit(value) once, on release or Enter,
-// and only when it changes something.
+// and only when it changes something. While the slider is dragged, the box shows where it is.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -23,8 +23,11 @@ ColumnLayout {
     Layout.fillWidth: true
     spacing: 0
 
+    function snap(v) {
+        return Math.min(ms.to, Math.max(ms.from, Math.round(v / ms.step) * ms.step))
+    }
     function send(v) {
-        v = Math.min(ms.to, Math.max(ms.from, Math.round(v / ms.step) * ms.step))
+        v = ms.snap(v)
         if (!ms.mixed && ms.shown !== undefined && Math.abs(v - ms.shown) < ms.step / 2)
             return
         ms.commit(Number(v.toFixed(3)))
@@ -55,7 +58,7 @@ ColumnLayout {
         Label {
             Layout.row: 0
             Layout.column: 2
-            visible: ms.mixed
+            visible: ms.mixed && !slider.pressed
             text: qsTr("varies")
             color: theme.secondary
         }
@@ -72,7 +75,7 @@ ColumnLayout {
             validator: RegularExpressionValidator { regularExpression: /[0-9]{0,1}([.,][0-9]{0,3})?/ }
             Binding on text {
                 when: !typed.activeFocus
-                value: ms.text(ms.shown)
+                value: ms.text(slider.pressed ? ms.snap(slider.value) : ms.shown)
                 restoreMode: Binding.RestoreNone
             }
             onEditingFinished: {
