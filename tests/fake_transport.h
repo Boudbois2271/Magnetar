@@ -327,6 +327,9 @@ struct FakeKeyboard {
                 std::copy_n(w.begin() + i + 2, 3, colors[static_cast<std::uint16_t>(w[i] << 8 | w[i + 1])].begin());
         if ((cmd == 0x13 || cmd == 0x16 || cmd == 0x19) && sub == 0x00 && !ignoreTravelWrites)
             travelWrite(w);
+        if (cmd == 0x11 && sub < kLayerCount && w[7] == 0x01)
+            for (const auto &k : layout())
+                keymap[sub][k.id] = factoryAction(sub, k.id);
         if (cmd == 0x03 && sub < kLayerCount && !ignoreKeyWrites)
             std::copy_n(w.begin() + 9, 4, keymap[sub][static_cast<std::uint16_t>(w[7] << 8 | w[8])].begin());
         if (cmd == 0x90 && sub == 0x00)

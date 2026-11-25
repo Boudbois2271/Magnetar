@@ -41,7 +41,8 @@ reflected in `akko-protocol.md`.
   Shortcuts tab gave a plain RGui key, not `07`. Lighting (`08`), mouse 4/5, media and "www" (`11`)
   actions are SEEN (`akko-capture13.txt`); Magnetar offers all but "www", never sent to the board yet.
   What "www" does is unknown, and `08 09 nn` (select effect) is still a guess.
-- **Layer reset** `11 LL` payload `01`: SEEN on Default and Fn, not on Fn1.
+- **Layer reset** `11 LL` payload `01`: SEEN on Default and Fn, not on Fn1. The Fn read after it
+  matches our factory Fn table (`tests/fixtures/vendor-actions.txt`).
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
   press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
   unknown (not "reached bottom": it is set on untouched keys too). Bottom drift between sessions is
@@ -155,8 +156,9 @@ reflected in `akko-protocol.md`.
   "Lighting control". The vendor's 15 lighting actions, mouse back/forward and media keys are
   offered (Lighting, Mouse, Media) but untried on the board; Fn+Left/Right show the vendor's swapped
   "Direction right"/"Direction left".
-- Keys page: the layer reset (`11 LL`, decoded for Default and Fn) isn't used; resetting is per key
-  ("Restore default", from the factory table in `core/keymap.cpp`).
+- Keys page: "Reset … layer to factory" (`11 LL`, then the layer read again) is offered on Default and
+  Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
+  only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark

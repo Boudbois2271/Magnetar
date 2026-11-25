@@ -34,6 +34,8 @@ ColumnLayout {
         return now !== undefined && now.code !== backend.factoryAction(tab.activeLayer, id).code
     }
     readonly property var markedFor: tab.differsFromFactory
+    // Some key of the shown layer isn't as it came from the factory.
+    readonly property bool layerDiffers: Object.keys(tab.layerMap).some(k => tab.differsFromFactory(Number(k)))
 
     // Changing every Fn (or Fn1) key of the Default layer leaves that layer unreachable. Returns
     // the layer key that would be lost, or undefined.

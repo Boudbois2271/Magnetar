@@ -470,6 +470,43 @@ private slots:
         QCOMPARE(int(actionKind(ours.back())), int(ActionKind::Consumer));
     }
 
+    void resetLayerLikeTheVendorApp()
+    {
+        FakeTransport t;
+        FakeKeyboard board;
+        board.keymap[1][0x62] = keyAction(0x04);
+        t.respond = std::ref(board);
+        Keyboard kb(t);
+        const auto keys = kb.resetLayer(1);
+
+        // akko-capture13.txt mark 14: 11 01 then the 10 packets of 83 01.
+        const auto reset = fixtureSection("vendor-actions.txt", "fn-reset");
+        const auto reads = fixtureSection("vendor-actions.txt", "fn-factory-read");
+        QCOMPARE(t.written.size(), 1 + reads.size());
+        QCOMPARE(Bytes(t.written[0].begin() + 1, t.written[0].end()), reset[0]);
+        for (std::size_t i = 0; i < reads.size(); ++i)
+            QCOMPARE(Bytes(t.written[i + 1].begin() + 1, t.written[i + 1].end()), reads[i]);
+        QCOMPARE(keys.size(), std::size_t(kKeyCount));
+        for (const auto &[id, action] : keys)
+            QVERIFY(action == factoryAction(1, id));
+
+        // The board's answers to that read are our factory Fn table.
+        for (const auto &r : fixtureSection("vendor-actions.txt", "fn-factory-read-answers"))
+            for (std::size_t at = 6; at + 6 <= std::size_t(6) + r[5]; at += 6) {
+                const auto id = static_cast<std::uint16_t>(r[at] << 8 | r[at + 1]);
+                QVERIFY2(Action({r[at + 2], r[at + 3], r[at + 4], r[at + 5]}) == factoryAction(1, id),
+                         qPrintable(QString::number(id, 16)));
+            }
+
+        // Default resets the same way; Fn1 wasn't captured, so nothing is sent.
+        kb.resetLayer(0);
+        QCOMPARE(t.written[11][1], std::uint8_t(0x11));
+        QCOMPARE(t.written[11][2], std::uint8_t(0x00));
+        const auto sent = t.written.size();
+        QVERIFY_THROWS_EXCEPTION(Error, kb.resetLayer(2));
+        QCOMPARE(t.written.size(), sent);
+    }
+
     void readLayerLikeTheVendorApp()
     {
         FakeTransport t;

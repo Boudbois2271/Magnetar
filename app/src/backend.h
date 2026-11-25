@@ -180,6 +180,9 @@ public:
     // The same action on each of these keys. False (nothing sent) if any of them is bad.
     Q_INVOKABLE bool setKeyActions(int layer, const QVariantList &keys, const QString &code);
     Q_INVOKABLE bool restoreKeyDefault(int layer, int key);
+    // The whole layer back to the factory keymap (11 LL), then read again. Default and Fn only;
+    // false, and nothing sent, for Fn1 (not captured).
+    Q_INVOKABLE bool resetLayer(int layer);
 
     // Changes one part of the travel on these keys and keeps the rest of each key as it is.
     // change holds fields of one part only, in mm: {actuation}, {rapidTrigger, press, release}

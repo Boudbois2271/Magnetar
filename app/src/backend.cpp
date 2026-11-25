@@ -235,6 +235,16 @@ bool Backend::restoreKeyDefault(int layer, int key)
     return setKeyAction(layer, key, code(akko::factoryAction(layer, static_cast<std::uint16_t>(key))));
 }
 
+bool Backend::resetLayer(int layer)
+{
+    if (layer != 0 && layer != 1)
+        return false;
+    post("reset layer " + std::to_string(layer), [layer](akko::Keyboard &kb, Snapshot &s) {
+        s.keymap[layer] = kb.resetLayer(layer);
+    });
+    return true;
+}
+
 // ---- travel ----------------------------------------------------------------
 
 namespace {

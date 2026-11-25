@@ -107,6 +107,9 @@ public:
     // 03 LL, then reads the key back (as the vendor app does) and returns what the board has.
     // Throws if the read-back differs from what was sent.
     Action setKey(int layer, std::uint16_t key, const Action &action);
+    // 11 LL 01: back to the factory keymap, then the whole layer read again, as the vendor app
+    // does. Only Default (0) and Fn (1) are captured; Fn1 throws before sending anything.
+    std::vector<std::pair<std::uint16_t, Action>> resetLayer(int layer);
 
     // Travel of these keys (all 83 by default, in keyReadOrder() like the vendor app): 93 00 in
     // packets of 11 keys, 96 00 and 99 00 in packets of 7.
