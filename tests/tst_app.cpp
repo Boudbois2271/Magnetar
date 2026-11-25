@@ -1530,6 +1530,48 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // The sidebar shows the active profile's stored name ("Profile N" when stock) and renames
+    // it in place; what can't be stored is refused in the field, and the name shown is the read-back.
+    void sidebarRenamesProfile()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        QTRY_COMPARE(w.backend.profileNames(), QStringList({"", "", ""}));
+        auto *label = w.item("profileName");
+        auto *field = w.item("profileNameField");
+        auto *button = w.item("renameProfile");
+        auto *problem = w.item("profileNameProblem");
+        QVERIFY(label && field && button && problem);
+        QCOMPARE(label->property("text").toString(), QString("Profile 1"));
+
+        QMetaObject::invokeMethod(button, "clicked");
+        QVERIFY(field->isVisible());
+        QCOMPARE(field->property("text").toString(), QString("Profile 1"));
+        for (const QString &bad : {QString(), QString("Caf\u00e9"), QString(56, 'x')}) {
+            field->setProperty("text", bad);
+            QVERIFY2(problem->isVisible(), qPrintable(bad));
+            QVERIFY(!button->isEnabled());
+        }
+        field->setProperty("text", "Gaming");
+        QVERIFY(!problem->isVisible());
+        QMetaObject::invokeMethod(button, "clicked");
+        QVERIFY(!field->isVisible());
+        QTRY_COMPARE(label->property("text").toString(), QString("Gaming"));
+        QCOMPARE(w.board.writesOf(0x1A, 0x00), 1);
+        QCOMPARE(w.backend.profileNames(), QStringList({"Gaming", "", ""}));
+
+        // Names come back from the board when everything is read again.
+        w.backend.reload();
+        QTRY_VERIFY(w.board.writesOf(0x9A, 0x00) >= 3);
+        QTRY_COMPARE(label->property("text").toString(), QString("Gaming"));
+        w.backend.setProfile(2);
+        QTRY_COMPARE(label->property("text").toString(), QString("Profile 2"));
+        QVERIFY(!w.backend.renameProfile(2, QString()));
+        QVERIFY(!w.backend.renameProfile(4, "Four"));
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     // Tab walks sidebar -> page header -> keyboard -> controls, and whatever has the focus draws
     // its outline. On the drawing, the arrows move the ring and Space clicks the ringed key.
     void tabMovesAVisibleFocus()
