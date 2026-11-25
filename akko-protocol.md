@@ -5,7 +5,9 @@ Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: pro
 (2026-11-18: actuation, rapid trigger, dead zones), `akko-capture4.txt` (2026-11-18: Parameter Settings
 sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration), `akko-capture6b.txt` (2026-11-18: Base
 Functions; `akko-capture6.txt` is its first half), later captures up to `akko-capture10.txt` (2026-11-18:
-polling rates, DKS hold, Mural solid colours) are cited by mark.
+polling rates, DKS hold, Mural solid colours) are cited by mark, as is `akko-capture13.txt` (2026-11-25:
+long macro directories, mouse macro steps, the vendor's lighting/mouse/media actions, Fn layer reset, vendor
+ranges, profile rename).
 Status: **KNOWN** = our code (`core/`) sends it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -26,18 +28,55 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `00 00 00 uu` plain key, `uu` = HID usage
   - `00 mm 00 00` modifier key alone (mm: 01 LCtrl 02 LShift 04 LAlt 08 LGui 10 RCtrl 20 RShift 40 RAlt 80 RGui; "Right Windows" = `00 80 00 00`, `akko-capture11.txt` mark 12)
   - `00 mm uu 00` shortcut, e.g. `00 01 19 00` = Ctrl+V (SEEN; note usage moves to byte 2). Two keys: Ctrl+Shift, First Key A, second key B = `00 03 05 04` (SEEN, `akko-capture11.txt` mark 16: the second key comes first)
-  - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle (SEEN, `akko-capture8.txt` marks 2, 4)
-  - `02 00 hi lo` consumer usage (volume, media, mail, calc…); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6)
+  - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle, 04 back, 05 forward (SEEN: 01–03
+    `akko-capture8.txt` marks 2, 4; all five `akko-capture13.txt` mark 12, table below)
+  - `02 00 hi lo` consumer usage (HID page 0x0C, u16 BE); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6;
+    the vendor's whole list in the table below)
   - `07 00 00 nn` system function (Fn+Win = 01 Win lock?, Fn+W = 00 WASD swap?) GUESS
-  - `08 aa bb 00` lighting control. "Main Lightning Brightness Cycle" = `08 03 00 00` (SEEN, `akko-capture11.txt` mark 14: steps 0→5→10→15→20). Others (`08 09 xx` effect, `08 01` speed) GUESS
+  - `08 gg oo 00` lighting control: group gg 00 effect, 01 direction, 02 colour, 03 brightness, 04 speed;
+    op oo 00 cycle, 01 increase / left, 02 decrease / right (SEEN, all 15, `akko-capture13.txt` mark 10, table
+    below). Brightness Cycle `08 03 00 00` steps 0→5→10→15→20 on the board (`akko-capture11.txt` mark 14).
+    `08 09 nn 00` (factory Fn+Home/End/PgUp/PgDn, nn = 01/10/06/0b, which are effect IDs) = select effect nn:
+    GUESS, not in the vendor's list
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d nn 00 00` layer key: nn 00 = Fn, 01 = Fn1 ("Function Key 1", SEEN capture8 mark 8). Moving a key
     off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
+  - `11 00 00 00` "www" in the vendor's Lighting & Special Keys list (SEEN, `akko-capture13.txt` mark 10;
+    what it does on the board was not checked)
   - `03 tt nn ii` macro `ii` (0-based index in the macro blob), loop type `tt`, count `nn` (SEEN:
     "Specified Times" = `01`; count 1 → `03 01 01 01`, count 4 → `03 01 04 00`, `akko-capture7b.txt`).
     "Repeat until any key is pressed" = `02`, "Repeat While Held, Stop on Release" = `04`, both with
     count `00` (SEEN, `akko-capture9.txt` marks 5, 9; both repeated on the board, marks 6, 10)
   - `ff ff ff ff` unbound (Basic Key right-click: the key does nothing, it is **not** a reset to default)
+
+The vendor's Basic Key lists, dragged one by one onto Insert on the Fn layer (`03 01`), each echoed and read
+back identical (`akko-capture13.txt` marks 10–13, frames in `tests/fixtures/vendor-actions.txt`). All SEEN;
+none sent by us yet.
+
+| Lighting & Special Keys | Action | | Media & Tools | Action |
+|---|---|---|---|---|
+| Effect Cycle | `08 00 00 00` | | Mouse Left Button | `01 01 01 00` |
+| Effect Increase | `08 00 01 00` | | Mouse Right Button | `01 02 01 00` |
+| Effect Decrease | `08 00 02 00` | | Mouse Middle Button | `01 03 01 00` |
+| Direction Cycle | `08 01 00 00` | | Mouse Forward Button | `01 05 01 00` |
+| Direction Left | `08 01 01 00` | | Mouse Back Button | `01 04 01 00` |
+| Direction Right | `08 01 02 00` | | Play/Pause Key | `02 00 00 cd` |
+| Color Cycle | `08 02 00 00` | | System Multimedia Key | `02 00 01 83` (AL Consumer Control Config) |
+| Color Increase | `08 02 01 00` | | Mute Key | `02 00 00 e2` |
+| Color Decrease | `08 02 02 00` | | Pause Key | `02 00 00 b7` (HID "Stop") |
+| Brightness Cycle | `08 03 00 00` | | Previous Song Key | `02 00 00 b6` |
+| Brightness Increase | `08 03 01 00` | | Next Song Key | `02 00 00 b5` |
+| Brightness Decrease | `08 03 02 00` | | Volume Up Key | `02 00 00 e9` |
+| Speed Cycle | `08 04 00 00` | | Volume Down Key | `02 00 00 ea` |
+| Speed Increase | `08 04 01 00` | | Browser | `02 00 02 23` (AC Home) |
+| Speed Decrease | `08 04 02 00` | | Calculator | `02 00 01 92` |
+| Fn1 | `0d 01 00 00` | | Email | `02 00 01 8a` |
+| www | `11 00 00 00` | | My Computer | `02 00 01 94` |
+| | | | Favorites | `02 00 02 2a` (AC Bookmarks) |
+
+The factory Fn layer (read after the layer reset, mark 14) uses these: Fn+Up/Down = brightness +/−,
+Fn+`=`/`-` = speed +/−, Fn+`\` = colour cycle, Fn+Left = `08 01 02 00` and Fn+Right = `08 01 01 00` (the
+vendor's labels "Direction Right"/"Direction Left", swapped against the arrows; not checked on the board).
 
 ## Commands
 
@@ -95,7 +134,7 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `03 LL` | KNOWN | set one key on layer LL: `key u16 + action(4)`, echoed. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured. Sent by Magnetar and checked on the board 2026-11-21: Insert → Home, Ctrl+V, Volume up on Default and A on Fn1, each read back and restored |
-| `11 00` | SEEN | Basic Key "Reset" on Default Layer: payload `01` (meaning GUESS: layer bitmask or layer+1), echoed, then the app re-reads the layer. Insert came back to default (`akko-capture11.txt` marks 17–18) |
+| `11 LL` | SEEN | Basic Key "Reset" next to a layer: reset layer LL to factory, payload always `01`, echoed, then the app re-reads the whole layer (`83 LL`, 10 packets). Default Layer = `11 00` (Insert came back, `akko-capture11.txt` marks 17–18); Fn Layer = `11 01 00 01 00 01 01` (`akko-capture13.txt` mark 14: Insert's Fn action back to `00 00 00 49`, Fn+Insert typed Insert again, mark 15). Fn1 (`11 02`) not captured |
 | `83 LL` | KNOWN | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
 
 Key IDs on the board (rows top to bottom, left to right; factory action in brackets when not obvious):
@@ -250,6 +289,6 @@ session shows the result of the previous one):
 ## Still to capture
 - Profile Management: applying an inactive profile (reboots, overwrites a profile). Skipped on purpose.
 - Device Info: Factory Reset. Skipped on purpose.
-- `11 00` on the Fn and Fn1 layers, to pin down its payload.
+- `11 02` (Reset on the Fn1 layer): Default and Fn are SEEN, payload `01` both times.
 - No UI found for `82 xx`, `84 11/13/1d/1e/20`, `87 00`, `a6 ff`: maybe on-board Fn shortcuts.
   Diff read dumps before/after Fn combos (reads only).
