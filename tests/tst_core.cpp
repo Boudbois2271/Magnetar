@@ -140,6 +140,11 @@ std::vector<Bytes> macroFrames(const std::string &name)
     return fixtureSection("vendor-macros.txt", name);
 }
 
+std::vector<Bytes> longMacroFrames(const std::string &name)
+{
+    return fixtureSection("vendor-macros-long.txt", name);
+}
+
 // A transport that answers the n-th write with the n-th frame given (report ID added).
 void replay(FakeTransport &t, std::vector<Bytes> answers)
 {
@@ -1013,6 +1018,50 @@ private slots:
         Keyboard kb(t);
         QVERIFY(kb.writeMacros(ms) == ms);
         QVERIFY(kb.readMacros() == ms);
+    }
+
+    void mouseStepsAsCaptured()
+    {
+        // akko-capture13.txt mark 7: "ms" = one recorded left click.
+        FakeTransport t;
+        replay(t, longMacroFrames("mouse-read-answers"));
+        const auto m = Keyboard(t).readMacros();
+        const auto frames = longMacroFrames("mouse-read");
+        QCOMPARE(t.written.size(), frames.size());
+        for (std::size_t i = 0; i < frames.size(); ++i)
+            QCOMPARE(sent(t, i), frames[i]);
+        QCOMPARE(int(m.size()), 1);
+        const std::vector<MacroStep> click{{true, 62, kMacroMouseLeft, kMacroMouse}, {false, 1, kMacroMouseLeft, kMacroMouse}};
+        QVERIFY(m[0] == (Macro{"ms", click}));
+
+        FakeTransport wt;
+        FakeKeyboard board;
+        wt.respond = std::ref(board);
+        Keyboard kb(wt);
+        QVERIFY(kb.writeMacros(m) == m);
+        QCOMPARE(sent(wt, 0), longMacroFrames("mouse-write")[0]);
+        // A mouse step needs a button.
+        QVERIFY(!macroProblem({"ms", {{true, 1, 0, kMacroMouse}}}).empty());
+    }
+
+    void unknownStepKindsAreKept()
+    {
+        // Direction bytes we don't know (40/c0, and the modifier bit on a plain key) come back
+        // unchanged; a modifier step without its bit is written with it, as the board needs.
+        const std::vector<std::uint8_t> blob{0x04, 0x00, 0x13, 0x00, 0x02, 0x75, 0x6b,
+                                             0x40, 0x00, 0x05, 0x00, 0xc0, 0x00, 0x05, 0x07,
+                                             0x10, 0x00, 0x05, 0x04, 0x00, 0x00, 0x01, 0xe1};
+        const auto m = parseMacroBlob(blob);
+        QCOMPARE(int(m[0].steps.size()), 4);
+        QCOMPARE(int(m[0].steps[0].kind), 0x40);
+        QCOMPARE(int(m[0].steps[1].kind), 0x40);
+        QVERIFY(!m[0].steps[1].press);
+        QCOMPARE(int(m[0].steps[2].kind), 0x10);
+        QCOMPARE(int(m[0].steps[3].kind), int(kMacroKey));
+        QVERIFY(macroProblem(m[0]).empty());  // usage 0 is fine on a step we don't know
+        auto want = blob;
+        want[19] = 0x10;
+        QVERIFY(macroBlob(m) == want);
     }
 
     void macroActionEncoding()

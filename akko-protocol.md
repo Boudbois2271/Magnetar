@@ -262,7 +262,9 @@ Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
 - Mouse steps (SEEN, `akko-capture13.txt` mark 7): the vendor recorder records real mouse clicks (not volume
   or media keys, mark 6). One left click = `02 6d 73 | 20 00 3e 01 | a0 00 01 01` ("ms", 62 ms down). Only
-  the left button was captured; the button byte is GUESS `01`–`05` as in the keymap's `01 bb 01 00`.
+  the left button was captured; the button byte is GUESS `01`–`05` (left, right, middle, back, forward) as in
+  the keymap's `01 bb 01 00`. Magnetar writes a left click with these bytes (fake device only, never sent to
+  the board) and offers no other button. Direction bytes outside `00 10 20` (+ `80`) are kept as read.
 - Size: 15 macros "m1"…"m15" of one A tap each = 231 B (UI "231B"): 4 B directory entry + 1 + name + 8 B of
   steps each (`akko-capture13.txt` mark 2).
 - Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app

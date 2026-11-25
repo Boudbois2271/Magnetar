@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Macros of the active profile: the list with the storage they use, and, for a selected or new
-// macro, an editor that records key presses and releases with their delays. The list shows what the board read back; the
+// macro, an editor that records key presses and releases with their delays (left clicks are added by hand). The list shows what the board read back; the
 // editor's draft follows the read-back until it is changed.
 import QtQuick
 import QtQuick.Controls
@@ -12,7 +12,7 @@ Item {
 
     property int index: -1             // the macro being edited, -1 = a new one
     property bool editing: false       // the editor is open (a macro selected, or a new one)
-    property var draft: page.blank()   // {name, steps: [{press, usage, delay}]}
+    property var draft: page.blank()   // {name, steps: [{press, usage, delay, kind}]}
     property bool standard: false      // every delay is the standard one
     property bool recording: false
     property double lastEvent: -1      // ms timestamp of the last recorded step, -1 before the first
@@ -31,7 +31,7 @@ Item {
     readonly property var record: {
         const n = page.draft.steps.length
         return { name: page.draft.name, steps: page.draft.steps.map((s, i) => ({
-            press: s.press, usage: s.usage,
+            press: s.press, usage: s.usage, kind: s.kind,
             delay: i === n - 1 ? 1 : page.standard ? page.limits.standardDelay : s.delay })) }
     }
     // The steps as listed: newest first while recording, so each new one shows at the top; the
@@ -60,7 +60,7 @@ Item {
     readonly property bool dirty: page.key(page.record) !== page.key(page.saved || page.blank())
     // Compares macros by content (the board's records list their fields in another order).
     function key(m) {
-        return JSON.stringify([m.name, m.steps.map(s => [s.press, s.usage, s.delay])])
+        return JSON.stringify([m.name, m.steps.map(s => [s.press, s.usage, s.delay, s.kind])])
     }
     // Bytes in the board's storage: 4 for the directory entry, then name length, name, 4 per step.
     function sizeOf(m) {
@@ -84,7 +84,7 @@ Item {
         return { name: "", steps: [] }
     }
     function copy(m) {
-        return { name: m.name, steps: m.steps.map(s => ({ press: s.press, usage: s.usage, delay: s.delay })) }
+        return { name: m.name, steps: m.steps.map(s => ({ press: s.press, usage: s.usage, delay: s.delay, kind: s.kind })) }
     }
     function load() {
         page.recording = false
@@ -221,10 +221,26 @@ Item {
         page.held = []
         page.lastEvent = -1
     }
-    function addKey(usage) {
+    // Adds a press and a release: of a key, or of a mouse button (kind = limits.mouseStep).
+    function addStep(usage, kind) {
         const d = page.limits.standardDelay
-        page.setSteps(page.draft.steps.concat([{ press: true, usage: usage, delay: d },
-                                               { press: false, usage: usage, delay: d }]))
+        page.setSteps(page.draft.steps.concat([{ press: true, usage: usage, delay: d, kind: kind },
+                                               { press: false, usage: usage, delay: d, kind: kind }]))
+    }
+    function addKey(usage) {
+        page.addStep(usage, page.limits.keyStep)
+    }
+    function addClick() {
+        page.addStep(page.limits.leftButton, page.limits.mouseStep)
+    }
+    // What a step presses or releases: a key, a mouse button, or a kind of step this app doesn't
+    // know (read from the board, kept as it is).
+    function stepName(s) {
+        if (s.kind === page.limits.keyStep)
+            return names.usageName(s.usage)
+        if (s.kind === page.limits.mouseStep)
+            return s.usage === page.limits.leftButton ? qsTr("Left click") : qsTr("Mouse button %1").arg(s.usage)
+        return qsTr("Unknown step")
     }
 
     // ---- recording -----------------------------------------------------------
@@ -253,7 +269,7 @@ Item {
             steps[steps.length - 1] = Object.assign({}, steps[steps.length - 1], {
                 delay: page.lastEvent < 0 ? page.limits.standardDelay
                        : Math.max(0, Math.min(page.limits.maxDelay, Math.round(now - page.lastEvent))) })
-        steps.push({ press: press, usage: usage, delay: page.limits.standardDelay })
+        steps.push({ press: press, usage: usage, delay: page.limits.standardDelay, kind: page.limits.keyStep })
         page.lastEvent = now
         page.setSteps(steps)
         // The newest step is the top row: keep it in view.
@@ -510,22 +526,26 @@ Item {
                     }
                 }
 
-                // Adds a press and a release of one key, for editing by hand. Above the steps, so it stays put
-                // as the list grows.
+                // Adds a press and a release of one key or a left click, for editing by hand. Above
+                // the steps, so it stays put as the list grows.
                 RowLayout {
                     Layout.fillWidth: true
                     spacing: 10 * ui.unit
                     AppComboBox {
                         id: addKeyBox
+                        objectName: "addStepBox"
                         Layout.preferredWidth: 200 * ui.unit
-                        model: page.addableKeys.map(u => names.usageName(u))
+                        model: page.addable.map(s => page.stepName(s))
                         currentIndex: -1
-                        displayText: currentIndex < 0 ? qsTr("Add a key…") : currentText
+                        displayText: currentIndex < 0 ? qsTr("Add a step…") : currentText
                     }
                     AppButton {
                         text: qsTr("Add")
                         enabled: addKeyBox.currentIndex >= 0 && !page.recording
-                        onClicked: page.addKey(page.addableKeys[addKeyBox.currentIndex])
+                        onClicked: {
+                            const s = page.addable[addKeyBox.currentIndex]
+                            page.addStep(s.usage, s.kind)
+                        }
                     }
                     Item { Layout.fillWidth: true }
                 }
@@ -654,7 +674,7 @@ Item {
                                         Label {
                                             Layout.fillWidth: true
                                             leftPadding: 6 * ui.unit
-                                            text: names.usageName(stepRow.modelData.usage)
+                                            text: page.stepName(stepRow.modelData)
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                         }
@@ -753,13 +773,18 @@ Item {
         }
     }
 
-    // Keys the "Add a key" list offers: letters, digits, symbols, F1–F12, editing, arrows, modifiers.
-    readonly property var addableKeys: {
-        let r = []
-        const add = (from, to) => { for (let u = from; u <= to; ++u) r.push(u) }
+    // Steps the "Add a step" list offers: a left click (the only mouse button captured), then
+    // letters, digits, symbols, F1–F12, editing, arrows, modifiers.
+    readonly property var addable: {
+        let r = [{ kind: page.limits.mouseStep, usage: page.limits.leftButton }]
+        const add = (from, to) => {
+            for (let u = from; u <= to; ++u)
+                if (u !== 0x32)
+                    r.push({ kind: page.limits.keyStep, usage: u })
+        }
         add(0x04, 0x52)
         add(0xe0, 0xe7)
-        return r.filter(u => u !== 0x32)
+        return r
     }
 
     Dialog {

@@ -2277,6 +2277,32 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    void macroMouseAndUnknownStepsAreKept()
+    {
+        // On the board: "ms" = a left click (akko-capture13.txt mark 7), then a step kind we
+        // don't know (40/c0). The page gets each step's kind; saving under another name keeps them.
+        FakeBoard board;
+        board.keyboard.macros = {0x04, 0x00, 0x13, 0x00, 0x02, 0x6d, 0x73, 0x20, 0x00, 0x3e, 0x01, 0xa0,
+                                 0x00, 0x05, 0x01, 0x40, 0x00, 0x05, 0x09, 0xc0, 0x00, 0x01, 0x09};
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.macrosReady());
+        auto record = b.macros()[0].toMap();
+        const auto steps = record.value("steps").toList();
+        QCOMPARE(steps[0].toMap().value("kind").toInt(), 0x20);
+        QCOMPARE(steps[0].toMap().value("usage").toInt(), 1);
+        QCOMPARE(steps[2].toMap().value("kind").toInt(), 0x40);
+        QCOMPARE(b.macroLimits().value("mouseStep").toInt(), 0x20);
+        const auto before = board.keyboard.macros;
+        record["name"] = "mt";
+        QVERIFY(b.saveMacro(0, record));
+        QTRY_COMPARE(b.macros()[0].toMap().value("name").toString(), QString("mt"));
+        std::lock_guard lock(board.mutex);
+        auto want = before;
+        want[6] = 0x74;
+        QVERIFY(board.keyboard.macros == want);
+    }
+
     void macrosPageRecordsSavesAndBinds()
     {
         KeysWindow w;
@@ -2372,6 +2398,13 @@ private slots:
         // A re-read (window focus) keeps an edited draft.
         call("addKey", {0x05});
         QCOMPARE(steps().size(), 6);
+        // A left click is added by hand, and named so.
+        call("addClick");
+        QCOMPARE(steps().size(), 8);
+        QCOMPARE(steps()[6].toMap().value("kind").toInt(), 0x20);
+        QCOMPARE(call("stepName", {steps()[7]}).toString(), QString("Left click"));
+        QCOMPARE(call("stepName", {steps()[4]}).toString(), QString("B"));
+        page->setProperty("draft", QVariantMap{{"name", "ab"}, {"steps", steps().mid(0, 6)}});
         w.backend.refresh();
         QTest::qWait(100);
         QCOMPARE(steps().size(), 6);

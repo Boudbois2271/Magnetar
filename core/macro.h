@@ -25,12 +25,23 @@ constexpr std::uint8_t kMacroRelease = 0x80;
 constexpr std::uint8_t kMacroModifier = 0x10;
 constexpr bool isModifierUsage(std::uint8_t usage) { return usage >= 0xe0 && usage <= 0xe7; }
 
-// One step: a key goes down or up, then the macro waits delayMs. usage = HID keyboard usage
-// (modifiers included: e0 LCtrl … e7 RGui).
+// Step kinds: the direction byte without its release bit. Key steps are kMacroKey (bit 10 follows
+// the usage); bit 20 = a mouse button (akko-capture13.txt mark 7). Any other value read from the
+// board is kept as it was, so a save doesn't change steps we don't know.
+constexpr std::uint8_t kMacroKey = 0x00;
+constexpr std::uint8_t kMacroMouse = 0x20;
+// Mouse step buttons: 01 = left (SEEN). 02 right, 03 middle, 04 back, 05 forward are a GUESS
+// (the keymap's mouse action numbering), never captured in a macro.
+constexpr std::uint8_t kMacroMouseLeft = 0x01;
+
+// One step: a key or mouse button goes down or up, then the macro waits delayMs. For a key step,
+// usage = HID keyboard usage (modifiers included: e0 LCtrl … e7 RGui); for a mouse step, the
+// button.
 struct MacroStep {
     bool press = true;
     std::uint16_t delayMs = kStandardDelayMs;
     std::uint8_t usage = 0;
+    std::uint8_t kind = kMacroKey;
 
     bool operator==(const MacroStep &) const = default;
 };
@@ -48,7 +59,7 @@ std::size_t macroSize(const Macro &m);
 std::size_t macroStorageUsed(std::span<const Macro> macros);
 
 // Why the macro can't be stored, or "" if it can: name of 2–255 printable ASCII characters,
-// no step with usage 0. A macro with no steps is allowed (the blob holds just its name).
+// no key or mouse step with usage 0. A macro with no steps is allowed (the blob holds just its name).
 std::string macroProblem(const Macro &m);
 // The same for a whole list, and that it fits in kMacroStorage.
 std::string macrosProblem(std::span<const Macro> macros);

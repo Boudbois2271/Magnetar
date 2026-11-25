@@ -254,7 +254,6 @@
   "Macros of profile %1": "Macros du profil %1",
   "Repeat while held": "Répéter tant que maintenue",
   "Delete “%1”?": "Supprimer « %1 » ?",
-  "Add a key…": "Ajouter une touche…",
   "Name": "Nom",
   "↑ Release": "↑ Relâché",
   "%1 steps": "%1 étapes",
@@ -282,5 +281,7 @@
   "Once %1": "1 fois %1",
   "held %1": "tenue %1",
   "Held %1": "Tenue %1",
-  "once %1": "1 fois %1"
+  "once %1": "1 fois %1",
+  "Add a step…": "Ajouter une étape…",
+  "Unknown step": "Étape inconnue"
 }
