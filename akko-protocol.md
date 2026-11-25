@@ -247,7 +247,7 @@ offset stepping by `38`. The directory is read that way too once it is over 56 B
 `85 00 00 02 00 38` then `85 00 38 02 01 04`; the blob (231 B) = 5 packets at offsets `00 38 70 a8 e0`, the last
 len `07`; at exactly 56 B (14 macros) the directory is one packet (`akko-capture13.txt` marks 1 and 4, frames in
 `tests/fixtures/vendor-macros-long.txt`). Magnetar's `readMacros()` sends exactly these frames (offsets, counts,
-indices and lens); `writeMacros()` matches the vendor's 5-packet `05 00` write too.
+indices and lens); `writeMacros()` matches the vendor's 5-packet `05 00` write too (`longDirectoriesLikeTheVendorApp`; not yet sent to the board with 15+ macros).
 
 Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
