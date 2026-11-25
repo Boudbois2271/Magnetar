@@ -5,7 +5,9 @@ Sources (local capture logs, not published): `akko-capture.txt` (2026-10-03: pro
 (2026-11-18: actuation, rapid trigger, dead zones), `akko-capture4.txt` (2026-11-18: Parameter Settings
 sub-tabs), `akko-capture5.txt` (2026-11-18: key calibration), `akko-capture6b.txt` (2026-11-18: Base
 Functions; `akko-capture6.txt` is its first half), later captures up to `akko-capture10.txt` (2026-11-18:
-polling rates, DKS hold, Mural solid colours) are cited by mark.
+polling rates, DKS hold, Mural solid colours) are cited by mark, as is `akko-capture13.txt` (2026-11-25:
+long macro directories, mouse macro steps, the vendor's lighting/mouse/media actions, Fn layer reset, vendor
+ranges, profile rename).
 Status: **KNOWN** = our code (`core/`) sends it, verified on the board · **SEEN** = captured write with a clear
 before/after, never sent by us · **DECODED** = read-only structure, clear · **GUESS** = needs a capture.
 
@@ -26,18 +28,55 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `00 00 00 uu` plain key, `uu` = HID usage
   - `00 mm 00 00` modifier key alone (mm: 01 LCtrl 02 LShift 04 LAlt 08 LGui 10 RCtrl 20 RShift 40 RAlt 80 RGui; "Right Windows" = `00 80 00 00`, `akko-capture11.txt` mark 12)
   - `00 mm uu 00` shortcut, e.g. `00 01 19 00` = Ctrl+V (SEEN; note usage moves to byte 2). Two keys: Ctrl+Shift, First Key A, second key B = `00 03 05 04` (SEEN, `akko-capture11.txt` mark 16: the second key comes first)
-  - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle (SEEN, `akko-capture8.txt` marks 2, 4)
-  - `02 00 hi lo` consumer usage (volume, media, mail, calc…); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6)
+  - `01 bb 01 00` mouse button, bb = 01 left, 02 right, 03 middle, 04 back, 05 forward (SEEN: 01–03
+    `akko-capture8.txt` marks 2, 4; all five `akko-capture13.txt` mark 12, table below)
+  - `02 00 hi lo` consumer usage (HID page 0x0C, u16 BE); Volume Up = `02 00 00 e9` (SEEN, capture8 mark 6;
+    the vendor's whole list in the table below)
   - `07 00 00 nn` system function (Fn+Win = 01 Win lock?, Fn+W = 00 WASD swap?) GUESS
-  - `08 aa bb 00` lighting control. "Main Lightning Brightness Cycle" = `08 03 00 00` (SEEN, `akko-capture11.txt` mark 14: steps 0→5→10→15→20). Others (`08 09 xx` effect, `08 01` speed) GUESS
+  - `08 gg oo 00` lighting control: group gg 00 effect, 01 direction, 02 colour, 03 brightness, 04 speed;
+    op oo 00 cycle, 01 increase / left, 02 decrease / right (SEEN, all 15, `akko-capture13.txt` mark 10, table
+    below). Brightness Cycle `08 03 00 00` steps 0→5→10→15→20 on the board (`akko-capture11.txt` mark 14).
+    `08 09 nn 00` (factory Fn+Home/End/PgUp/PgDn, nn = 01/10/06/0b, which are effect IDs) = select effect nn:
+    GUESS, not in the vendor's list
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d nn 00 00` layer key: nn 00 = Fn, 01 = Fn1 ("Function Key 1", SEEN capture8 mark 8). Moving a key
     off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
+  - `11 00 00 00` "www" in the vendor's Lighting & Special Keys list (SEEN, `akko-capture13.txt` mark 10;
+    what it does on the board was not checked)
   - `03 tt nn ii` macro `ii` (0-based index in the macro blob), loop type `tt`, count `nn` (SEEN:
     "Specified Times" = `01`; count 1 → `03 01 01 01`, count 4 → `03 01 04 00`, `akko-capture7b.txt`).
     "Repeat until any key is pressed" = `02`, "Repeat While Held, Stop on Release" = `04`, both with
     count `00` (SEEN, `akko-capture9.txt` marks 5, 9; both repeated on the board, marks 6, 10)
   - `ff ff ff ff` unbound (Basic Key right-click: the key does nothing, it is **not** a reset to default)
+
+The vendor's Basic Key lists, dragged one by one onto Insert on the Fn layer (`03 01`), each echoed and read
+back identical (`akko-capture13.txt` marks 10–13, frames in `tests/fixtures/vendor-actions.txt`). All SEEN;
+none sent by us yet.
+
+| Lighting & Special Keys | Action | | Media & Tools | Action |
+|---|---|---|---|---|
+| Effect Cycle | `08 00 00 00` | | Mouse Left Button | `01 01 01 00` |
+| Effect Increase | `08 00 01 00` | | Mouse Right Button | `01 02 01 00` |
+| Effect Decrease | `08 00 02 00` | | Mouse Middle Button | `01 03 01 00` |
+| Direction Cycle | `08 01 00 00` | | Mouse Forward Button | `01 05 01 00` |
+| Direction Left | `08 01 01 00` | | Mouse Back Button | `01 04 01 00` |
+| Direction Right | `08 01 02 00` | | Play/Pause Key | `02 00 00 cd` |
+| Color Cycle | `08 02 00 00` | | System Multimedia Key | `02 00 01 83` (AL Consumer Control Config) |
+| Color Increase | `08 02 01 00` | | Mute Key | `02 00 00 e2` |
+| Color Decrease | `08 02 02 00` | | Pause Key | `02 00 00 b7` (HID "Stop") |
+| Brightness Cycle | `08 03 00 00` | | Previous Song Key | `02 00 00 b6` |
+| Brightness Increase | `08 03 01 00` | | Next Song Key | `02 00 00 b5` |
+| Brightness Decrease | `08 03 02 00` | | Volume Up Key | `02 00 00 e9` |
+| Speed Cycle | `08 04 00 00` | | Volume Down Key | `02 00 00 ea` |
+| Speed Increase | `08 04 01 00` | | Browser | `02 00 02 23` (AC Home) |
+| Speed Decrease | `08 04 02 00` | | Calculator | `02 00 01 92` |
+| Fn1 | `0d 01 00 00` | | Email | `02 00 01 8a` |
+| www | `11 00 00 00` | | My Computer | `02 00 01 94` |
+| | | | Favorites | `02 00 02 2a` (AC Bookmarks) |
+
+The factory Fn layer (read after the layer reset, mark 14) uses these: Fn+Up/Down = brightness +/−,
+Fn+`=`/`-` = speed +/−, Fn+`\` = colour cycle, Fn+Left = `08 01 02 00` and Fn+Right = `08 01 01 00` (the
+vendor's labels "Direction Right"/"Direction Left", swapped against the arrows; not checked on the board).
 
 ## Commands
 
@@ -46,7 +85,7 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
 |---|---|---|
 | `10 00` / `90 00` | KNOWN | set / read active profile (0-based, payload[0]) |
 | `82 0F` | DECODED | `00 01 01 03 00 00 00 04 00 1f` — payload[3] = profile count (3 in `akko-capture2.txt`, mark "unplugging and replugging"); akkoctl reads it (falls back to 3 outside 1–8). Other bytes unknown |
-| `1a PP` / `9a PP` | SEEN | profile PP name (PP 0-based): write `len, ASCII name`; read = 56 B `len, name`, rest `ff` (stock names are all `ff`, the UI then shows "Onboard Profile N"). A shorter name only overwrites the start, `len` bounds it. Profile Management pencil, `akko-capture11.txt` (marks 1–3 lost, frames before mark 4) |
+| `1a PP` / `9a PP` | SEEN | profile PP name (PP 0-based, in sub): write `1a PP 00 01 00 <1+n> | n, ASCII name[n]`, echoed; read request `9a PP 00 01 00 00` (no payload), answer len `38`: `n, name`, rest `ff` (stock names are all `ff`, the UI then shows "Onboard Profile N"). A shorter name only overwrites the start, `n` bounds it. Profile Management pencil, `akko-capture11.txt` (marks 1–3 lost, frames before mark 4); profile 2 renamed "Gaming" = `1a 01 … 07 | 06 47 61 6d 69 6e 67` and back to "Onboard Profile 2" (n = `11`), `akko-capture13.txt` marks 28–30, frames in `tests/fixtures/vendor-profile-names.txt`. The board showed nothing (mark 29). Renaming back stores the literal text, not `ff`. Seen: letters, digits, space; the longest 17 chars (max ≤ 55 by the frame, UI limit unknown) |
 | `82 01` | GUESS | `11 00 00 00 00 59` — firmware/hardware version? |
 | `82 02` | DECODED | `08 01` — firmware version: the Device Info page shows v1.08 (0x0108) |
 | `82 00` `82 03` `82 04` `82 06` `82 08` `82 09` `82 0c` `82 0d` `82 0e` | GUESS | unknown blocks. Not the Base Functions settings (those are `84 xx`, below). `82 0d` reads `01` |
@@ -87,6 +126,11 @@ either toggle as the vendor app labels it):
 | `06 00` / `86 00` | KNOWN | custom per-key colour: list of `key u16, R, G, B` (5 B each). Read: key IDs, 11 per packet, 8 packets for all keys. Write: one single-packet frame per batch (up to 8 keys seen, `akko-capture2.txt` "selecting F row"), the vendor app reads each batch back with `86 00`. Shown under effect `13` (Custom). KNOWN 2026-11-21: core `setColors` set F12 blue under Custom, read back and seen on the board, then restored. Whether a write sticks under another effect is untested |
 | `08 04` | KNOWN | **Mural** frame, not echoed, nothing stored. Payload = one byte stream of groups `colour u16 (RGB565, BE), n, n × LED index`, cut into 56-byte (`len 38`) packets, groups running across packets; every LED appears once per frame. Solid red/green/blue = `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, 2 packets (`akko-capture10.txt` Mural marks). The vendor app resends a still image every ~1008 ms and streams animations (Rainbow, 5 packets) every ~32 ms (`akko-capture11.txt` mark 8); Colour Enhancement is applied in the browser. There is no stop command: the app stops sending and the board returns to its stored effect (`akko-capture11.txt` marks 8–11). KNOWN 2026-11-22: core `streamMural` showed solid red, a one-key sweep in key order, and an 83-colour frame (6 packets, more than the vendor app sent), then the board went back to its Custom colours 1–3 s after the last frame |
 
+Everything else in `akko-capture13.txt` is already known: `85 00` ×155 and `05 00` ×79 are the macro reads
+and writes above, `03 01` ×35 / `83 01` ×45 the Fn-layer writes and their single-key and full-layer reads,
+`96 00` ×96 the full dead-zone reads after each `16 00`. One stray write: during mark 5 the vendor app sent
+`03 00 … 00 40 02 00 00 e9` (Default layer, `.` key = Volume Up), read back and never undone in the capture.
+
 Profile Management's second icon ("back up to inactive profiles") only reads (`84`, `85`, `92`, `93`, `95`, `96`, `99`); the backup lives in the browser (`akko-capture11.txt` mark 4).
 
 Mural LED index = `column × 8 + row` (6 rows, columns 0–14, 0x00–0x72, 83 LEDs). Not the key IDs: row r is the key row r
@@ -105,7 +149,7 @@ snow trail) · 0D Sine wave · 0E Left-right scan · 0F Spinning windmill · 10 
 | cmd/sub | Status | Meaning |
 |---|---|---|
 | `03 LL` | KNOWN | set one key on layer LL: `key u16 + action(4)`, echoed. Layers 00, 01 (capture8 marks 2–16) and 02 (capture9 marks 16–17) captured. Sent by Magnetar and checked on the board 2026-11-21: Insert → Home, Ctrl+V, Volume up on Default and A on Fn1, each read back and restored |
-| `11 00` | SEEN | Basic Key "Reset" on Default Layer: payload `01` (meaning GUESS: layer bitmask or layer+1), echoed, then the app re-reads the layer. Insert came back to default (`akko-capture11.txt` marks 17–18) |
+| `11 LL` | SEEN | Basic Key "Reset" next to a layer: reset layer LL to factory, payload always `01`, echoed, then the app re-reads the whole layer (`83 LL`, 10 packets). Default Layer = `11 00` (Insert came back, `akko-capture11.txt` marks 17–18); Fn Layer = `11 01 00 01 00 01 01` (`akko-capture13.txt` mark 14: Insert's Fn action back to `00 00 00 49`, Fn+Insert typed Insert again, mark 15). Fn1 (`11 02`) not captured |
 | `83 LL` | KNOWN | read layer LL: 00 Default, 01 Fn, 02 Fn1 (confirmed: a write on the UI's Fn1 Layer goes to `03 02`, capture9 mark 16). Layer 02 reads as a copy of base, as the UI shows. 10 packets × 9 keys, `key u16 + action(4)`. Single-key form: `83 LL 00 01 00 02 key u16` → `key + action(4)`; the web app sends it after every `03 LL` write |
 
 Key IDs on the board (rows top to bottom, left to right; factory action in brackets when not obvious):
@@ -155,6 +199,10 @@ Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Det
   Release and DKS were sent from Magnetar's Advanced tab and typed as expected on 2026-11-25.
 - An advanced key fires on the Default layer only: with a Release on Insert, Fn+Insert did not fire
   it (2026-11-25).
+- Vendor ranges (`akko-capture13.txt` marks 16–21, frames in `tests/fixtures/vendor-ranges.txt`): Mod-Tap
+  Hold Duration 0–1000 ms (max saved = `03 e8`), Multi-Point Binding Depth 0.100–3.400 mm (max saved = `02 a8`,
+  680). Only the value at Save is sent, so the minima are what the UI showed. A new Multi-Point fills the
+  other two slots with depths `00 c8` (1.00 mm) and `01 2c` (1.50 mm), action `00 00 00 00`.
 - No limit found on the count: the board kept a Mod-Tap on 80 keys at once (every key but Esc,
   Insert and Fn), each checked with a per-key read, then all cleared (2026-11-25).
 
@@ -176,12 +224,14 @@ wanted (any subset works); a full read is `93` 8 × 11 keys, `96`/`99` 12 × 7 k
 `13`/`16`/`19` and their reads are KNOWN: `core/` sent each one on F12 and read back exactly what it wrote, and
 `13` to all 83 keys at once (8 packets) also read back. `16` was only ever sent one key per frame (vendor and
 ours). Out of the box (`akko-capture2.txt`): actuation 0.6 mm, RT off at 0 / 0, dead zones off at 0.13 / 0.125.
+The vendor app has no restore-default or factory button for travel; Parameter Preset is the only bulk change
+(`akko-capture13.txt` mark 27).
 
 | cmd/sub | Status | Per key | Notes |
 |---|---|---|---|
 | `13 00` / `93 00` | KNOWN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
-| `19 00` / `99 00` | KNOWN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
-| `16 00` / `96 00` | KNOWN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
+| `19 00` / `99 00` | KNOWN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only). Vendor range 0.005–3.5 mm (`0001`–`02bc`) for press and release alike, SEEN and read back (`akko-capture13.txt` marks 22–23) |
+| `16 00` / `96 00` | KNOWN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys. Vendor range 0–0.5 mm (`0000`–`0064`) for both, SEEN and read back (`akko-capture13.txt` mark 24) |
 | `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Ultra Mag Pro+ `1f`, Star Magnetic `27`, Xingyao `43`, Star Gravity `44`, Luminous `45` (stock); all five SEEN (`akko-capture11.txt` marks 19–21). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
 
 ### Macros (`akko-capture7.txt`)
@@ -192,16 +242,29 @@ All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole 
 | `05 00` | KNOWN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
 | `85 00` | KNOWN | read: bytes 1–2 (sub + arg) = byte offset, u16 BE (`00 00`, `00 38`, … `01 18`, `akko-capture11.txt`), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
 
+Reads longer than 56 B go in packets like the writes: `85 <offset u16 BE> <pkt_count> <pkt_index> <len>`, the
+offset stepping by `38`. The directory is read that way too once it is over 56 B (15+ macros): 60 B =
+`85 00 00 02 00 38` then `85 00 38 02 01 04`; the blob (231 B) = 5 packets at offsets `00 38 70 a8 e0`, the last
+len `07`; at exactly 56 B (14 macros) the directory is one packet (`akko-capture13.txt` marks 1 and 4, frames in
+`tests/fixtures/vendor-macros-long.txt`). Magnetar's `readMacros()` sends exactly these frames (offsets, counts,
+indices and lens); `writeMacros()` matches the vendor's 5-packet `05 00` write too.
+
 Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
   protocol; confirmed above 256: one 609 B macro = `04 00 5d 02`, size 605, `akko-capture11.txt` mark 35). Directory size = 4 × macros, so the first u16 is also the
   first macro's offset.
 - Macro at `offset`: `name_len u8, name[name_len]` (ASCII; the UI requires ≥ 2 chars), then actions.
-- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release, `10` modifier press, `90` modifier release
-  (bit `80` = release, bit `10` = modifier, HID `e0`–`e7`); delay = ms to wait after
+- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release, `10` modifier press, `90` modifier release,
+  `20` mouse button press, `a0` mouse button release (bit `80` = release, bit `10` = modifier, HID `e0`–`e7`, bit `20` =
+  mouse, last byte = button: `01` left); delay = ms to wait after
   this action; the last action gets `1`. "Use Standard Delay (50ms)" sets every delay to 50.
   e.g. "ab" = `02 61 62 | 00 00 32 04 | 80 00 32 04 | 00 00 32 05 | 80 00 01 05`;
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
+- Mouse steps (SEEN, `akko-capture13.txt` mark 7): the vendor recorder records real mouse clicks (not volume
+  or media keys, mark 6). One left click = `02 6d 73 | 20 00 3e 01 | a0 00 01 01` ("ms", 62 ms down). Only
+  the left button was captured; the button byte is GUESS `01`–`05` as in the keymap's `01 bb 01 00`.
+- Size: 15 macros "m1"…"m15" of one A tap each = 231 B (UI "231B"): 4 B directory entry + 1 + name + 8 B of
+  steps each (`akko-capture13.txt` mark 2).
 - Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app
   refuses to delete a macro that is bound, or to bind a key that already has one (both client-side:
   no traffic). A key whose index points past the last macro sends one empty mouse report (report
@@ -260,6 +323,6 @@ session shows the result of the previous one):
 ## Still to capture
 - Profile Management: applying an inactive profile (reboots, overwrites a profile). Skipped on purpose.
 - Device Info: Factory Reset. Skipped on purpose.
-- `11 00` on the Fn and Fn1 layers, to pin down its payload.
+- `11 02` (Reset on the Fn1 layer): Default and Fn are SEEN, payload `01` both times.
 - No UI found for `82 xx`, `84 11/13/1d/1e/20`, `87 00`, `a6 ff`: maybe on-board Fn shortcuts.
   Diff read dumps before/after Fn combos (reads only).

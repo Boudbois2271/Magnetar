@@ -12,8 +12,8 @@ reflected in `akko-protocol.md`.
   and the keys on interface 1 (NKRO), so on Linux (Hyprland) the modifier doesn't apply: a Shift+A
   macro types "a" (seen again on the board 2026-11-25). Workaround: a shortcut in Keys → Action.
   Pressing the key again while its macro plays restarts it; the cut-off run's pending steps (e.g.
-  the Shift release) are never sent. Directories over 56 bytes
-  (15+ macros) are read in packets by our code, never captured.
+  the Shift release) are never sent. Directories over 56 bytes are read in packets, as the vendor
+  app does (`akko-capture13.txt`). Mouse steps (dir `20`/`a0`): left button only captured.
 
 ### Not captured at all
 - **Combo Optimization**: the toggle is decoded; what it does is not known, and no public doc,
@@ -37,9 +37,11 @@ reflected in `akko-protocol.md`.
   effect underneath while it runs, and setting an effect there doesn't stop it.
 - **DKS stage bits** (`02` down, `04` hold, `08` up) fit five captured cases (captures 10, 11).
   `04` alone and `08` alone are dropped by the board (read back `00`, the key types nothing).
-- **System (`07`) and lighting (`08`) actions** in the keymap: only `08 03 00 00` (brightness cycle) is
-  SEEN; the rest are guessed from defaults. The System & Shortcuts tab gave a plain RGui key, not `07`.
-- **`11 00` layer reset**: payload `01` seen on Default Layer only; its meaning is a guess.
+- **System (`07`) actions** in the keymap: guessed from the factory Fn layer only; the System &
+  Shortcuts tab gave a plain RGui key, not `07`. Lighting (`08`), mouse 4/5, media and "www" (`11`)
+  actions are SEEN (`akko-capture13.txt`) but never sent by us; what "www" does is unknown, and
+  `08 09 nn` (select effect) is still a guess.
+- **Layer reset** `11 LL` payload `01`: SEEN on Default and Fn, not on Fn1.
 - **Key calibration**: Finish (`94 04`) is understood, but the stored bottom of F12 after a full
   press (2225) is not exactly the lowest `94 02` min seen (2204). The bit-15 flag in `94 02` is a
   unknown (not "reached bottom": it is set on untouched keys too). Bottom drift between sessions is
@@ -106,8 +108,8 @@ reflected in `akko-protocol.md`.
 - Advanced keys: Toggle (holds the action until the next tap), Multi-Point, Release and DKS were
   used from the page on the board (2026-11-25); Mod-Tap, SOCD and the clear were sent by the core
   and read back (2026-11-21).
-- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
-  app's ranges were never captured (seen: 200 default, 322, 965 ms).
+- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor app
+  offers 0–1000 ms and Multi-Point 0.100–3.400 mm (`akko-capture13.txt`), not adopted yet.
 - Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
   on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
   known. Assumed per profile (read again on a profile switch).
@@ -127,14 +129,14 @@ reflected in `akko-protocol.md`.
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (both record the
   right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
   The vendor app's recorder takes real mouse clicks but not volume keys (they act on the system).
-- Macros page: steps can only use keyboard usages (no mouse
-  or media steps: never captured). A step's key can't be changed in place (remove it, add another).
+- Macros page: steps can only use keyboard usages. Mouse-button steps are decoded (`20`/`a0`, left
+  button captured) but not offered yet; the vendor recorder has no media steps either. A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).
-- Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
-  vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
-  their slider is locked.
+- Travel page: the Rapid Trigger cap (up to 1.00 mm) is ours; the vendor app goes to 3.5 mm (0.005–3.5
+  for press and release, `akko-capture13.txt`), not adopted yet. The dead-zone cap (0.50 mm) is the
+  vendor's too. Keys set beyond our caps by the vendor app are shown but their slider is locked.
   The locked slider's note adds a line under it; with press and release apart, the tab's column
   (seven rows) then runs past the default window's height.
 - Calibration screen (Settings → Calibrate): "pressed all the way down" (green) means 95 % of the travel stored at Start.
@@ -143,23 +145,25 @@ reflected in `akko-protocol.md`.
 - Calibration screen: while a session runs, other changes (profile shortcuts included) wait for Finish;
   the profile picker is disabled.
 - Travel page: assumed per profile (read again on a profile switch), not checked on the board.
-- Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
+- Travel page: no "restore default" (the vendor app has none either; factory values aren't certain,
+  see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
 - Travel page: in a window at its minimum width the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
 - Keys page: system (`07`), profile (`09`) and lighting (`08`, except brightness cycle)
   actions are shown but can't be assigned; the Fn layer's factory ones show as "System function" /
-  "Lighting control" because their meaning is a guess. Mouse buttons 4/5 and media keys other than
-  the twelve in the factory Fn layer aren't offered (not captured).
-- Keys page: the layer reset `11 00` isn't used; resetting is per key ("Restore default", from the
-  factory table in `core/keymap.cpp`).
+  "Lighting control". The vendor's 15 lighting actions, mouse back/forward, its media keys and
+  "www" are decoded (`akko-protocol.md`, Action) but not offered in the app yet.
+- Keys page: the layer reset (`11 LL`, decoded for Default and Fn) isn't used; resetting is per key
+  ("Restore default", from the factory table in `core/keymap.cpp`).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
   blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
-- Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
+- Profiles show as "Profile N": the stored names (`9a PP`, decoded: `n, ASCII`, `ff` = stock) aren't
+  read yet. Non-ASCII names and the vendor's length limit are unknown.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R;
   brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only;
   the board's reports match the parser, 2026-11-25, but the page following them isn't checked
