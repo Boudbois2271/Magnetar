@@ -166,8 +166,8 @@ reflected in `akko-protocol.md`.
   used by hand on the desktop yet. A colour is sent when the field or hue strip is let go (or 300 ms
   after the last arrow key), so the board doesn't follow the drag; the drawing does. After a send,
   the picker keeps the chosen colour until the read-back changes it: a write that fails without an
-  error would leave it showing that colour. Beside the option rows it needs a page about 1100 u
-  wide: at the default window it fits, near the minimum width (900 u) it is cut off on the right.
+  error would leave it showing that colour. When the page is too narrow for it beside the option
+  rows, it goes under them, and its swatches wrap to the width left.
   Saved colours live in `~/.config/magnetar/settings.ini`, shared by every profile.
 - Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
   interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
@@ -177,11 +177,13 @@ reflected in `akko-protocol.md`.
   `docs/ui-plan.md`, all fixed). Not used on the board yet. Light
   themes were tried with one theme only. Keyboard focus is tested with Tab offscreen; real keyboard
   use on the desktop isn't. Space toggles the lights only while no control has keyboard focus.
-- Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
-  at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits,
-  Keys with every tab and Advanced editor (picker open too): the keyboard is sized so the controls
-  under it get a fixed height. At 1920 × 1030 everything fits. A tiled window below the minimum size
-  (three columns on a 1080p screen) cuts pages off instead of scrolling.
+- Fitting the window: on the desktop, fullscreen fits. At the default size (1440 × 920 layout px,
+  1234 × 789 at 12 px) and at half a 1080p screen (960 × 1030) every page fits (tests, EN and FR);
+  the half-width reflow (bars under the keyboards wrap, colour picker under the options, Advanced
+  key list under the keyboard below ~640 u, Macros list above the editor) is checked offscreen only,
+  not yet on the desktop. Pages never scroll, even below the minimum size. At a third of the screen
+  (640 × 1030) everything fits in English; in French the Travel tab's rows (longer labels) run
+  about 50 px past the right edge, cutting the mm boxes and the "Separate" switch.
 
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command
