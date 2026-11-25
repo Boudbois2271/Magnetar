@@ -591,6 +591,7 @@ Item {
                     Layout.maximumHeight: steps.implicitHeight + 2 * stepsBox.pad
                     Layout.minimumHeight: Math.min(steps.implicitHeight, 80 * ui.unit) + 2 * stepsBox.pad
                     readonly property real pad: 6 * ui.unit
+                    readonly property bool roomy: width >= 560 * ui.unit
                     visible: page.draft.steps.length > 0
                     radius: theme.radius
                     color: theme.card
@@ -752,15 +753,19 @@ Item {
                                             text: "ms"
                                             color: theme.secondary
                                         }
+                                        // ↑ ↓ give way to the key list in a narrow box; the
+                                        // handle still moves the step.
                                         AppButton {
                                             kind: "quiet"
                                             text: "↑"
+                                            visible: stepsBox.roomy
                                             enabled: stepRow.index > 0
                                             onClicked: page.moveStep(stepRow.step, page.newestFirst ? 1 : -1)
                                         }
                                         AppButton {
                                             kind: "quiet"
                                             text: "↓"
+                                            visible: stepsBox.roomy
                                             enabled: stepRow.index < page.draft.steps.length - 1
                                             onClicked: page.moveStep(stepRow.step, page.newestFirst ? -1 : 1)
                                         }

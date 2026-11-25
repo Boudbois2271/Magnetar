@@ -138,6 +138,7 @@ reflected in `akko-protocol.md`.
   offer (recorded beyond `52`, e.g. keypad) show their name and can be changed, not picked back.
   Releases of keys pressed before Record are dropped on purpose (the macro would release a key it
   never pressed); keys still held at Stop get a release step at Stop's time.
+  In a narrow steps box (< 560 u) the ↑ ↓ buttons hide to leave the key list room; dragging moves steps.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).
 - Travel page: the Rapid Trigger cap (up to 1.00 mm) is ours; the vendor app goes to 3.5 mm (0.005–3.5
