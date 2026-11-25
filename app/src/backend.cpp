@@ -975,6 +975,15 @@ void Backend::keyboardAdded()
         refresh();
 }
 
+void Backend::keyboardRemoved(const QString &node)
+{
+    // While the board restarts (polling rate) it drops off USB on purpose: that has its own wait.
+    if (!m_connected || m_restarting || node != QString::fromStdString(m_state.path))
+        return;
+    m_worker->invalidateKeymap();  // whatever comes back is read whole
+    applyError("keyboard not found (is it plugged in?)");
+}
+
 void Backend::brightnessReported(int value)
 {
     auto &b = m_state.lighting[akko::Lighting::Brightness];

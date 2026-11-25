@@ -40,10 +40,11 @@ int main(int argc, char *argv[])
     Theme theme;
     DesktopSize ui;
     Backend backend;
-    // Plugging the keyboard in is noticed through udev; the retry timer stays as a fallback.
+    // Plugging the keyboard in or out is noticed through udev; the retry timer stays as a fallback.
     HotplugWatch hotplug;
     backend.setHotplugWatched(hotplug.active());
     QObject::connect(&hotplug, &HotplugWatch::keyboardAdded, &backend, &Backend::keyboardAdded);
+    QObject::connect(&hotplug, &HotplugWatch::keyboardRemoved, &backend, &Backend::keyboardRemoved);
     // Brightness changed on the board (Fn shortcut) shows at once. The node is opened again
     // whenever the keyboard is (re)connected.
     ReportListener reports;

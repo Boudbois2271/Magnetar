@@ -158,9 +158,11 @@ reflected in `akko-protocol.md`.
   the board's reports match the parser, 2026-11-25, but the page following them isn't checked
   by hand yet). Other unsolicited reports are
   ignored.
-- Plugging in is noticed through a udev watch (`hidraw` add events of `38ee:0016`), tested against
-  the fake keyboard only, not by replugging the board yet. Without udev it retries every 3 s; with
-  it, "not found" is retried every 10 s as a fallback. Unplugging is still noticed on the next read.
+- Plugging in and out is noticed through a udev watch (`hidraw` add events of `38ee:0016`; remove
+  events of the vendor node in use, matched by devpath), tested against the fake keyboard only.
+  Replugging was seen to work on the board; the unplug half isn't checked on the board yet. Without
+  udev, unplugging is noticed on the next read and "not found" is retried every 3 s; with it, every
+  10 s as a fallback.
 - Firmware version byte order (`82 02` = `08 01` → v1.08, low byte first) rests on one sample.
 - Colour picker (Lighting): checked offscreen only (tests, EN/FR screenshots, dark and light), not
   used by hand on the desktop yet. A colour is sent when the field or hue strip is let go (or 300 ms

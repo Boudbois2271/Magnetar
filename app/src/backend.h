@@ -142,6 +142,9 @@ public:
     // fallback, and keyboardAdded() reconnects at once.
     void setHotplugWatched(bool watched) { m_hotplugWatched = watched; }
     void keyboardAdded();  // the keyboard's node appeared: read it if we aren't connected
+    // A keyboard node went away: if it's the one we talk to, show "not connected" now, without
+    // waiting for the next read to fail.
+    void keyboardRemoved(const QString &node);
     // The board reported a new brightness on its own (fe 0b, Fn shortcut): show it.
     void brightnessReported(int value);
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)

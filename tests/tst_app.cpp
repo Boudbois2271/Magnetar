@@ -2566,6 +2566,42 @@ private slots:
 
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join("\n")));
     }
+
+    // Unplugging shows "not connected" from the udev removal alone: no read, no write.
+    void hotplugNoticesUnplug()
+    {
+        QVERIFY(HotplugWatch::isKeyboardDevpath(
+            "/devices/pci0000:00/0000:00:14.0/usb1/1-2/1-2:1.2/0003:38EE:0016.0007/hidraw/hidraw2"));
+        QVERIFY(!HotplugWatch::isKeyboardDevpath(
+            "/devices/pci0000:00/0000:00:14.0/usb1/1-3/1-3:1.0/0003:046D:C52B.0002/hidraw/hidraw3"));
+        QVERIFY(!HotplugWatch::isKeyboardDevpath(nullptr));
+
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        b.setHotplugWatched(true);
+        QTRY_VERIFY(b.connected());
+        const int sessions = board.sessions;
+        const auto sent = [&] { std::lock_guard lock(board.mutex); return board.written.size(); }();
+        b.keyboardRemoved("/dev/hidraw0");  // another of its interfaces: the vendor node's own event decides
+        QVERIFY(b.connected());
+        {
+            std::lock_guard lock(board.mutex);
+            board.failWith = "keyboard not found (is it plugged in?)";  // unplugged
+        }
+        b.keyboardRemoved("/dev/hidraw-test");
+        QVERIFY(!b.connected());
+        QCOMPARE(b.errorKind(), QString("notFound"));
+        QTest::qWait(200);
+        QCOMPARE(int(board.sessions), sessions);  // nothing was opened to find out
+        {
+            std::lock_guard lock(board.mutex);
+            QCOMPARE(board.written.size(), sent);
+            board.failWith.clear();  // plugged back in
+        }
+        b.keyboardAdded();
+        QTRY_VERIFY(b.connected());
+    }
 };
 
 int runAppTests(int argc, char **argv)
