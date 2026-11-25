@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-3.0-or-later
+# Profile name frames (63 bytes each) from akko-capture13.txt, profile 2 (sub 01): mark 28 renamed to "Gaming", mark 30 back to "Onboard Profile 2".
+## gaming-write
+1a 01 00 01 00 07 06 47 61 6d 69 6e 67 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 7a
+## gaming-read
+9a 01 00 01 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 5a
+## gaming-read-answer
+9a 01 00 01 00 38 06 47 61 6d 69 6e 67 ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff ff fa
+## back-write
+1a 01 00 01 00 12 11 4f 6e 62 6f 61 72 64 20 50 72 6f 66 69 6c 65 20 32 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 af

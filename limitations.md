@@ -155,7 +155,8 @@ reflected in `akko-protocol.md`.
   blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
-- Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
+- Profiles show as "Profile N": the stored names (`9a PP`, decoded: `n, ASCII`, `ff` = stock) aren't
+  read yet. Non-ASCII names and the vendor's length limit are unknown.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R;
   brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only;
   the board's reports match the parser, 2026-11-25, but the page following them isn't checked
