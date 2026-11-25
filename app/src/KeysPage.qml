@@ -112,14 +112,6 @@ Item {
             }
             Item { Layout.fillWidth: true }
             IconButton {
-                objectName: "restoreButton"
-                visible: page.tab === 0 && page.selection.length > 0
-                iconName: "rotate-ccw"
-                text: qsTr("Restore default")
-                enabled: actionTab.notFactory.length > 0
-                onClicked: actionTab.restoreDefaults()
-            }
-            IconButton {
                 objectName: "undoTravel"
                 visible: page.tab === 1
                 iconName: "undo-2"
