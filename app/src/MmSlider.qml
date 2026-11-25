@@ -17,7 +17,11 @@ ColumnLayout {
     property real step: 0.005
     property int decimals: 3
     property bool french: false
+    property bool heading: false  // the label is a section title (a section of one row)
+    property real sliderWidth: 0  // a fixed slider length, on one row; else it fills the width
     signal commit(real value)
+    // Where the slider's track starts, from the left edge: other rows line up with it.
+    readonly property real trackLeft: slider.x + slider.leftPadding
 
     readonly property bool beyond: ms.highest > ms.to + 1e-9
     Layout.fillWidth: true
@@ -41,10 +45,10 @@ ColumnLayout {
 
     // Name, slider, value and unit on one row when there is room; the slider below otherwise.
     property real labelWidth: 150 * ui.unit
-    readonly property bool oneRow: ms.width >= ms.labelWidth + 200 * ui.unit
+    readonly property bool oneRow: ms.sliderWidth > 0 || ms.width >= ms.labelWidth + 200 * ui.unit
     GridLayout {
         Layout.fillWidth: true
-        columns: 5
+        columns: 6
         columnSpacing: 8 * ui.unit
         rowSpacing: 0
         Label {
@@ -54,10 +58,13 @@ ColumnLayout {
             Layout.preferredWidth: ms.oneRow ? ms.labelWidth : -1
             text: ms.label
             elide: Text.ElideRight
+            font.pixelSize: ms.heading ? ui.section : ui.body
+            font.weight: ms.heading ? Font.DemiBold : Font.Normal
         }
+        // After the unit, so the sliders of a column keep one length.
         Label {
             Layout.row: 0
-            Layout.column: 2
+            Layout.column: 5
             visible: ms.mixed && !slider.pressed
             text: qsTr("varies")
             color: theme.secondary
@@ -94,10 +101,11 @@ ColumnLayout {
             id: slider
             FocusRing {}
             objectName: ms.objectName + "Bar"
-            Layout.fillWidth: true
+            Layout.fillWidth: ms.sliderWidth <= 0
+            Layout.preferredWidth: ms.sliderWidth > 0 ? ms.sliderWidth : -1
             Layout.row: ms.oneRow ? 0 : 1
             Layout.column: ms.oneRow ? 1 : 0
-            Layout.columnSpan: ms.oneRow ? 1 : 5
+            Layout.columnSpan: ms.oneRow ? 1 : 6
             Layout.maximumHeight: 34 * ui.unit  // the row's height, not Material's touch height
             from: ms.from
             to: ms.to

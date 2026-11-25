@@ -9,15 +9,12 @@ import QtQuick.Layouts
 
 ColumnLayout {
     id: page
-    spacing: 16 * ui.unit
+    spacing: 0
 
     property var selection: []  // key IDs
     readonly property var travel: backend.travelReady ? backend.travel : ({})
     readonly property var limits: backend.travelLimits
     readonly property bool french: translator.language.indexOf("fr") === 0
-    // The page's controls sit in three equal columns.
-    readonly property real column: (width - 48 * ui.unit) / 3
-    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     // ---- values of the selected keys --------------------------------------
     function values(field) {
@@ -76,170 +73,233 @@ ColumnLayout {
             backend.changeTravel(page.selection, fields)
     }
 
-    GridLayout {
+    // ---- layout: one column under the drawing, as on the Lighting page ----------
+    // A section is a title row (its switch on the right of the title), then one row per value.
+    // Labels share one column, sliders start at one line and are all the same width.
+    readonly property real rowHeight: 34 * ui.unit  // the app's control height
+    readonly property real sliderWidth: 200 * ui.unit
+    readonly property real labelWidth: Math.ceil(Math.max(apMetrics.width, rtMetrics.width, dzMetrics.width,
+                                                          bodyMetrics.width)) + 12 * ui.unit
+    // From the end of the label column to where the sliders' tracks start.
+    readonly property real trackOffset: actuation.trackLeft - page.labelWidth
+    TextMetrics { id: apMetrics; font.pixelSize: ui.section; font.weight: Font.DemiBold; text: qsTr("Actuation point") }
+    TextMetrics { id: rtMetrics; font.pixelSize: ui.section; font.weight: Font.DemiBold; text: qsTr("Rapid Trigger") }
+    TextMetrics { id: dzMetrics; font.pixelSize: ui.section; font.weight: Font.DemiBold; text: qsTr("Dead zones") }
+    TextMetrics {
+        id: bodyMetrics
+        font.pixelSize: ui.body
+        // The longest value label.
+        text: [qsTr("Sensitivity"), qsTr("Press (types again after)"), qsTr("Release (lets go after)"),
+               qsTr("Top"), qsTr("Bottom")].reduce((a, b) => a.length >= b.length ? a : b)
+    }
+
+    // A section title carrying its switch, the switch's track where the sliders' tracks start.
+    // With only some of the selected keys on, it says how many. (An inline component: it sees
+    // none of the page's ids, so it is given what it needs.)
+    component SectionSwitch: RowLayout {
+        id: section
+        property string title
+        property alias switchName: toggle.objectName
+        property int onCount: 0
+        property int total: 0
+        property real labelWidth
+        property real trackOffset
+        property real rowHeight: 34 * ui.unit
+        readonly property bool on: section.onCount === section.total
+        signal toggled(bool checked)
+        default property alias extra: tail.data
+        Layout.minimumHeight: section.rowHeight
+        Layout.maximumHeight: section.rowHeight
+        spacing: 0
+        Label {
+            Layout.preferredWidth: section.labelWidth
+            text: section.title
+            elide: Text.ElideRight
+            font.pixelSize: ui.section
+            font.weight: Font.DemiBold
+        }
+        AppSwitch {
+            id: toggle
+            Layout.maximumHeight: section.rowHeight
+            Layout.leftMargin: section.trackOffset - indicator.x
+            checked: section.on
+            onToggled: section.toggled(checked)
+        }
+        Label {
+            visible: section.onCount > 0 && !section.on
+            Layout.leftMargin: 8 * ui.unit
+            text: qsTr("On for %1 of %2 keys").arg(section.onCount).arg(section.total)
+            color: theme.secondary
+            font.features: { "tnum": 1 }
+        }
+        RowLayout {
+            id: tail
+            Layout.leftMargin: 32 * ui.unit
+            spacing: 0
+        }
+    }
+
+    ColumnLayout {
+        id: controls
+        objectName: "travelControls"
         visible: page.selection.length > 0
-        Layout.fillWidth: true
-        // Side by side, so the tab fits under the drawing.
-        columns: 3
-        columnSpacing: 24 * ui.unit
-        rowSpacing: 16 * ui.unit
+        Layout.alignment: Qt.AlignLeft | Qt.AlignTop
+        // Seven rows at most (Rapid Trigger's press and release apart): they fit the room the Keys
+        // page leaves its tabs.
+        spacing: 2 * ui.unit
 
-        // ---- actuation -------------------------------------------------
-        Card {
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: page.span(1)
-            Layout.maximumWidth: page.span(1)
-            title: qsTr("Actuation point")
-
-            MmSlider {
-                objectName: "actuationSlider"
-                labelWidth: 90 * ui.unit
-                label: qsTr("Actuation")
-                shown: page.common("actuation")
-                mixed: page.mixed("actuation")
-                highest: page.highest("actuation")
-                from: page.limits.minActuation
-                to: page.limits.maxActuation
-                step: 0.01
-                decimals: 2
-                french: page.french
-                onCommit: (v) => page.change({ actuation: v })
-            }
+        // ---- actuation: a section of one row --------------------------------
+        MmSlider {
+            id: actuation
+            objectName: "actuationSlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            heading: true
+            labelWidth: page.labelWidth
+            label: qsTr("Actuation point")
+            shown: page.common("actuation")
+            mixed: page.mixed("actuation")
+            highest: page.highest("actuation")
+            from: page.limits.minActuation
+            to: page.limits.maxActuation
+            step: 0.01
+            decimals: 2
+            french: page.french
+            onCommit: (v) => page.change({ actuation: v })
         }
 
-        // ---- Rapid Trigger ---------------------------------------------
-        Card {
-            id: rtCard
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: page.span(1)
-            Layout.maximumWidth: page.span(1)
+        // ---- Rapid Trigger --------------------------------------------------
+        SectionSwitch {
+            id: rt
+            Layout.topMargin: 6 * ui.unit
             title: qsTr("Rapid Trigger")
+            switchName: "rapidTriggerSwitch"
+            onCount: page.count("rapidTrigger")
+            total: page.selection.length
+            labelWidth: page.labelWidth
+            trackOffset: page.trackOffset
+            onToggled: (checked) => page.change({ rapidTrigger: checked })
 
             property bool separate: false
-            readonly property int onCount: page.count("rapidTrigger")
-            readonly property bool on: onCount === page.selection.length
             readonly property bool sameValues: !page.mixed("press") && !page.mixed("release")
                                                && page.common("press") === page.common("release")
             readonly property bool linked: !separate && sameValues
 
-            AppSwitch {
-                Layout.fillWidth: true
-                objectName: "rapidTriggerSwitch"
-                text: rtCard.onCount > 0 && !rtCard.on
-                      ? qsTr("On for %1 of %2 keys").arg(rtCard.onCount).arg(page.selection.length)
-                      : qsTr("Rapid Trigger")
-                checked: rtCard.on
-                onToggled: page.change({ rapidTrigger: checked })
+            Label {
+                text: qsTr("Separate press and release")
+                opacity: rt.on ? 1 : 0.4
             }
             AppSwitch {
-                Layout.fillWidth: true
-                text: qsTr("Separate press and release sensitivity")
-                enabled: rtCard.on
-                checked: !rtCard.linked
+                objectName: "separateSwitch"
+                Layout.maximumHeight: page.rowHeight
+                Layout.leftMargin: 8 * ui.unit
+                enabled: rt.on
+                checked: !rt.linked
                 onToggled: {
-                    rtCard.separate = checked
+                    rt.separate = checked
                     // Linking again gives release the press value, so one slider is true.
-                    if (!checked && !rtCard.sameValues) {
+                    if (!checked && !rt.sameValues) {
                         const v = page.common("press")
                         page.change({ press: v, release: v })
                     }
                 }
             }
-            MmSlider {
-                objectName: "sensitivitySlider"
-                labelWidth: 90 * ui.unit
-                visible: rtCard.linked
-                enabled: rtCard.on
-                label: qsTr("Sensitivity")
-                shown: page.common("press")
-                mixed: page.mixed("press") || page.mixed("release")
-                highest: Math.max(page.highest("press"), page.highest("release"))
-                from: page.limits.minRapidTrigger
-                to: page.limits.maxRapidTrigger
-                step: page.limits.step
-                french: page.french
-                onCommit: (v) => page.change({ press: v, release: v })
-            }
-            MmSlider {
-                objectName: "pressSlider"
-                labelWidth: 180 * ui.unit
-                visible: !rtCard.linked
-                enabled: rtCard.on
-                label: qsTr("Press (types again after)")
-                shown: page.common("press")
-                mixed: page.mixed("press")
-                highest: page.highest("press")
-                from: page.limits.minRapidTrigger
-                to: page.limits.maxRapidTrigger
-                step: page.limits.step
-                french: page.french
-                onCommit: (v) => page.change({ press: v })
-            }
-            MmSlider {
-                objectName: "releaseSlider"
-                labelWidth: 180 * ui.unit
-                visible: !rtCard.linked
-                enabled: rtCard.on
-                label: qsTr("Release (lets go after)")
-                shown: page.common("release")
-                mixed: page.mixed("release")
-                highest: page.highest("release")
-                from: page.limits.minRapidTrigger
-                to: page.limits.maxRapidTrigger
-                step: page.limits.step
-                french: page.french
-                onCommit: (v) => page.change({ release: v })
-            }
+        }
+        MmSlider {
+            objectName: "sensitivitySlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            labelWidth: page.labelWidth
+            visible: rt.linked
+            enabled: rt.on
+            label: qsTr("Sensitivity")
+            shown: page.common("press")
+            mixed: page.mixed("press") || page.mixed("release")
+            highest: Math.max(page.highest("press"), page.highest("release"))
+            from: page.limits.minRapidTrigger
+            to: page.limits.maxRapidTrigger
+            step: page.limits.step
+            french: page.french
+            onCommit: (v) => page.change({ press: v, release: v })
+        }
+        MmSlider {
+            objectName: "pressSlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            labelWidth: page.labelWidth
+            visible: !rt.linked
+            enabled: rt.on
+            label: qsTr("Press (types again after)")
+            shown: page.common("press")
+            mixed: page.mixed("press")
+            highest: page.highest("press")
+            from: page.limits.minRapidTrigger
+            to: page.limits.maxRapidTrigger
+            step: page.limits.step
+            french: page.french
+            onCommit: (v) => page.change({ press: v })
+        }
+        MmSlider {
+            objectName: "releaseSlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            labelWidth: page.labelWidth
+            visible: !rt.linked
+            enabled: rt.on
+            label: qsTr("Release (lets go after)")
+            shown: page.common("release")
+            mixed: page.mixed("release")
+            highest: page.highest("release")
+            from: page.limits.minRapidTrigger
+            to: page.limits.maxRapidTrigger
+            step: page.limits.step
+            french: page.french
+            onCommit: (v) => page.change({ release: v })
         }
 
-        // ---- dead zones ------------------------------------------------
-        Card {
-            id: dzCard
-            Layout.alignment: Qt.AlignTop
-            Layout.preferredWidth: page.span(1)
-            Layout.maximumWidth: page.span(1)
+        // ---- dead zones -----------------------------------------------------
+        SectionSwitch {
+            id: dz
+            Layout.topMargin: 6 * ui.unit
             title: qsTr("Dead zones")
-
-            readonly property int onCount: page.count("deadZones")
-            readonly property bool on: onCount === page.selection.length
-
-            AppSwitch {
-                Layout.fillWidth: true
-                objectName: "deadZoneSwitch"
-                text: dzCard.onCount > 0 && !dzCard.on
-                      ? qsTr("On for %1 of %2 keys").arg(dzCard.onCount).arg(page.selection.length)
-                      : qsTr("Dead zones")
-                checked: dzCard.on
-                onToggled: page.change({ deadZones: checked })
-            }
-            MmSlider {
-                objectName: "deadTopSlider"
-                labelWidth: 90 * ui.unit
-                enabled: dzCard.on
-                label: qsTr("Top")
-                shown: page.common("deadTop")
-                mixed: page.mixed("deadTop")
-                highest: page.highest("deadTop")
-                from: 0
-                to: page.limits.maxDeadZone
-                step: page.limits.step
-                french: page.french
-                onCommit: (v) => page.change({ deadTop: v })
-            }
-            MmSlider {
-                objectName: "deadBottomSlider"
-                labelWidth: 90 * ui.unit
-                enabled: dzCard.on
-                label: qsTr("Bottom")
-                shown: page.common("deadBottom")
-                mixed: page.mixed("deadBottom")
-                highest: page.highest("deadBottom")
-                from: 0
-                to: page.limits.maxDeadZone
-                step: page.limits.step
-                french: page.french
-                onCommit: (v) => page.change({ deadBottom: v })
-            }
+            switchName: "deadZoneSwitch"
+            onCount: page.count("deadZones")
+            total: page.selection.length
+            labelWidth: page.labelWidth
+            trackOffset: page.trackOffset
+            onToggled: (checked) => page.change({ deadZones: checked })
+        }
+        MmSlider {
+            objectName: "deadTopSlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            labelWidth: page.labelWidth
+            enabled: dz.on
+            label: qsTr("Top")
+            shown: page.common("deadTop")
+            mixed: page.mixed("deadTop")
+            highest: page.highest("deadTop")
+            from: 0
+            to: page.limits.maxDeadZone
+            step: page.limits.step
+            french: page.french
+            onCommit: (v) => page.change({ deadTop: v })
+        }
+        MmSlider {
+            objectName: "deadBottomSlider"
+            Layout.fillWidth: false
+            sliderWidth: page.sliderWidth
+            labelWidth: page.labelWidth
+            enabled: dz.on
+            label: qsTr("Bottom")
+            shown: page.common("deadBottom")
+            mixed: page.mixed("deadBottom")
+            highest: page.highest("deadBottom")
+            from: 0
+            to: page.limits.maxDeadZone
+            step: page.limits.step
+            french: page.french
+            onCommit: (v) => page.change({ deadBottom: v })
         }
     }
 
