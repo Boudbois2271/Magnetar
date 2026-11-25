@@ -164,9 +164,9 @@ public:
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
     // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |
-    // "consumer" | "macro" | "system" | "lighting" | "profile" | "layer" | "unbound" | "unknown",
+    // "consumer" | "macro" | "system" | "lighting" | "profile" | "layer" | "special" | "unbound" | "unknown",
     // modifiers, keys: [usages], value}. value = mouse button, consumer usage, macro index,
-    // layer, profile (0-based) or the last byte for system/lighting. A macro also has loop
+    // layer, profile (0-based), the last byte for system, gg << 8 | oo for lighting. A macro also has loop
     // ("times" | "untilKeyPressed" | "whileHeld", "" if unknown) and count.
     Q_INVOKABLE QVariantMap actionInfo(const QString &code) const;
     Q_INVOKABLE QVariantMap factoryAction(int layer, int key) const;
@@ -177,13 +177,18 @@ public:
     Q_INVOKABLE QString consumerCode(int usage) const;
     Q_INVOKABLE QString layerCode(int layer) const;
     Q_INVOKABLE QString unboundCode() const;
-    Q_INVOKABLE QString brightnessCycleCode() const;
+    // 08 gg oo 00: target 0 effect, 1 direction, 2 colour, 3 brightness, 4 speed; step 0 cycle,
+    // 1 increase (direction: left), 2 decrease (direction: right).
+    Q_INVOKABLE QString lightingCode(int target, int step) const;
     // Writes the action, the drawing then shows the board's read-back. False (nothing sent) for
     // a bad layer, key or code.
     Q_INVOKABLE bool setKeyAction(int layer, int key, const QString &code);
     // The same action on each of these keys. False (nothing sent) if any of them is bad.
     Q_INVOKABLE bool setKeyActions(int layer, const QVariantList &keys, const QString &code);
     Q_INVOKABLE bool restoreKeyDefault(int layer, int key);
+    // The whole layer back to the factory keymap (11 LL), then read again. Default and Fn only;
+    // false, and nothing sent, for Fn1 (not captured).
+    Q_INVOKABLE bool resetLayer(int layer);
 
     // Changes one part of the travel on these keys and keeps the rest of each key as it is.
     // change holds fields of one part only, in mm: {actuation}, {rapidTrigger, press, release}

@@ -94,7 +94,7 @@ const std::pair<akko::MacroLoop, const char *> kLoopNames[] = {
 QVariantMap info(const akko::Action &a)
 {
     static const char *const kinds[] = {"key",    "mouse",   "consumer", "macro",   "system",
-                                        "lighting", "profile", "layer",    "unbound", "unknown"};
+                                        "lighting", "profile", "layer",    "special", "unbound", "unknown"};
     QVariantMap m{{"code", code(a)}, {"kind", kinds[int(akko::actionKind(a))]}, {"modifiers", 0}, {"value", 0}};
     switch (akko::actionKind(a)) {
     case akko::ActionKind::Key: {
@@ -174,7 +174,7 @@ QString Backend::comboCode(int modifiers, const QVariantList &keys) const
 
 QString Backend::mouseCode(int button) const
 {
-    return button >= 1 && button <= 3 ? code(akko::mouseAction(static_cast<std::uint8_t>(button))) : QString();
+    return button >= 1 && button <= 5 ? code(akko::mouseAction(static_cast<std::uint8_t>(button))) : QString();
 }
 
 QString Backend::consumerCode(int usage) const
@@ -192,9 +192,11 @@ QString Backend::unboundCode() const
     return code(akko::kUnbound);
 }
 
-QString Backend::brightnessCycleCode() const
+QString Backend::lightingCode(int target, int step) const
 {
-    return code(akko::kBrightnessCycle);
+    if (target < 0 || target > 4 || step < 0 || step > 2)
+        return {};
+    return code(akko::lightingAction(static_cast<akko::LightingTarget>(target), static_cast<akko::LightingStep>(step)));
 }
 
 bool Backend::setKeyAction(int layer, int key, const QString &c)
@@ -231,6 +233,16 @@ bool Backend::restoreKeyDefault(int layer, int key)
     if (layer < 0 || layer >= akko::kLayerCount || !knownKey(key))
         return false;
     return setKeyAction(layer, key, code(akko::factoryAction(layer, static_cast<std::uint16_t>(key))));
+}
+
+bool Backend::resetLayer(int layer)
+{
+    if (layer != 0 && layer != 1)
+        return false;
+    post("reset layer " + std::to_string(layer), [layer](akko::Keyboard &kb, Snapshot &s) {
+        s.keymap[layer] = kb.resetLayer(layer);
+    });
+    return true;
 }
 
 // ---- travel ----------------------------------------------------------------

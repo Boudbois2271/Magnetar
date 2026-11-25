@@ -21,6 +21,7 @@ ActionKind actionKind(const Action &a)
     case 0x08: return ActionKind::Lighting;
     case 0x09: return ActionKind::Profile;
     case 0x0d: return ActionKind::Layer;
+    case 0x11: return ActionKind::Special;
     default: return ActionKind::Unknown;
     }
 }
@@ -69,6 +70,11 @@ Action mouseAction(std::uint8_t button)
 Action consumerAction(std::uint16_t usage)
 {
     return {0x02, 0x00, static_cast<std::uint8_t>(usage >> 8), static_cast<std::uint8_t>(usage & 0xFF)};
+}
+
+Action lightingAction(LightingTarget target, LightingStep step)
+{
+    return {0x08, static_cast<std::uint8_t>(target), static_cast<std::uint8_t>(step), 0x00};
 }
 
 Action layerAction(int layer)

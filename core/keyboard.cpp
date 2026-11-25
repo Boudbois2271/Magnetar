@@ -229,6 +229,15 @@ Action Keyboard::setKey(int layer, std::uint16_t key, const Action &action)
     return back;
 }
 
+std::vector<std::pair<std::uint16_t, Action>> Keyboard::resetLayer(int layer)
+{
+    if (layer != 0 && layer != 1)
+        throw Error("only the Default and Fn layers can be reset");
+    const std::uint8_t p[] = {0x01};
+    transact(0x11, static_cast<std::uint8_t>(layer), p);
+    return readLayer(layer);
+}
+
 // ---- per-key travel -------------------------------------------------------
 
 namespace {

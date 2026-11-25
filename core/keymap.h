@@ -24,9 +24,10 @@ enum class ActionKind {
     Consumer,  // 02 00 hi lo: media, volume, apps
     Macro,     // 03 tt nn ii
     System,    // 07 00 00 nn (GUESS)
-    Lighting,  // 08 aa bb 00 (only 08 03 00 00 is SEEN)
+    Lighting,  // 08 gg oo 00: see LightingTarget / LightingStep (08 09 nn: GUESS)
     Profile,   // 09 00 00 nn (GUESS)
     Layer,     // 0d nn 00 00: Fn (00) or Fn1 (01)
+    Special,   // 11 00 00 00: the vendor's "www", meaning unknown
     Unbound,   // ff ff ff ff
     Unknown,
 };
@@ -44,11 +45,16 @@ std::optional<KeyCombo> keyCombo(const Action &a);  // nullopt unless the kind i
 // Encoders for every form that has a captured before/after.
 Action keyAction(std::uint8_t usage);                                    // 00 00 00 uu
 Action comboAction(std::uint8_t modifiers, std::span<const std::uint8_t> keys);  // 00 mm 00 00 / 00 mm uu 00 / 00 mm k2 k1
-Action mouseAction(std::uint8_t button);                                  // 01 bb 01 00: 1 left, 2 right, 3 middle
+Action mouseAction(std::uint8_t button);                                  // 01 bb 01 00: 1 left, 2 right, 3 middle, 4 back, 5 forward
 Action consumerAction(std::uint16_t usage);                               // 02 00 hi lo
 Action layerAction(int layer);                                            // 0d 00 00 00 Fn, 0d 01 00 00 Fn1
 constexpr Action kUnbound{0xff, 0xff, 0xff, 0xff};
-constexpr Action kBrightnessCycle{0x08, 0x03, 0x00, 0x00};
+
+// Lighting control keys, 08 gg oo 00 (akko-capture13.txt mark 10). For Direction, Increase is
+// the vendor's "Left" and Decrease its "Right".
+enum class LightingTarget : std::uint8_t { Effect, Direction, Colour, Brightness, Speed };
+enum class LightingStep : std::uint8_t { Cycle, Increase, Decrease };
+Action lightingAction(LightingTarget target, LightingStep step);
 
 // "00 00 00 29" and back. parseAction returns nullopt unless it is exactly 4 hex bytes.
 std::string actionHex(const Action &a);

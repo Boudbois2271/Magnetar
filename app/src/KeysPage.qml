@@ -217,13 +217,26 @@ Item {
                         }
 
                         // The keymap has layers; the drawing shows the one being edited.
-                        trailing: Segmented {
-                            objectName: "layerSwitch"
-                            visible: page.tab === 0
-                            model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
-                            currentIndex: actionTab.activeLayer
-                            onActivated: (index) => actionTab.activeLayer = index
-                        }
+                        trailing: [
+                            Segmented {
+                                objectName: "layerSwitch"
+                                visible: page.tab === 0
+                                model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
+                                currentIndex: actionTab.activeLayer
+                                onActivated: (index) => actionTab.activeLayer = index
+                            },
+                            // The whole layer at once, as the vendor app does (11 LL); Fn1's
+                            // reset wasn't captured. Undone only by setting the keys again.
+                            IconButton {
+                                objectName: "resetLayer"
+                                visible: page.tab === 0 && actionTab.activeLayer < 2
+                                iconName: "rotate-ccw"
+                                text: actionTab.activeLayer === 0 ? qsTr("Reset Default layer to factory")
+                                                                  : qsTr("Reset Fn layer to factory")
+                                enabled: actionTab.layerDiffers
+                                onClicked: backend.resetLayer(actionTab.activeLayer)
+                            }
+                        ]
                     }
                 }
             }
