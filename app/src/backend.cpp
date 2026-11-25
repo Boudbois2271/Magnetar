@@ -4,6 +4,7 @@
 #include "keymap.h"
 #include "lights.h"
 #include "macro.h"
+#include "report_listener.h"
 #include "scancodes.h"
 
 #include <QMetaObject>
@@ -960,6 +961,8 @@ void Backend::applyState(const Snapshot &s)
             m_macros.append(toVariant(m));
     m_ready = true;
     m_retry.stop();
+    if (m_reports)
+        m_reports->open();
     if (wasRestarting || !m_connected || !m_errorKind.isEmpty()) {
         m_connected = true;
         m_errorKind.clear();
@@ -982,6 +985,17 @@ void Backend::keyboardRemoved(const QString &node)
         return;
     m_worker->invalidateKeymap();  // whatever comes back is read whole
     applyError("keyboard not found (is it plugged in?)");
+}
+
+void Backend::setReportListener(ReportListener *listener)
+{
+    m_reports = listener;
+    connect(listener, &ReportListener::brightnessReported, this, &Backend::brightnessReported);
+    connect(listener, &ReportListener::lost, this, [this] {
+        if (m_connected && !m_restarting)
+            refresh();  // a read: fails if it was unplugged, reopens the listener if it's back
+    });
+    listener->open();
 }
 
 void Backend::brightnessReported(int value)

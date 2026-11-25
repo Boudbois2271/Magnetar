@@ -2602,6 +2602,53 @@ private slots:
         b.keyboardAdded();
         QTRY_VERIFY(b.connected());
     }
+
+    // The board's node went away and came back while the app still looked connected (a missed
+    // unplug, re-enumeration after suspend): the listener used to stay closed for good, so Fn
+    // brightness changes never showed again. It's now reopened by the read its loss triggers.
+    void brightnessReportsSurviveANewNode()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        std::vector<int> writeEnds;  // one pipe per open(), like a node per plug-in
+        auto cleanup = qScopeGuard([&] { for (int fd : writeEnds) ::close(fd); });
+        ReportListener listener;
+        listener.setOpener([&] {
+            int fds[2];
+            if (::pipe2(fds, O_NONBLOCK | O_CLOEXEC) != 0)
+                return -1;
+            writeEnds.push_back(fds[1]);
+            return fds[0];
+        });
+        b.setReportListener(&listener);
+        QTRY_VERIFY(b.ready());
+        QVERIFY(listener.listening());
+        const std::size_t opened = writeEnds.size();
+        auto report = [](int value) {
+            std::vector<std::uint8_t> r(akko::kReportLen, 0);
+            r[0] = akko::kReportId;
+            r[1] = 0xfe, r[2] = 0x0b, r[3] = 0x02, r[4] = std::uint8_t(value);
+            r[akko::kReportLen - 1] = akko::checksum(std::span(r).subspan(1));
+            return r;
+        };
+        const int first = b.brightness() == 5 ? 10 : 5;
+        auto r = report(first);
+        QCOMPARE(::write(writeEnds.back(), r.data(), r.size()), ssize_t(r.size()));
+        QTRY_COMPARE(b.brightness(), first);
+
+        const int sessions = board.sessions;
+        ::close(writeEnds.back());  // the node goes; the board is still there, as a new node
+        writeEnds.pop_back();
+        QTRY_VERIFY(board.sessions > sessions);  // the loss made the app read the board
+        QTRY_VERIFY(listener.listening());
+        QVERIFY(b.connected());
+        QCOMPARE(writeEnds.size(), opened);  // a new pipe replaced the closed one
+        const int second = first == 5 ? 15 : 5;
+        r = report(second);
+        QCOMPARE(::write(writeEnds.back(), r.data(), r.size()), ssize_t(r.size()));
+        QTRY_COMPARE(b.brightness(), second);
+    }
 };
 
 int runAppTests(int argc, char **argv)

@@ -154,10 +154,11 @@ reflected in `akko-protocol.md`.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profiles show as "Profile N": the stored names (`9a PP`) aren't read yet.
 - Changes made on the board (Fn shortcuts) show up when the window regains focus or on Ctrl+R;
-  brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only;
-  the board's reports match the parser, 2026-11-25, but the page following them isn't checked
-  by hand yet). Other unsolicited reports are
-  ignored.
+  brightness shows at once from the unsolicited `fe 0b` reports (vendor node opened read-only,
+  reopened after every read of the board; the board's reports match the parser, 2026-11-25). On
+  the board the page didn't follow them (2026-11-25), most likely because the listener stayed
+  closed after its node went away unseen; the fix is tested against the fake keyboard only, not
+  on the board yet. Other unsolicited reports are ignored.
 - Plugging in and out is noticed through a udev watch (`hidraw` add events of `38ee:0016`; remove
   events of the vendor node in use, matched by devpath), tested against the fake keyboard only.
   Replugging was seen to work on the board; the unplug half isn't checked on the board yet. Without

@@ -8,6 +8,8 @@
 #include <QObject>
 #include <QString>
 
+#include <functional>
+
 class QSocketNotifier;
 
 class ReportListener : public QObject
@@ -20,12 +22,19 @@ public:
     bool listening() const { return m_fd >= 0; }
 
     // Opens the keyboard's vendor node if not open yet; quietly does nothing when it isn't there.
+    // Cheap when already listening: the Backend calls it after every read of the board.
     void open();
     // Listens on an already open descriptor (taken over); tests use a pipe.
     void listen(int fd);
+    // What open() opens: a read-only descriptor, or -1. Default: the vendor hidraw node. Tests
+    // pass pipes.
+    void setOpener(std::function<int()> opener) { m_opener = std::move(opener); }
 
 signals:
     void brightnessReported(int value);
+    // The node stopped answering (unplugged, or the board dropped off USB and came back as a new
+    // node): listening stopped until the next open().
+    void lost();
 
 private:
     void readReports();
@@ -33,4 +42,5 @@ private:
 
     int m_fd = -1;
     QSocketNotifier *m_notifier = nullptr;
+    std::function<int()> m_opener;
 };

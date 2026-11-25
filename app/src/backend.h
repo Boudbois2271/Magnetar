@@ -7,6 +7,7 @@
 #include "device_worker.h"
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QElapsedTimer>
 #include <QTimer>
@@ -16,6 +17,8 @@
 #include <atomic>
 #include <map>
 #include <memory>
+
+class ReportListener;
 
 class Backend : public QObject {
     Q_OBJECT
@@ -147,6 +150,11 @@ public:
     void keyboardRemoved(const QString &node);
     // The board reported a new brightness on its own (fe 0b, Fn shortcut): show it.
     void brightnessReported(int value);
+    // Shows what the listener hears and keeps it open: it's (re)opened after every successful
+    // read of the board, so a node that went away and came back while we still looked connected
+    // (a missed unplug, USB re-enumeration after suspend) is listened to again. When the listener
+    // loses its node, the board is read at once to find out whether it's still there.
+    void setReportListener(ReportListener *listener);
     Q_INVOKABLE void reload();  // refresh, keymap included (Ctrl+R)
 
     // What an action is, for QML to name it: {code: "00 01 19 00", kind: "key" | "mouse" |
@@ -271,6 +279,7 @@ private:
     QTimer m_retry;
     bool m_hotplugWatched = false;
     bool m_restarting = false;
+    QPointer<ReportListener> m_reports;
     QTimer m_restartWait;  // single shot: read the keyboard again
     QElapsedTimer m_restartClock;
     // Calibration session, shared with the worker: stop asks it to Finish.
