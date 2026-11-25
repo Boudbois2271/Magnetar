@@ -210,6 +210,29 @@ Item {
         }
     }
 
+    // The step that ends or starts step i's press: the next release of the same key after a
+    // press, the last press before a release; -1 if another press or release of it comes first.
+    function partner(steps, i) {
+        const s = steps[i], by = s.press ? 1 : -1
+        for (let j = i + by; j >= 0 && j < steps.length; j += by) {
+            const t = steps[j]
+            if (t.kind === s.kind && t.usage === s.usage)
+                return t.press !== s.press ? j : -1
+        }
+        return -1
+    }
+    // Gives step i another key or button, and its press or release partner with it.
+    function changeStep(i, usage, kind) {
+        let steps = page.draft.steps.slice()
+        const j = page.partner(steps, i)
+        for (const k of j < 0 ? [i] : [i, j])
+            steps[k] = Object.assign({}, steps[k], { usage: usage, kind: kind })
+        page.setSteps(steps)
+    }
+    function addableIndex(s) {
+        return page.addable.findIndex(a => a.kind === s.kind && a.usage === s.usage)
+    }
+
     function removeStep(i) {
         let steps = page.draft.steps.slice()
         steps.splice(i, 1)
@@ -253,14 +276,22 @@ Item {
         page.recording = true
         recorder.forceActiveFocus()
     }
+    // Keys still held at Stop get their release, so the macro doesn't leave them down.
     function stopRecording() {
+        if (!page.recording)
+            return
+        for (const usage of page.held.slice().reverse())
+            page.recordUsage(false, usage, Date.now())
         page.recording = false
     }
     function recordEvent(press, scanCode, now) {
-        const usage = backend.usageForScanCode(scanCode)
+        page.recordUsage(press, backend.usageForScanCode(scanCode), now)
+    }
+    function recordUsage(press, usage, now) {
         if (!page.recording || usage === 0)
             return
-        // A release whose press came before Record isn't part of the macro.
+        // A release whose press came before Record isn't part of the macro: the macro would
+        // release a key it never pressed.
         if (!press && page.held.indexOf(usage) < 0)
             return
         page.held = press ? page.held.concat([usage]) : page.held.filter(u => u !== usage)
@@ -535,7 +566,7 @@ Item {
                         id: addKeyBox
                         objectName: "addStepBox"
                         Layout.preferredWidth: 200 * ui.unit
-                        model: page.addable.map(s => page.stepName(s))
+                        model: page.addableNames
                         currentIndex: -1
                         displayText: currentIndex < 0 ? qsTr("Add a step…") : currentText
                     }
@@ -591,6 +622,8 @@ Item {
                                     readonly property int step: page.stepAt(index)
                                     readonly property bool last: step === page.draft.steps.length - 1
                                     readonly property bool dragged: page.dragFrom === index
+                                    readonly property bool known: modelData.kind === page.limits.keyStep
+                                                                  || modelData.kind === page.limits.mouseStep
                                     Layout.fillWidth: true
                                     implicitHeight: stepLine.implicitHeight
                                     // While a row is dragged it follows the pointer above the
@@ -671,8 +704,23 @@ Item {
                                             text: stepRow.modelData.press ? qsTr("↓ Press") : qsTr("↑ Release")
                                             onClicked: page.setStep(stepRow.step, { press: !stepRow.modelData.press })
                                         }
+                                        // The step's key or button, changed in place (with its
+                                        // press or release partner).
+                                        AppComboBox {
+                                            objectName: "stepKey"
+                                            Layout.fillWidth: true
+                                            Layout.minimumWidth: 80 * ui.unit
+                                            visible: stepRow.known
+                                            model: page.addableNames
+                                            currentIndex: page.addableIndex(stepRow.modelData)
+                                            displayText: page.stepName(stepRow.modelData)
+                                            font.weight: Font.DemiBold
+                                            onActivated: (i) => page.changeStep(stepRow.step, page.addable[i].usage, page.addable[i].kind)
+                                        }
+                                        // A step of a kind this app doesn't know is only named.
                                         Label {
                                             Layout.fillWidth: true
+                                            visible: !stepRow.known
                                             leftPadding: 6 * ui.unit
                                             text: page.stepName(stepRow.modelData)
                                             font.weight: Font.DemiBold
@@ -786,6 +834,8 @@ Item {
         add(0xe0, 0xe7)
         return r
     }
+
+    readonly property var addableNames: page.addable.map(s => page.stepName(s))
 
     Dialog {
         id: deleteDialog

@@ -133,8 +133,11 @@ reflected in `akko-protocol.md`.
   `akko-capture13.txt`, written by Magnetar but not yet run on the board). Right/middle/back/forward
   are a GUESS (`02`–`05`), not offered. Clicks aren't recorded (add them by hand); the vendor's
   recorder takes them. Steps of unknown kinds are shown as "Unknown step" and kept on save. The
-  vendor recorder has no media steps either. A step's key can't be changed in place (remove it, add another).
-  Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
+  vendor recorder has no media steps either. A step's key is changed from its row's list, along with
+  its press or release partner (the next release / last press of that key); keys the list doesn't
+  offer (recorded beyond `52`, e.g. keypad) show their name and can be changed, not picked back.
+  Releases of keys pressed before Record are dropped on purpose (the macro would release a key it
+  never pressed); keys still held at Stop get a release step at Stop's time.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).
 - Travel page: the Rapid Trigger cap (up to 1.00 mm) is ours; the vendor app goes to 3.5 mm (0.005–3.5

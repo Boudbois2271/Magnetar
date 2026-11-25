@@ -2360,6 +2360,25 @@ private slots:
         QCOMPARE(row(0)->property("modelData").toMap().value("press").toBool(), true);
         call("recordEvent", {true, 30 + 8, 1300.0});   // after Stop
         QCOMPARE(steps().size(), 4);
+        // A key still held at Stop gets its release.
+        call("startRecording");
+        call("recordEvent", {true, 48 + 8, 1400.0});   // B, held
+        call("stopRecording");
+        QCOMPARE(steps().size(), 6);
+        QCOMPARE(steps()[5].toMap().value("usage").toInt(), 0x05);
+        QCOMPARE(steps()[5].toMap().value("press").toBool(), false);
+        // Changing a step's key changes its release too; then back to A, then the take removed.
+        call("changeStep", {4, 0x06, 0});
+        QCOMPARE(steps()[4].toMap().value("usage").toInt(), 0x06);
+        QCOMPARE(steps()[5].toMap().value("usage").toInt(), 0x06);
+        call("changeStep", {2, 0x07, 0});   // A's release: its press follows
+        QCOMPARE(steps()[1].toMap().value("usage").toInt(), 0x07);
+        QCOMPARE(steps()[2].toMap().value("usage").toInt(), 0x07);
+        QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0xe1);
+        call("changeStep", {1, 0x04, 0});
+        QMetaObject::invokeMethod(page, "removeStep", Q_ARG(QVariant, 5));
+        QMetaObject::invokeMethod(page, "removeStep", Q_ARG(QVariant, 4));
+        QCOMPARE(steps().size(), 4);
         QCOMPARE(steps()[0].toMap().value("usage").toInt(), 0xe1);
         QCOMPARE(steps()[0].toMap().value("delay").toInt(), 120);
         QCOMPARE(steps()[1].toMap().value("delay").toInt(), 80);
