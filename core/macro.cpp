@@ -26,7 +26,9 @@ std::string macroProblem(const Macro &m)
         return "a macro name needs 2 to 255 characters";
     if (!std::all_of(m.name.begin(), m.name.end(), [](char c) { return c >= 0x20 && c <= 0x7e; }))
         return "a macro name can only hold plain ASCII characters";
-    if (std::any_of(m.steps.begin(), m.steps.end(), [](const MacroStep &s) { return s.usage == 0; }))
+    if (std::any_of(m.steps.begin(), m.steps.end(), [](const MacroStep &s) {
+            return s.usage == 0 && (s.kind == kMacroKey || s.kind == kMacroMouse);
+        }))
         return "a macro step has no key";
     return {};
 }
@@ -57,6 +59,22 @@ std::uint16_t le16(std::span<const std::uint8_t> b, std::size_t at)
     return static_cast<std::uint16_t>(b[at] | b[at + 1] << 8);
 }
 
+// The step kind for a direction byte: key steps with the modifier bit where the usage wants it
+// (or without it, as the board ignores) are plain keys; anything else keeps its bits.
+std::uint8_t stepKind(std::uint8_t dir, std::uint8_t usage)
+{
+    const auto low = static_cast<std::uint8_t>(dir & ~kMacroRelease);
+    if (low == kMacroKey || (low == kMacroModifier && isModifierUsage(usage)))
+        return kMacroKey;
+    return low;
+}
+
+std::uint8_t stepDir(const MacroStep &s)
+{
+    const std::uint8_t kind = s.kind == kMacroKey && isModifierUsage(s.usage) ? kMacroModifier : s.kind;
+    return static_cast<std::uint8_t>((s.press ? 0x00 : kMacroRelease) | kind);
+}
+
 }  // namespace
 
 std::vector<Macro> parseMacroBlob(std::span<const std::uint8_t> blob)
@@ -79,7 +97,7 @@ std::vector<Macro> parseMacroBlob(std::span<const std::uint8_t> blob)
         m.name.assign(bytes.begin() + 1, bytes.begin() + 1 + static_cast<std::ptrdiff_t>(nameLen));
         for (std::size_t at = 1 + nameLen; at + 4 <= size; at += 4)
             m.steps.push_back({(bytes[at] & kMacroRelease) == 0, static_cast<std::uint16_t>(bytes[at + 1] << 8 | bytes[at + 2]),
-                               bytes[at + 3]});
+                               bytes[at + 3], stepKind(bytes[at], bytes[at + 3])});
         out.push_back(std::move(m));
     }
     return out;
@@ -101,8 +119,7 @@ std::vector<std::uint8_t> macroBlob(std::span<const Macro> macros)
         body.push_back(static_cast<std::uint8_t>(m.name.size()));
         body.insert(body.end(), m.name.begin(), m.name.end());
         for (const auto &s : m.steps) {
-            body.push_back(static_cast<std::uint8_t>((s.press ? 0x00 : kMacroRelease) |
-                                                (isModifierUsage(s.usage) ? kMacroModifier : 0x00)));
+            body.push_back(stepDir(s));
             body.push_back(static_cast<std::uint8_t>(s.delayMs >> 8));
             body.push_back(static_cast<std::uint8_t>(s.delayMs & 0xFF));
             body.push_back(s.usage);

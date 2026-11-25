@@ -648,8 +648,8 @@ std::vector<Macro> Keyboard::readMacros()
     const std::size_t dirSize = static_cast<std::size_t>(head[0] | head[1] << 8);
     if (dirSize == 0 || dirSize % 4 != 0 || dirSize > kMacroStorage)
         throw Error("bad macro directory size");
-    // One read as captured; a directory over 56 bytes (15+ macros, never captured) is read in
-    // packets like the blob.
+    // One read as captured; a directory over 56 bytes (15+ macros) is read in packets like the
+    // blob, as the vendor app does (akko-capture13.txt mark 1).
     std::vector<std::uint8_t> dir;
     const auto dirPackets = static_cast<std::uint8_t>((dirSize + kMacroPacket - 1) / kMacroPacket);
     for (std::uint8_t p = 0; p < dirPackets; ++p) {

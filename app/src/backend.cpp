@@ -658,7 +658,8 @@ QVariantMap toVariant(const akko::Macro &m)
 {
     QVariantList steps;
     for (const auto &st : m.steps)
-        steps.append(QVariantMap{{"press", st.press}, {"usage", int(st.usage)}, {"delay", int(st.delayMs)}});
+        steps.append(QVariantMap{{"press", st.press}, {"usage", int(st.usage)}, {"delay", int(st.delayMs)},
+                                {"kind", int(st.kind)}});
     return {{"name", QString::fromStdString(m.name)}, {"size", int(akko::macroSize(m))}, {"steps", steps}};
 }
 
@@ -675,10 +676,13 @@ std::optional<akko::Macro> macroFromVariant(const QVariantMap &r)
         bool usageOk = false, delayOk = false;
         const int usage = st.value("usage").toInt(&usageOk);
         const int delay = st.value("delay", akko::kStandardDelayMs).toInt(&delayOk);
-        if (!st.contains("press") || !usageOk || !delayOk || usage < 0 || usage > 0xff || delay < 0 || delay > 0xffff)
+        bool kindOk = false;
+        const int kind = st.value("kind", akko::kMacroKey).toInt(&kindOk);
+        if (!st.contains("press") || !usageOk || !delayOk || !kindOk || usage < 0 || usage > 0xff || delay < 0 ||
+            delay > 0xffff || kind < 0 || kind > 0x7f)
             return std::nullopt;
         m.steps.push_back({st.value("press").toBool(), static_cast<std::uint16_t>(delay),
-                           static_cast<std::uint8_t>(usage)});
+                           static_cast<std::uint8_t>(usage), static_cast<std::uint8_t>(kind)});
     }
     return m;
 }
@@ -704,7 +708,8 @@ QVariantMap Backend::macroLimits() const
 {
     return {{"minName", int(akko::kMinMacroName)}, {"maxName", int(akko::kMaxMacroName)},
             {"standardDelay", int(akko::kStandardDelayMs)}, {"maxDelay", 0xffff},
-            {"maxRepeat", akko::kMaxMacroRepeat}};
+            {"maxRepeat", akko::kMaxMacroRepeat}, {"keyStep", int(akko::kMacroKey)},
+            {"mouseStep", int(akko::kMacroMouse)}, {"leftButton", int(akko::kMacroMouseLeft)}};
 }
 
 bool Backend::macroValid(const QVariantMap &record) const

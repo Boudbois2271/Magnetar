@@ -133,12 +133,13 @@ public:
     QVariantMap advancedLimits() const;  // holdMs and depth ranges, step, the vendor app's defaults, DKS row patterns
 
     // Macros of the active profile, as read from the board. Each record: {name, size (bytes in
-    // the blob), steps: [{press, usage, delay}]}; usage = HID keyboard usage, delay in ms after
-    // the step. The board keeps 1 ms on the last step.
+    // the blob), steps: [{press, usage, delay, kind}]}; kind 0 = key (usage = HID keyboard
+    // usage), 32 = mouse button (usage = button, 1 left), anything else a step kept as read;
+    // delay in ms after the step. The board keeps 1 ms on the last step.
     bool macrosReady() const { return m_state.macrosProfile >= 0; }
     QVariantList macros() const { return m_macros; }
     QVariantMap macroStorage() const;  // {used, max} in bytes
-    QVariantMap macroLimits() const;   // name length, standard delay, max delay, max repeat
+    QVariantMap macroLimits() const;   // name length, standard delay, max delay, max repeat, step kinds
 
     Q_INVOKABLE void refresh();
     // A udev watch is running (HotplugWatch): "not found" is then retried only every 10 s, as a
