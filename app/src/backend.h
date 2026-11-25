@@ -28,6 +28,9 @@ class Backend : public QObject {
     Q_PROPERTY(QString errorDetail READ errorDetail NOTIFY connectionChanged)
     Q_PROPERTY(int profile READ profile NOTIFY stateChanged)
     Q_PROPERTY(int profileCount READ profileCount NOTIFY stateChanged)
+    // Name stored for each profile, "" for the stock name (QML shows "Profile N" then).
+    Q_PROPERTY(QStringList profileNames READ profileNames NOTIFY stateChanged)
+    Q_PROPERTY(int maxProfileName READ maxProfileName CONSTANT)
     Q_PROPERTY(int effect READ effect NOTIFY stateChanged)
     Q_PROPERTY(bool rainbow READ rainbow NOTIFY stateChanged)
     Q_PROPERTY(QString color READ color NOTIFY stateChanged)
@@ -90,6 +93,8 @@ public:
     QString errorDetail() const { return m_errorDetail; }
     int profile() const { return m_state.profile + 1; }
     int profileCount() const { return m_state.profileCount; }
+    QStringList profileNames() const;
+    int maxProfileName() const { return int(akko::kMaxProfileName); }
     int effect() const { return m_state.lighting[akko::Lighting::Effect]; }
     bool rainbow() const { return m_state.lighting.rainbow(); }
     QString color() const;
@@ -217,6 +222,9 @@ public:
     Q_INVOKABLE int usageForScanCode(int nativeScanCode) const;
 
     Q_INVOKABLE void setProfile(int profile);  // 1-based, like the UI
+    // Stores a profile's name (1-based); false (and nothing sent) if the board can't store it.
+    // The names are read back after writing.
+    Q_INVOKABLE bool renameProfile(int profile, const QString &name);
     Q_INVOKABLE void setEffect(int effect);
     Q_INVOKABLE bool setColor(const QString &color);  // false (and nothing sent) if it isn't a colour
     Q_INVOKABLE void setRainbow(bool on);

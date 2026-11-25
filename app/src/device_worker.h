@@ -44,6 +44,9 @@ using LayerMap = std::vector<std::pair<std::uint16_t, akko::Action>>;
 struct Snapshot {
     int profile = 0;  // 0-based
     int profileCount = 0;
+    // Each profile's name, nullopt = stock. Read when everything is read again (and when the
+    // count changes); a rename stores its read-back here.
+    std::vector<std::optional<std::string>> profileNames;
     akko::Lighting lighting;
     akko::BaseFunctions base;  // Base Functions settings, read with every batch
     std::uint16_t firmware = 0;

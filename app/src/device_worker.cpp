@@ -143,6 +143,11 @@ void DeviceWorker::loop()
             s.profileCount = kb.profileCount();
             s.firmware = kb.firmwareVersion();
             s.path = session->path();
+            if (s.keymapProfile < 0 || s.profileNames.size() != std::size_t(s.profileCount)) {
+                s.profileNames.clear();
+                for (int p = 0; p < s.profileCount; ++p)
+                    s.profileNames.push_back(kb.profileName(p));
+            }
             if (s.keymapProfile != s.profile) {
                 for (int layer = 0; layer < akko::kLayerCount; ++layer)
                     s.keymap[layer] = kb.readLayer(layer);

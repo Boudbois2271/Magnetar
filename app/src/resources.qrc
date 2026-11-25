@@ -31,6 +31,8 @@
         <file alias="CalibrationPage.qml">CalibrationPage.qml</file>
         <file alias="Icon.qml">Icon.qml</file>
         <file alias="icons/keyboard.svg">icons/keyboard.svg</file>
+        <file alias="icons/pencil.svg">icons/pencil.svg</file>
+        <file alias="icons/check.svg">icons/check.svg</file>
         <file alias="icons/clapperboard.svg">icons/clapperboard.svg</file>
         <file alias="icons/lightbulb.svg">icons/lightbulb.svg</file>
         <file alias="icons/settings.svg">icons/settings.svg</file>

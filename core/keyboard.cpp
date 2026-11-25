@@ -70,6 +70,30 @@ void Keyboard::setProfile(int index)
     transact(0x10, 0x00, p);
 }
 
+std::optional<std::string> Keyboard::profileName(int index)
+{
+    const Frame r = transactPacket(0x9A, static_cast<std::uint8_t>(index), 1, 0);
+    const std::size_t len = std::min<std::size_t>(r[5], kMaxPayload);
+    const std::size_t n = len ? r[kPayloadOffset] : 0xFF;
+    if (n == 0xFF || n + 1 > len)
+        return std::nullopt;  // stock: the area is all ff
+    const auto first = r.begin() + kPayloadOffset + 1;
+    return std::string(first, first + static_cast<std::ptrdiff_t>(n));
+}
+
+std::optional<std::string> Keyboard::setProfileName(int index, std::string_view name)
+{
+    if (auto p = profileNameProblem(name); !p.empty())
+        throw Error(p);
+    std::vector<std::uint8_t> p{static_cast<std::uint8_t>(name.size())};
+    p.insert(p.end(), name.begin(), name.end());
+    transactPacket(0x1A, static_cast<std::uint8_t>(index), 1, 0, p);
+    auto back = profileName(index);
+    if (back != std::string(name))
+        throw Error("profile name not stored: the keyboard reads back something else");
+    return back;
+}
+
 Lighting Keyboard::lighting()
 {
     const Frame r = transact(0x84, 0x01);
@@ -476,6 +500,18 @@ std::vector<KeyColor> Keyboard::setColors(std::span<const KeyColor> keys)
         }
     }
     return back;
+}
+
+std::string profileNameProblem(std::string_view name)
+{
+    if (name.empty())
+        return "a profile name can't be empty";
+    if (name.size() > kMaxProfileName)
+        return "a profile name holds at most 55 characters";
+    for (unsigned char c : name)
+        if (c < 0x20 || c > 0x7E)
+            return "a profile name holds plain ASCII characters only";
+    return {};
 }
 
 std::string formatFirmware(std::uint16_t version)

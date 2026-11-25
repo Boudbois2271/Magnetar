@@ -282,5 +282,10 @@
   "Held %1": "Tenue %1",
   "once %1": "1 fois %1",
   "Add a step…": "Ajouter une étape…",
-  "Unknown step": "Étape inconnue"
+  "Unknown step": "Étape inconnue",
+  "The keyboard can't store an empty name.": "Le clavier ne peut pas enregistrer un nom vide.",
+  "Plain ASCII only: no accents.": "ASCII simple uniquement : pas d'accents.",
+  "The keyboard stores %1 characters at most.": "Le clavier enregistre %1 caractères au plus.",
+  "Save name": "Enregistrer le nom",
+  "Rename profile": "Renommer le profil"
 }

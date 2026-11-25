@@ -108,6 +108,108 @@ ApplicationWindow {
                         onActivated: (index) => backend.setProfile(index + 1)
                     }
 
+                    // The active profile's name as stored on the board, renamed in place: the pencil
+                    // (or a double click) opens a field, Enter or the tick stores it, Esc cancels.
+                    Item {
+                        id: profileName
+                        property bool editing: false
+                        readonly property int index: backend.profile - 1
+                        readonly property string stored: backend.ready ? (backend.profileNames[index] ?? "") : ""
+                        readonly property string shown: stored || qsTr("Profile %1").arg(backend.profile)
+                        readonly property string problem: !editing ? ""
+                            : nameField.text.length === 0 ? qsTr("The keyboard can't store an empty name.")
+                            : /[^\x20-\x7e]/.test(nameField.text) ? qsTr("Plain ASCII only: no accents.")
+                            : nameField.text.length > backend.maxProfileName ? qsTr("The keyboard stores %1 characters at most.").arg(backend.maxProfileName)
+                            : ""
+                        readonly property bool canRename: backend.connected && backend.ready && !backend.calibrating
+                                                          && index < backend.profileNames.length
+
+                        Layout.fillWidth: true
+                        implicitHeight: nameColumn.implicitHeight
+                        visible: backend.ready
+
+                        function edit() {
+                            nameField.text = shown
+                            editing = true
+                            nameField.forceActiveFocus()
+                            nameField.selectAll()
+                        }
+                        function save() {
+                            if (problem)
+                                return
+                            if (nameField.text !== shown)
+                                backend.renameProfile(backend.profile, nameField.text)
+                            editing = false
+                        }
+                        // A profile switch, or the keyboard going away, drops the edit.
+                        onIndexChanged: editing = false
+                        onCanRenameChanged: if (!canRename) editing = false
+
+                        ColumnLayout {
+                            id: nameColumn
+                            anchors.left: parent.left
+                            anchors.right: parent.right
+                            spacing: 4 * ui.unit
+
+                            RowLayout {
+                                Layout.fillWidth: true
+                                spacing: 4 * ui.unit
+                                Label {
+                                    objectName: "profileName"
+                                    visible: !profileName.editing
+                                    Layout.fillWidth: true
+                                    text: profileName.shown
+                                    elide: Text.ElideRight
+                                    ToolTip.visible: truncated && nameHover.hovered
+                                    ToolTip.text: text
+                                    ToolTip.delay: 500
+                                    HoverHandler { id: nameHover }
+                                    TapHandler {
+                                        enabled: profileName.canRename
+                                        onDoubleTapped: profileName.edit()
+                                    }
+                                }
+                                AppTextField {
+                                    id: nameField
+                                    objectName: "profileNameField"
+                                    visible: profileName.editing
+                                    Layout.fillWidth: true
+                                    Keys.onReturnPressed: profileName.save()
+                                    Keys.onEnterPressed: profileName.save()
+                                    Keys.onEscapePressed: profileName.editing = false
+                                }
+                                AppButton {
+                                    id: renameButton
+                                    objectName: "renameProfile"
+                                    kind: "quiet"
+                                    enabled: profileName.canRename && !(profileName.editing && profileName.problem)
+                                    implicitWidth: 34 * ui.unit
+                                    text: profileName.editing ? qsTr("Save name") : qsTr("Rename profile")
+                                    ToolTip.visible: hovered
+                                    ToolTip.text: text
+                                    ToolTip.delay: 500
+                                    contentItem: Item {
+                                        Icon {
+                                            anchors.centerIn: parent
+                                            name: profileName.editing ? "check" : "pencil"
+                                            color: profileName.editing ? theme.accent : theme.secondary
+                                        }
+                                    }
+                                    onClicked: profileName.editing ? profileName.save() : profileName.edit()
+                                }
+                            }
+                            Label {
+                                objectName: "profileNameProblem"
+                                visible: profileName.problem !== ""
+                                Layout.fillWidth: true
+                                text: profileName.problem
+                                color: theme.error
+                                font.pixelSize: ui.small
+                                wrapMode: Text.Wrap
+                            }
+                        }
+                    }
+
                     Item { implicitHeight: 18 * ui.unit }
 
                     Repeater {

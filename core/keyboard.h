@@ -14,6 +14,7 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <optional>
 #include <span>
 #include <string>
 #include <utility>
@@ -64,6 +65,13 @@ struct BaseFunctions {
 int pollingRateHz(int code);
 int pollingRateCode(int hz);
 
+// Profile names (1a PP / 9a PP): `n, ASCII name[n]` in one 56-byte area, so at most 55 characters.
+// Seen: letters, digits, space; the vendor app's own limit is unknown.
+constexpr std::size_t kMaxProfileName = 55;
+// Why the board can't store this name (empty: it can): printable ASCII only, 1 to 55 characters.
+// An empty name would need the stock all-ff area, a write never captured.
+std::string profileNameProblem(std::string_view name);
+
 // "v1.08" for 0x0108, as the vendor app's Device Info page writes it.
 std::string formatFirmware(std::uint16_t version);
 
@@ -83,6 +91,11 @@ public:
     int profile();       // 0-based active profile (90 00)
     int profileCount();  // from 82 0f; 3 when the answer is missing or implausible
     void setProfile(int index);
+    // 9a PP: the name stored for profile `index` (0-based), nullopt for the stock name (all ff).
+    std::optional<std::string> profileName(int index);
+    // 1a PP, then 9a PP read back; returns the board's name. Throws before sending anything if
+    // profileNameProblem() objects, and after writing if the read-back differs.
+    std::optional<std::string> setProfileName(int index, std::string_view name);
 
     Lighting lighting();  // 84 01
     void setLighting(const Lighting &l);

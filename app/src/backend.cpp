@@ -789,6 +789,27 @@ void Backend::setProfile(int profile)
     post("profile", [profile](akko::Keyboard &kb, Snapshot &) { kb.setProfile(profile - 1); });
 }
 
+QStringList Backend::profileNames() const
+{
+    QStringList names;
+    for (const auto &n : m_state.profileNames)
+        names.append(n ? QString::fromLatin1(n->data(), qsizetype(n->size())) : QString());
+    return names;
+}
+
+bool Backend::renameProfile(int profile, const QString &name)
+{
+    const std::string n = name.toStdString();
+    if (profile < 1 || profile > int(m_state.profileNames.size()) || !akko::profileNameProblem(n).empty())
+        return false;
+    post({}, [profile, n](akko::Keyboard &kb, Snapshot &s) {
+        const auto back = kb.setProfileName(profile - 1, n);
+        if (profile <= int(s.profileNames.size()))
+            s.profileNames[profile - 1] = back;
+    });
+    return true;
+}
+
 void Backend::setEffect(int effect)
 {
     if (effect < 0 || effect > 0x13)
