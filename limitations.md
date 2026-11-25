@@ -61,8 +61,10 @@ reflected in `akko-protocol.md`.
 
 - Omarchy only loads plugins from `~/.config/omarchy/plugins/`, which a package can't write to:
   `bin/package` links the packaged widget there, so installing the `.pkg.tar.zst` by other means
-  leaves it unlinked. A dev `~/.local/bin/akkoctl` (from `bin/install`) wins over the packaged one,
-  in the widget and in most shells' `PATH`, and goes stale unless reinstalled.
+  leaves it unlinked. Used after `bin/package` (2026-11-25): the widget (linked from the package)
+  changes profile and colour, and Magnetar catches up when its window regains focus. A dev
+  `~/.local/bin/akkoctl` (from `bin/install`) wins over the packaged one, in the widget
+  and in most shells' `PATH`, and goes stale unless reinstalled.
 - The CLI's `state.json`: other keys are kept as written, but a file that isn't a valid JSON object
   is replaced by `{"lastBrightness": N}` on the next save (as the Python version did).
 - The CLI's behaviour is pinned to recorded runs of the old Python tool
@@ -122,8 +124,9 @@ reflected in `akko-protocol.md`.
   window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker
   then replaces the editor column while it is open instead of sitting beside it.
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
-  usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (works on Wayland;
-  xcb not tried). Keys outside the evdev table (media keys, ...) record as nothing.
+  usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (both record the
+  right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
+  The vendor app's recorder takes real mouse clicks but not volume keys (they act on the system).
 - Macros page: steps can only use keyboard usages (no mouse
   or media steps: never captured). A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
@@ -174,13 +177,13 @@ reflected in `akko-protocol.md`.
   wide: at the default window it fits, near the minimum width (900 u) it is cut off on the right.
   Saved colours live in `~/.config/magnetar/settings.ini`, shared by every profile.
 - Text size: follows GNOME's `text-scaling-factor` (what `omarchy display text size` sets) times the
-  interface font Qt gets from its gtk3 platform theme. The live update (dconf watch) was not tried on
-  the desktop. Other desktops without that key (KDE) get Qt's own font size, unscaled.
-- UI redesign (`docs/ui-plan.md`, items 1–18): checked offscreen only (tests, EN/FR screenshots in
-  a dark and the flexoki-light theme), then reviewed once on the desktop (findings R1–R8 in
-  `docs/ui-plan.md`, all fixed). Not used on the board yet. Light
-  themes were tried with one theme only. Keyboard focus is tested with Tab offscreen; real keyboard
-  use on the desktop isn't. Space toggles the lights only while no control has keyboard focus.
+  interface font Qt gets from its gtk3 platform theme. It updates live, no restart (checked on the
+  desktop). Other desktops without that key (KDE) get Qt's own font size, unscaled.
+- UI redesign (`docs/ui-plan.md`, items 1–18): checked offscreen (tests, EN/FR screenshots in
+  a dark and the flexoki-light theme), reviewed on the desktop (findings R1–R8 in
+  `docs/ui-plan.md`, all fixed), then used with the board
+  (2026-11-25): mouse and keyboard navigation work on every page, a second light theme looks
+  right, and the fullscreen layout is fine. Space toggles the lights only while no control has keyboard focus.
 - Fitting the window: checked offscreen only (tests and screenshots at 12 px text), not yet looked
   at on the desktop. At the default size (1440 × 920 layout px, 1234 × 789 at 12 px) every page fits,
   Keys with every tab and Advanced editor (picker open too): the keyboard is sized so the controls
