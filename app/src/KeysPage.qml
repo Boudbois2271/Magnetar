@@ -79,7 +79,11 @@ Item {
     component IconButton: AppButton {
         id: iconButton
         property string iconName
+        property bool iconOnly: false  // in a narrow window: the word moves to a tooltip
         implicitWidth: iconRow.implicitWidth + 24 * ui.unit
+        ToolTip.visible: iconOnly && hovered
+        ToolTip.text: text
+        ToolTip.delay: 500
         contentItem: Item {
             implicitWidth: iconRow.implicitWidth
             implicitHeight: iconRow.implicitHeight
@@ -93,6 +97,7 @@ Item {
                 }
                 Label {
                     anchors.verticalCenter: parent.verticalCenter
+                    visible: !iconButton.iconOnly
                     text: iconButton.text
                 }
             }
@@ -126,6 +131,7 @@ Item {
                 objectName: "undoTravel"
                 visible: page.tab === 1
                 iconName: "undo-2"
+                iconOnly: frame.width < 640 * ui.unit
                 text: qsTr("Undo last change")
                 enabled: backend.canUndoTravel
                 onClicked: backend.undoTravel()
