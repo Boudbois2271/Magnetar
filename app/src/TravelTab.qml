@@ -74,7 +74,11 @@ ColumnLayout {
     // A section is a title row (its switch on the right of the title), then one row per value.
     // Labels share one column, sliders start at one line and are all the same width.
     readonly property real rowHeight: 34 * ui.unit  // the app's control height
-    readonly property real sliderWidth: 200 * ui.unit
+    // Shorter in a narrow window, so a row (label, slider, value, "mm", "varies") stays in it.
+    readonly property real sliderWidth: Math.max(100 * ui.unit, Math.min(200 * ui.unit,
+        page.width - page.labelWidth - (4 * 8 + 76) * ui.unit - Math.ceil(unitMetrics.width + variesMetrics.width) - 2))
+    TextMetrics { id: unitMetrics; font.pixelSize: ui.body; text: "mm" }
+    TextMetrics { id: variesMetrics; font.pixelSize: ui.body; text: qsTr("varies") }
     readonly property real labelWidth: Math.ceil(Math.max(apMetrics.width, rtMetrics.width, dzMetrics.width,
                                                           bodyMetrics.width)) + 12 * ui.unit
     // From the end of the label column to where the sliders' tracks start.
@@ -91,9 +95,10 @@ ColumnLayout {
     }
 
     // A section title carrying its switch, the switch's track where the sliders' tracks start.
-    // With only some of the selected keys on, it says how many. (An inline component: it sees
-    // none of the page's ids, so it is given what it needs.)
-    component SectionSwitch: RowLayout {
+    // With only some of the selected keys on, it says how many. Anything else on the title row (the
+    // extra) goes under it, from the track, when the row is wider than the page. (An inline
+    // component: it sees none of the page's ids, so it is given what it needs.)
+    component SectionSwitch: GridLayout {
         id: section
         property string title
         property alias switchName: toggle.objectName
@@ -105,10 +110,19 @@ ColumnLayout {
         readonly property bool on: section.onCount === section.total
         signal toggled(bool checked)
         default property alias extra: tail.data
+        readonly property real tailMargin: page.width < 560 * ui.unit ? 12 * ui.unit : 32 * ui.unit  // closer in a narrow window
+        readonly property bool tailBelow: tail.children.length > 0
+            && section.labelWidth + toggle.Layout.leftMargin + toggle.implicitWidth
+               + (count.visible ? count.Layout.leftMargin + count.implicitWidth : 0)
+               + section.tailMargin + tail.implicitWidth > page.width
         Layout.minimumHeight: section.rowHeight
-        Layout.maximumHeight: section.rowHeight
-        spacing: 0
+        Layout.maximumHeight: section.tailBelow ? 2 * section.rowHeight : section.rowHeight
+        columns: 4
+        columnSpacing: 0
+        rowSpacing: 0
         Label {
+            Layout.row: 0
+            Layout.column: 0
             Layout.preferredWidth: section.labelWidth
             text: section.title
             elide: Text.ElideRight
@@ -117,12 +131,17 @@ ColumnLayout {
         }
         AppSwitch {
             id: toggle
+            Layout.row: 0
+            Layout.column: 1
             Layout.maximumHeight: section.rowHeight
             Layout.leftMargin: section.trackOffset - indicator.x
             checked: section.on
             onToggled: section.toggled(checked)
         }
         Label {
+            id: count
+            Layout.row: 0
+            Layout.column: 2
             visible: section.onCount > 0 && !section.on
             Layout.leftMargin: 8 * ui.unit
             text: qsTr("On for %1 of %2 keys").arg(section.onCount).arg(section.total)
@@ -131,7 +150,12 @@ ColumnLayout {
         }
         RowLayout {
             id: tail
-            Layout.leftMargin: page.width < 560 * ui.unit ? 12 * ui.unit : 32 * ui.unit  // closer in a narrow window
+            Layout.row: section.tailBelow ? 1 : 0
+            Layout.column: section.tailBelow ? 0 : 3
+            Layout.columnSpan: section.tailBelow ? 4 : 1
+            Layout.minimumHeight: section.rowHeight
+            Layout.maximumHeight: section.rowHeight
+            Layout.leftMargin: section.tailBelow ? section.labelWidth + section.trackOffset : section.tailMargin
             spacing: 0
         }
     }

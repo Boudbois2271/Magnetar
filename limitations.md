@@ -192,12 +192,13 @@ reflected in `akko-protocol.md`.
   (2026-11-25): mouse and keyboard navigation work on every page, a second light theme looks
   right, and the fullscreen layout is fine. Space toggles the lights only while no control has keyboard focus.
 - Fitting the window: on the desktop, fullscreen fits. At the default size (1440 × 920 layout px,
-  1234 × 789 at 12 px) and at half a 1080p screen (960 × 1030) every page fits (tests, EN and FR);
-  the half-width reflow (bars under the keyboards wrap, colour picker under the options, Advanced
-  key list under the keyboard below ~640 u, Macros list above the editor) is checked offscreen only,
-  not yet on the desktop. Pages never scroll, even below the minimum size. At a third of the screen
-  (640 × 1030) everything fits in English; in French the Travel tab's rows (longer labels) run
-  about 50 px past the right edge, cutting the mm boxes and the "Separate" switch.
+  1234 × 789 at 12 px), at half a 1080p screen (960 × 1030) and at a third (640 × 1030) every page
+  fits (tests, EN and FR); the narrow reflow (bars under the keyboards wrap, colour picker under
+  the options, Advanced key list under the keyboard below ~640 u, Multi-Point depths under their
+  action, Travel's "Separate" switch under the Rapid Trigger title and shorter Travel sliders,
+  Macros list above the editor) is checked offscreen only, not yet on the desktop. Pages never
+  scroll, even below the minimum size. At a third of the screen the Travel sliders are at their
+  shortest (100 u, about 0.05 mm per pixel over Rapid Trigger's 3.5 mm): type exact values there.
 
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command

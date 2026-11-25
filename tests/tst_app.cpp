@@ -2459,6 +2459,9 @@ private slots:
         // Half of a 1920×1080 desktop, as a tiling window manager makes it.
         QTest::newRow("en, half width") << "en" << QSize(960, 1030);
         QTest::newRow("fr, half width") << "fr" << QSize(960, 1030);
+        // A third of it: the narrowest a tiling window manager usually makes a window.
+        QTest::newRow("en, third width") << "en" << QSize(640, 1030);
+        QTest::newRow("fr, third width") << "fr" << QSize(640, 1030);
     }
 
     // At the default window size, and at half a 1080p desktop, with 12 px text (Omarchy's small

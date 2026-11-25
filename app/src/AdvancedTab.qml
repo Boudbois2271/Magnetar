@@ -333,6 +333,9 @@ ColumnLayout {
     readonly property bool pointsStacked: (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth < 90 * ui.unit
     readonly property real pointSliderWidth: page.pointsStacked ? page.controlsWidth - page.pointFixedWidth
                                                                 : (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth
+    // Multi-Point: name, action, depth slider, value, "mm", Clear on one row when the page is wide enough.
+    readonly property bool pointsUnder: page.labelWidth + page.slotWidth + (140 + 3 * 8 + 76) * ui.unit
+                                        + page.measure("mm") + page.measure(qsTr("Clear")) + 40 * ui.unit > page.width
     FontMetrics { id: metrics; font.pixelSize: ui.body }
     function measure(t) {
         return metrics.advanceWidth(t)
@@ -446,16 +449,22 @@ ColumnLayout {
             // ---- Multi-point: each point's action and depth, one row each -----
             Repeater {
                 model: editor.type === "multiPoint" ? 3 : 0
-                delegate: RowLayout {
+                // In a narrow window the depth goes under the action, so the row stays in it.
+                delegate: GridLayout {
                     required property int index
-                    spacing: 0
-                    RowLabel { text: page.slotName(10 + index) }
-                    SlotButton { slot: 10 + index }
+                    columns: 4
+                    columnSpacing: 0
+                    rowSpacing: 0
+                    RowLabel { Layout.row: 0; Layout.column: 0; text: page.slotName(10 + index) }
+                    SlotButton { Layout.row: 0; Layout.column: 1; slot: 10 + index }
                     MmSlider {
                         objectName: "pointDepth" + index
                         Layout.fillWidth: false
+                        Layout.row: page.pointsUnder ? 1 : 0
+                        Layout.column: page.pointsUnder ? 1 : 2
+                        Layout.columnSpan: page.pointsUnder ? 2 : 1
                         labelWidth: 0
-                        sliderWidth: 140 * ui.unit
+                        sliderWidth: page.pointsUnder ? page.slotWidth - 8 * ui.unit : 140 * ui.unit
                         shown: page.draft.points[index].depth
                         from: page.limits.minDepth
                         to: page.limits.maxPointDepth
@@ -465,6 +474,8 @@ ColumnLayout {
                         onCommit: (v) => page.edit(d => d.points[index].depth = v)
                     }
                     AppButton {
+                        Layout.row: 0
+                        Layout.column: page.pointsUnder ? 2 : 3
                         kind: "quiet"
                         text: qsTr("Clear")
                         opacity: page.slotCode(10 + index) !== "" ? 1 : 0
