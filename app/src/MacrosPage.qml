@@ -339,16 +339,23 @@ Item {
         visible: backend.macrosReady
         enabled: backend.connected
 
-        RowLayout {
+        // In a narrow window the list goes above the editor, in a short box.
+        GridLayout {
+            id: columns
+            readonly property bool stacked: width < (300 + 32 + 420) * ui.unit
             Layout.fillWidth: true
             Layout.fillHeight: true
-            spacing: 32 * ui.unit
+            columns: columns.stacked ? 1 : 3
+            columnSpacing: 32 * ui.unit
+            rowSpacing: 16 * ui.unit
 
             // ---- list and storage ------------------------------------------
             ColumnLayout {
-                Layout.fillWidth: false
+                Layout.fillWidth: columns.stacked
                 Layout.preferredWidth: 300 * ui.unit
-                Layout.fillHeight: true
+                Layout.fillHeight: !columns.stacked
+                Layout.preferredHeight: columns.stacked ? 190 * ui.unit : -1
+                Layout.alignment: Qt.AlignTop
                 spacing: 10 * ui.unit
 
                 Label {
@@ -485,7 +492,7 @@ Item {
                     Item { Layout.fillWidth: true }
                 }
 
-                RowLayout {
+                Flow {
                     Layout.fillWidth: true
                     spacing: 16 * ui.unit
                     IconButton {
@@ -501,7 +508,6 @@ Item {
                         checked: page.standard
                         onToggled: page.standard = checked
                     }
-                    Item { Layout.fillWidth: true }
                 }
 
                 // Adds a press and a release of one key, for editing by hand. Above the steps, so it stays put
@@ -743,7 +749,7 @@ Item {
             }
 
             // Keeps the list on the left when the editor is hidden or narrower than the page.
-            Item { Layout.fillWidth: true }
+            Item { Layout.fillWidth: true; visible: !columns.stacked }
         }
     }
 
