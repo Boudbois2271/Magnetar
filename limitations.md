@@ -16,8 +16,11 @@ reflected in `akko-protocol.md`.
   (15+ macros) are read in packets by our code, never captured.
 
 ### Not captured at all
-- **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
-- **Adaptive Calibration vs bottom drift**: not tested (would need calibration read-backs with it off).
+- **Combo Optimization**: the toggle is decoded; what it does is not known, and no public doc,
+  review or forum post explains it (searched 2026-11-25, see `akko-protocol.md` Base Functions).
+- **Adaptive Calibration vs bottom drift**: most likely the vendor's documented "Dynamic
+  Calibration" (the board re-calibrates travel by itself), which fits the drift we saw; not tested
+  on the board (would need calibration read-backs with it off).
 - `82 xx` read blocks and `82 01` (`11 00 00 00 00 59`) are unknown; they are not Base Functions.
 
 ### Captured but not decoded
@@ -79,8 +82,9 @@ reflected in `akko-protocol.md`.
   effect), Mural (workbench for app-streamed effects), Macros, Settings (with Calibration and Device).
 - Settings page: used by hand on the board (2026-11-25): Win Key Lock and polling rates 8000,
   4000, 2000 and 1000 Hz all work (typing checked after each). Whether these settings are per profile is
-  unknown (they're read with every batch, so a profile switch would show it). What Combo
-  Optimization actually changes is unknown; the page's description stays vague on purpose.
+  unknown (they're read with every batch, so a profile switch would show it). The page shows the
+  switches by name only: Combo Optimization's effect is unknown and Adaptive Calibration's is a
+  likely match, not confirmed (see above).
 - Polling rate: the board drops off USB right after the write and is back after ~1 s. The app waits
   1.2 s, then retries quietly for up to 10 s before showing an error. Anything queued in the same
   batch after the change is dropped.

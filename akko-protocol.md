@@ -68,6 +68,16 @@ KNOWN: sent by Magnetar's core (each switch toggled and restored, polling 1000 �
 | `84 1d` `84 1e` | GUESS | `00` |
 | `84 20` | GUESS | `01` |
 
+What the switches do, from public docs and reviews only (searched 2026-11-25; no source names
+either toggle as the vendor app labels it):
+
+| Setting | Effect | Confidence | Sources |
+|---|---|---|---|
+| Win Key Lock | Win key does nothing while on | Checked on the board | — |
+| Adaptive Calibration | Most likely the vendor's "Dynamic Calibration": the board re-calibrates key travel on its own (every 6 h at first, every second since April 2024 firmware), so manual calibration is rarely needed. Still needed after a switch swap, a firmware update or above 50 °C; a key pressed very slowly (~5 s) can fool it. Which end (rest, bottom or both) it adjusts is not said. Fits our bottom drift between sessions (Key calibration, below) | Name match is a guess; the feature is documented by two vendor KBs | [MonsGeek KB](https://www.monsgeek.com/monsgeek-magnetic-switches-knowledge-base/), [Akko KB](https://en.akkogear.com/akko-magnetic-switches-knowledge-base), [M1 V5 TMR review](https://damiancooper.medium.com/monsgeek-m1-v5-tmr-tmr-take-two-ff3d5f2b5420) |
+| Combo Optimization | Unknown. No manual, FAQ, review or forum post found. The closest feature elsewhere is MCHOSE's "Multi-Press Optimization" (a different vendor) | Unknown | [MCHOSE settings guide](https://www.mchose.store/blogs/all-posts/mchose-he-keyboards-optimize-performance-firmware-settings) |
+| Polling rate | Reports per second sent to the PC | Checked on the board | — |
+
 ### Lighting
 | cmd/sub | Status | Meaning |
 |---|---|---|
