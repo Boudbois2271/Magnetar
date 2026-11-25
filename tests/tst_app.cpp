@@ -2125,6 +2125,41 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // Dragging a travel slider: the box follows the handle, the board gets the value on release.
+    void mmSliderShowsTheValueWhileDragging()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        w.window->show();
+        QVERIFY(QTest::qWaitForWindowExposed(w.window));
+        QTRY_VERIFY(w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.page->setProperty("tab", 1);
+        w.click(0x0d);
+        auto *bar = w.item("actuationSliderBar");
+        auto *field = w.item("actuationSliderField");
+        QTRY_VERIFY(bar->isVisible() && bar->width() > 50);
+        QCOMPARE(field->property("text").toString(), QString("0.60"));
+        QTest::qWait(100);  // layouts settle on the next frame
+
+        const QPointF left = bar->mapToScene(QPointF(bar->width() * 0.2, bar->height() / 2));
+        const QPointF right = bar->mapToScene(QPointF(bar->width() * 0.8, bar->height() / 2));
+        QTest::mousePress(w.window, Qt::LeftButton, Qt::NoModifier, left.toPoint());
+        QTest::mouseMove(w.window, ((left + right) / 2).toPoint());
+        QTest::mouseMove(w.window, right.toPoint());
+        QTRY_VERIFY(bar->property("pressed").toBool());
+        const QString dragged = field->property("text").toString();
+        QVERIFY2(dragged != "0.60" && dragged.toDouble() > 2, qPrintable(dragged));
+        QCOMPARE(dragged, QString::number(bar->property("value").toDouble(), 'f', 2));
+        QTest::qWait(100);
+        QCOMPARE(w.board.writesOf(0x13, 0x00), 0);  // nothing sent while dragging
+
+        QTest::mouseRelease(w.window, Qt::LeftButton, Qt::NoModifier, right.toPoint());
+        QTRY_COMPARE(w.board.writesOf(0x13, 0x00), 1);
+        QTRY_COMPARE(w.cap(0x0d), dragged);
+        QCOMPARE(field->property("text").toString(), dragged);
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     // A plain click on the only selected key clears it; on one of several, it keeps only that one.
     void keysPageClickOnASelectedKeyDeselects()
     {
