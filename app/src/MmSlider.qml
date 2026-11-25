@@ -19,6 +19,7 @@ ColumnLayout {
     property bool french: false
     property bool heading: false  // the label is a section title (a section of one row)
     property real sliderWidth: 0  // a fixed slider length, on one row; else it fills the width
+    property real boxWidth: 76 * ui.unit  // the typed value's box
     signal commit(real value)
     // Where the slider's track starts, from the left edge: other rows line up with it.
     readonly property real trackLeft: slider.x + slider.leftPadding
@@ -74,7 +75,7 @@ ColumnLayout {
             objectName: ms.objectName + "Field"
             Layout.row: 0
             Layout.column: 3
-            Layout.preferredWidth: 76 * ui.unit
+            Layout.preferredWidth: ms.boxWidth
             horizontalAlignment: TextInput.AlignRight
             font.features: { "tnum": 1 }
             enabled: !ms.beyond

@@ -18,9 +18,6 @@ ColumnLayout {
     property int slot: -1      // the action slot the picker fills: 0 action, 1 tap, 10+i point, 20+i DKS row
     readonly property var limits: backend.advancedLimits
     readonly property bool french: translator.language.indexOf("fr") === 0
-    // The page's controls sit in three equal columns.
-    readonly property real column: (width - 48 * ui.unit) / 3
-    function span(n) { return n * column + (n - 1) * 24 * ui.unit }
 
     KeyNames { id: names }
 
@@ -156,10 +153,11 @@ ColumnLayout {
         const d = page.draft
         if (!d || n < 0)
             return ""
-        if (n === 0) return d.action
-        if (n === 1) return d.tap
-        if (n >= 20) return d.rows[n - 20].action
-        return d.points[n - 10].action
+        // A slot the draft hasn't (the type changed while the picker was open) is empty.
+        if (n === 0) return d.action ?? ""
+        if (n === 1) return d.tap ?? ""
+        if (n >= 20) return d.rows?.[n - 20]?.action ?? ""
+        return d.points?.[n - 10]?.action ?? ""
     }
     function setSlot(n, code) {
         page.edit(d => {
@@ -221,36 +219,29 @@ ColumnLayout {
         return !(r.pattern >= 0) && r.action !== "" && r.stages !== undefined && r.stages !== "00 00 00 00"
     }
 
-    // Why Save is greyed out, in the user's words.
-    function problem() {
+    // Whether every action the function needs is there: Save stays off until then (the empty
+    // slots say "Choose…", no other hint).
+    function complete() {
         const d = page.draft
         if (!d)
-            return ""
+            return false
         switch (d.type) {
-        case "modTap":
-            if (d.action === "" || d.tap === "")
-                return qsTr("Choose both actions.")
-            break
+        case "modTap": return d.action !== "" && d.tap !== ""
         case "toggle":
-        case "release":
-            if (d.action === "" && !d.own)
-                return qsTr("Choose an action.")
-            break
-        case "multiPoint":
-            if (d.points.every(p => p.action === ""))
-                return qsTr("Choose at least one action.")
-            break
-        case "dks":
-            if (d.rows.every(r => r.action === ""))
-                return qsTr("Choose at least one action.")
-            if (d.depths[0] >= d.depths[1] || d.depths[3] >= d.depths[2])
-                return qsTr("Each 2nd point going down, and each 1st point coming up, must be deeper than the other point.")
-            break
-        case "socd":
-            if (d.key2 < 0)
-                return qsTr("Choose the second key.")
-            break
+        case "release": return d.action !== "" || d.own === true
+        case "multiPoint": return d.points.some(p => p.action !== "")
+        case "dks": return d.rows.some(r => r.action !== "")
+        case "socd": return d.key2 >= 0
         }
+        return false
+    }
+    // What is wrong with the values, in the user's words: Save is off while there is something.
+    function problem() {
+        const d = page.draft
+        if (!d || !page.complete())
+            return ""
+        if (d.type === "dks" && (d.depths[0] >= d.depths[1] || d.depths[3] >= d.depths[2]))
+            return qsTr("Each 2nd point going down, and each 1st point coming up, must be deeper than the other point.")
         return page.records().every(r => backend.advancedValid(r)) ? "" : qsTr("Some values are out of range.")
     }
     // The records Save sends: the draft on each selected key (a SOCD draft is already the pair).
@@ -297,7 +288,7 @@ ColumnLayout {
         return lost.join(" ")
     }
     function save() {
-        if (page.dirty && page.problem() === "")
+        if (page.dirty && page.complete() && page.problem() === "")
             backend.saveAdvanced(page.records())
     }
 
@@ -311,108 +302,322 @@ ColumnLayout {
         }
     }
 
-    // An action slot: shows its action; click it, then pick in the card below.
+    // ---- layout ---------------------------------------------------------------
+    // One column from the left edge, under the keyboard: the function, then its settings top to
+    // bottom, then Save. Opening an action slot shows the picker to the right of the column; the
+    // column stays where it is (in a window too narrow for both, the picker takes its place). The
+    // keys that have a function are listed beside the keyboard (KeysPage).
+    readonly property real rowHeight: 34 * ui.unit
+    readonly property real controlsWidth: 470 * ui.unit
+    readonly property real slotWidth: 150 * ui.unit
+    readonly property bool picking: page.draft !== null && page.slot >= 0
+    readonly property bool pickerBeside: page.width >= page.labelWidth + page.controlsWidth + 24 * ui.unit + 320 * ui.unit
+    readonly property real labelWidth: Math.ceil(Math.max(...[qsTr("When held"), qsTr("When tapped"),
+        qsTr("Hold time"), qsTr("Key action"), qsTr("On release"), qsTr("Point %1").arg(3), qsTr("Action %1").arg(4),
+        qsTr("Second key"), qsTr("Both pressed"), qsTr("Going down"), qsTr("Coming up")].map(t => page.measure(t))))
+        + 16 * ui.unit
+    // DKS points, two to a row: "↓1", slider, value, "mm" each.
+    readonly property real pointLabelWidth: Math.ceil(Math.max(...page.pointNames.map(t => page.measure(t)))) + 2
+    readonly property real pointBoxWidth: 56 * ui.unit
+    readonly property real pointSliderWidth: (page.controlsWidth - 16 * ui.unit) / 2 - page.pointLabelWidth
+                                             - page.pointBoxWidth - 3 * 8 * ui.unit - page.measure("mm") - 2
+    FontMetrics { id: metrics; font.pixelSize: ui.body }
+    function measure(t) {
+        return metrics.advanceWidth(t)
+    }
+
+    // An action slot: shows its action; click it, then pick to the right of the column.
     component SlotButton: Chip {
         property int slot: 0
         objectName: "slot_" + slot
-        implicitWidth: Math.max(120 * ui.unit, contentItem.implicitWidth + 24 * ui.unit)
+        Layout.preferredWidth: page.slotWidth
+        Layout.maximumHeight: page.rowHeight
         text: slot === 0 && page.draft && page.draft.own ? qsTr("Each key's own action") : page.actionName(page.slotCode(slot))
         on: page.slot === slot
         onClicked: page.slot = page.slot === slot ? -1 : slot
     }
+    // A setting's name, in the label column.
+    component RowLabel: Label {
+        Layout.preferredWidth: page.labelWidth
+        Layout.minimumHeight: page.rowHeight
+        verticalAlignment: Text.AlignVCenter
+        elide: Text.ElideRight
+    }
 
-    // Three columns: the function types and the keys that have one | the editor (two columns).
-    // While an action slot is being filled, the picker takes the first column.
-    GridLayout {
-        id: grid
+    RowLayout {
         Layout.fillWidth: true
         Layout.fillHeight: true
-        columns: 3
-        columnSpacing: 24 * ui.unit
-        rowSpacing: 16 * ui.unit
+        spacing: 24 * ui.unit
 
         ColumnLayout {
-            Layout.row: 0
-            Layout.column: 0
-            Layout.preferredWidth: page.span(1)
-            Layout.maximumWidth: page.span(1)
-            Layout.fillHeight: true
+            id: editor
+            objectName: "advancedEditor"
+            visible: page.selectedKey >= 0 && (page.pickerBeside || !page.picking)
             Layout.alignment: Qt.AlignTop
-            visible: !(page.draft !== null && page.slot >= 0)
-            spacing: 16 * ui.unit
+            Layout.preferredWidth: page.labelWidth + page.controlsWidth
+            Layout.maximumWidth: page.labelWidth + page.controlsWidth
+            spacing: 4 * ui.unit
 
-            // ---- selected keys: type -------------------------------------------
-            Card {
+            readonly property string type: page.draft !== null ? page.draft.type : ""
+
+            // ---- the function -----------------------------------------------
+            Label {
+                text: qsTr("Advanced function")
+                font.pixelSize: ui.section
+                font.weight: Font.DemiBold
+            }
+            Flow {
                 id: typeCard
-                visible: page.selectedKey >= 0
-                Layout.alignment: Qt.AlignTop
-                title: qsTr("Advanced function")
+                objectName: "typeChips"
+                Layout.fillWidth: true
+                Layout.topMargin: 4 * ui.unit
+                Layout.bottomMargin: 8 * ui.unit
+                spacing: 6 * ui.unit
+                Repeater {
+                    model: page.types
+                    delegate: Chip {
+                        required property string modelData
+                        objectName: "type_" + modelData
+                        on: page.draft !== null && page.draft.type === modelData
+                        // A SOCD pair is two keys: one (the other chosen below) or exactly two selected.
+                        enabled: modelData !== "socd" || page.selection.length <= 2
+                        text: page.typeName(modelData)
+                        onClicked: page.chooseType(modelData)
+                    }
+                }
+            }
 
-                Flow {
-                    objectName: "typeChips"
-                    Layout.fillWidth: true
-                    spacing: 6 * ui.unit
+            // ---- Mod-Tap, Toggle, Release: the actions, then the hold time ----
+            RowLayout {
+                visible: editor.type === "modTap" || editor.type === "toggle" || editor.type === "release"
+                spacing: 0
+                RowLabel { text: page.slotName(0) }
+                SlotButton { slot: 0 }
+            }
+            RowLayout {
+                visible: editor.type === "modTap"
+                spacing: 0
+                RowLabel { text: page.slotName(1) }
+                SlotButton { slot: 1 }
+            }
+            RowLayout {
+                visible: editor.type === "modTap" || editor.type === "toggle"
+                spacing: 0
+                RowLabel { text: qsTr("Hold time") }
+                Slider {
+                    id: holdSlider
+                    FocusRing {}
+                    objectName: "holdSlider"
+                    Layout.leftMargin: -leftPadding  // the track lines up with the action buttons
+                    Layout.preferredWidth: 200 * ui.unit
+                    Layout.maximumHeight: page.rowHeight
+                    from: page.limits.minHoldMs
+                    to: page.limits.maxHoldMs
+                    // No stepSize: Material draws a tick per step. Values are rounded instead.
+                    Binding on value {
+                        when: !holdSlider.pressed
+                        value: page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : page.limits.defaultHoldMs
+                        restoreMode: Binding.RestoreNone
+                    }
+                    onMoved: page.edit(d => d.holdMs = Math.round(value))
+                }
+                Label {
+                    objectName: "holdValue"
+                    Layout.leftMargin: 8 * ui.unit
+                    font.features: { "tnum": 1 }
+                    text: qsTr("%1 ms").arg(holdSlider.pressed ? Math.round(holdSlider.value)
+                                            : page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : 0)
+                }
+            }
+
+            // ---- Multi-point: each point's action and depth, one row each -----
+            Repeater {
+                model: editor.type === "multiPoint" ? 3 : 0
+                delegate: RowLayout {
+                    required property int index
+                    spacing: 0
+                    RowLabel { text: page.slotName(10 + index) }
+                    SlotButton { slot: 10 + index }
+                    MmSlider {
+                        objectName: "pointDepth" + index
+                        Layout.fillWidth: false
+                        labelWidth: 0
+                        sliderWidth: 140 * ui.unit
+                        shown: page.draft.points[index].depth
+                        from: page.limits.minDepth
+                        to: page.limits.maxDepth
+                        step: 0.01
+                        decimals: 2
+                        french: page.french
+                        onCommit: (v) => page.edit(d => d.points[index].depth = v)
+                    }
+                    AppButton {
+                        kind: "quiet"
+                        text: qsTr("Clear")
+                        opacity: page.slotCode(10 + index) !== "" ? 1 : 0
+                        enabled: page.slotCode(10 + index) !== ""
+                        onClicked: page.setSlot(10 + index, "")
+                    }
+                }
+            }
+
+            // ---- Dynamic keystroke: the four points, then the four actions ----
+            // The points two by two, named as the patterns name them (↓1 = going down, 1st point).
+            Repeater {
+                model: editor.type === "dks" ? 2 : 0
+                delegate: RowLayout {
+                    id: pair
+                    required property int index
+                    spacing: 0
+                    RowLabel { text: pair.index === 0 ? qsTr("Going down") : qsTr("Coming up") }
                     Repeater {
-                        model: page.types
-                        delegate: Chip {
-                            required property string modelData
-                            objectName: "type_" + modelData
-                            on: page.draft !== null && page.draft.type === modelData
-                            // A SOCD pair is two keys: one (the other chosen below) or exactly two selected.
-                            enabled: modelData !== "socd" || page.selection.length <= 2
-                            text: page.typeName(modelData)
-                            onClicked: page.chooseType(modelData)
+                        model: 2
+                        delegate: MmSlider {
+                            required property int index
+                            readonly property int point: 2 * pair.index + index
+                            objectName: "dksDepth" + point
+                            Layout.fillWidth: false
+                            Layout.leftMargin: index === 1 ? 16 * ui.unit : 0
+                            labelWidth: page.pointLabelWidth
+                            boxWidth: page.pointBoxWidth
+                            sliderWidth: page.pointSliderWidth
+                            label: page.pointNames[point]
+                            shown: page.draft.depths[point]
+                            from: page.limits.minDepth
+                            to: page.limits.maxDepth
+                            step: 0.01
+                            decimals: 2
+                            french: page.french
+                            onCommit: (v) => page.edit(d => d.depths[point] = v)
+                        }
+                    }
+                }
+            }
+            Repeater {
+                model: editor.type === "dks" ? 4 : 0
+                delegate: RowLayout {
+                    id: row
+                    required property int index
+                    readonly property var rowData: page.draft.rows[row.index]
+                    readonly property bool custom: page.customRow(row.rowData)
+                    readonly property var options: row.custom
+                        ? page.patternLabels.concat([qsTr("Another pattern (kept as it is)")])
+                        : page.patternLabels
+                    Layout.topMargin: row.index === 0 ? 8 * ui.unit : 0
+                    spacing: 0
+                    RowLabel { text: page.slotName(20 + row.index) }
+                    SlotButton { slot: 20 + row.index }
+                    AppComboBox {
+                        objectName: "dksStroke" + row.index
+                        Layout.leftMargin: 8 * ui.unit
+                        Layout.preferredWidth: page.controlsWidth - page.slotWidth - 8 * ui.unit
+                        enabled: row.rowData.action !== ""
+                        model: row.options
+                        currentIndex: row.custom ? row.options.length - 1 : Math.max(0, row.rowData.pattern)
+                        // The single strokes' names are long: the list opens half as wide again.
+                        popup.width: Math.max(width, implicitWidth, 1.5 * width)
+                        onActivated: (i) => {
+                            if (row.custom && i === row.options.length - 1)
+                                return
+                            page.edit(d => {
+                                d.rows[row.index].pattern = i
+                                if (i === 0) {
+                                    d.rows[row.index].action = ""
+                                    d.rows[row.index].stages = "00 00 00 00"
+                                }
+                            })
                         }
                     }
                 }
             }
 
-            // ---- every key that has one: a click selects it ----------------------
-            Card {
-                visible: backend.advancedKeys.length > 0
-                Layout.alignment: Qt.AlignTop
-                Layout.fillHeight: true
-                Layout.maximumHeight: implicitHeight
-                title: qsTr("Keys with an advanced function")
-
-                ScrollView {
-                    objectName: "advancedListBox"
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    Layout.preferredHeight: list.implicitHeight
-                    Layout.minimumHeight: Math.min(list.implicitHeight, 34 * ui.unit)
-                    contentWidth: availableWidth
-
-                    Flow {
-                        id: list
-                        objectName: "advancedList"
-                        width: parent.width
-                        spacing: 6 * ui.unit
-                        Repeater {
-                            model: backend.advancedKeys
-                            delegate: Chip {
-                                required property var modelData
-                                on: page.selection.indexOf(modelData.key) >= 0
-                                text: page.typeName(modelData.type) + " · " + page.keyName(modelData.key)
-                                      + (modelData.type === "socd" ? " + " + page.keyName(modelData.key2) : "")
-                                onClicked: page.selectKeys(modelData.type === "socd" ? [modelData.key, modelData.key2] : [modelData.key])
-                            }
-                        }
-                    }
+            // ---- SOCD: the other key and the rule -----------------------------
+            RowLayout {
+                visible: editor.type === "socd" && page.selection.length !== 2
+                spacing: 0
+                RowLabel { text: qsTr("Second key") }
+                AppComboBox {
+                    id: secondKey
+                    objectName: "socdSecondKey"
+                    Layout.preferredWidth: page.slotWidth
+                    readonly property var ids: backend.layout.map(k => k.id).filter(id => id !== (page.draft ? page.draft.key : -1))
+                    model: secondKey.ids.map(id => page.keyName(id))
+                    currentIndex: page.draft && page.draft.key2 !== undefined ? secondKey.ids.indexOf(page.draft.key2) : -1
+                    displayText: currentIndex < 0 ? qsTr("Choose") : currentText
+                    onActivated: (i) => page.edit(d => d.key2 = secondKey.ids[i])
+                }
+            }
+            RowLayout {
+                visible: editor.type === "socd"
+                spacing: 0
+                RowLabel { text: qsTr("Both pressed") }
+                AppComboBox {
+                    id: mode
+                    objectName: "socdMode"
+                    Layout.preferredWidth: page.controlsWidth - 60 * ui.unit
+                    readonly property var modes: ["lastInput", "neutral", "key1", "key2"]
+                    readonly property string first: page.draft ? page.keyName(page.draft.key) : ""
+                    readonly property string second: page.draft && page.draft.key2 >= 0 ? page.keyName(page.draft.key2) : qsTr("the second key")
+                    model: [qsTr("The last one pressed wins"), qsTr("Neither: they cancel out"),
+                            qsTr("%1 always wins").arg(mode.first), qsTr("%1 always wins").arg(mode.second)]
+                    currentIndex: page.draft && page.draft.mode !== undefined ? mode.modes.indexOf(page.draft.mode) : 0
+                    onActivated: (i) => page.edit(d => d.mode = mode.modes[i])
                 }
             }
 
-            Item { Layout.fillHeight: true }
+            // ---- Save, at the bottom of the column ----------------------------
+            RowLayout {
+                visible: page.draft !== null || page.withRecords.length > 0
+                Layout.topMargin: 12 * ui.unit
+                spacing: 8 * ui.unit
+                AppButton {
+                    objectName: "saveAdvanced"
+                    visible: page.draft !== null
+                    kind: "primary"
+                    text: qsTr("Save")
+                    enabled: page.dirty && page.complete() && page.problem() === ""
+                    onClicked: page.save()
+                }
+                AppButton {
+                    visible: page.draft !== null
+                    text: qsTr("Discard changes")
+                    enabled: page.dirty
+                    onClicked: page.load()
+                }
+                AppButton {
+                    objectName: "removeAdvanced"
+                    visible: page.withRecords.length > 0
+                    text: page.saved !== null && page.saved.type === "socd" ? qsTr("Remove the SOCD pair") : qsTr("Remove")
+                    onClicked: {
+                        backend.removeAdvanced(page.withRecords)
+                        page.draft = null
+                    }
+                }
+            }
+            // What is wrong with the values, and what saving takes away.
+            Label {
+                objectName: "advancedProblem"
+                Layout.fillWidth: true
+                visible: text !== "" && page.dirty
+                text: page.problem()
+                wrapMode: Text.WordWrap
+                color: theme.accent
+            }
+            Label {
+                Layout.fillWidth: true
+                visible: text !== "" && page.dirty
+                text: page.replaces()
+                wrapMode: Text.WordWrap
+                color: theme.secondary
+            }
         }
 
-        // ---- picker for the slot being filled -------------------------------
+        // ---- the picker for the slot being filled, right of the column -------
         Card {
-            visible: page.draft !== null && page.slot >= 0
-            Layout.row: 0
-            Layout.column: 0
-            Layout.preferredWidth: page.span(1)
-            Layout.maximumWidth: page.span(1)
+            visible: page.picking
             Layout.alignment: Qt.AlignTop
+            Layout.fillWidth: true
+            Layout.maximumWidth: 640 * ui.unit
             Layout.fillHeight: true
             Layout.maximumHeight: implicitHeight
             title: qsTr("%1: choose an action").arg(page.slotName(page.slot))
@@ -427,295 +632,8 @@ ColumnLayout {
                 onPicked: (code) => page.setSlot(page.slot, code)
             }
         }
-
-        // ---- editor ---------------------------------------------------------
-        ColumnLayout {
-            id: editor
-            objectName: "advancedEditor"
-            visible: page.draft !== null
-            Layout.row: 0
-            Layout.column: 1
-            Layout.columnSpan: 2
-            Layout.preferredWidth: page.span(2)
-            Layout.maximumWidth: page.span(2)
-            Layout.alignment: Qt.AlignTop
-            spacing: 12 * ui.unit
-
-            readonly property string type: page.draft !== null ? page.draft.type : ""
-            readonly property real half: (page.span(2) - 24 * ui.unit) / 2
-
-            // Mod-Tap, Toggle, Release: one or two actions; hold time beside them.
-            GridLayout {
-                visible: editor.type === "modTap" || editor.type === "toggle" || editor.type === "release"
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 24 * ui.unit
-
-                GridLayout {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredWidth: editor.half
-                    Layout.maximumWidth: editor.half
-                    columns: 2
-                    columnSpacing: 16 * ui.unit
-                    rowSpacing: 8 * ui.unit
-                    Label { text: page.slotName(0) }
-                    SlotButton { slot: 0 }
-                    Label { visible: editor.type === "modTap"; text: page.slotName(1) }
-                    SlotButton { visible: editor.type === "modTap"; slot: 1 }
-                }
-
-                // Hold time: Mod-Tap and Toggle.
-                ColumnLayout {
-                    visible: editor.type === "modTap" || editor.type === "toggle"
-                    Layout.preferredWidth: editor.half
-                    Layout.maximumWidth: editor.half
-                    Layout.alignment: Qt.AlignTop
-                    spacing: 0
-                    RowLayout {
-                        Layout.fillWidth: true
-                        Label { Layout.fillWidth: true; text: qsTr("Hold time") }
-                        Label {
-                            objectName: "holdValue"
-                            font.features: { "tnum": 1 }
-                            text: qsTr("%1 ms").arg(page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : 0)
-                        }
-                    }
-                    Slider {
-                        id: holdSlider
-                        FocusRing {}
-                        objectName: "holdSlider"
-                        Layout.fillWidth: true
-                        from: page.limits.minHoldMs
-                        to: page.limits.maxHoldMs
-                        // No stepSize: Material draws a tick per step. Values are rounded instead.
-                        Binding on value {
-                            when: !holdSlider.pressed
-                            value: page.draft && page.draft.holdMs !== undefined ? page.draft.holdMs : page.limits.defaultHoldMs
-                            restoreMode: Binding.RestoreNone
-                        }
-                        onMoved: page.edit(d => d.holdMs = Math.round(value))
-                    }
-                }
-            }
-
-            // Multi-point: three actions, each with its depth, one row each.
-            GridLayout {
-                visible: editor.type === "multiPoint"
-                Layout.fillWidth: true
-                columns: 4
-                columnSpacing: 12 * ui.unit
-                rowSpacing: 8 * ui.unit
-                Repeater {
-                    model: editor.type === "multiPoint" ? 3 : 0
-                    delegate: Label {
-                        required property int index
-                        Layout.row: index
-                        Layout.column: 0
-                        text: page.slotName(10 + index)
-                    }
-                }
-                Repeater {
-                    model: editor.type === "multiPoint" ? 3 : 0
-                    delegate: SlotButton {
-                        required property int index
-                        Layout.row: index
-                        Layout.column: 1
-                        slot: 10 + index
-                    }
-                }
-                Repeater {
-                    model: editor.type === "multiPoint" ? 3 : 0
-                    delegate: AppButton {
-                        required property int index
-                        Layout.row: index
-                        Layout.column: 2
-                        kind: "quiet"
-                        text: qsTr("Clear")
-                        opacity: page.slotCode(10 + index) !== "" ? 1 : 0
-                        enabled: page.slotCode(10 + index) !== ""
-                        onClicked: page.setSlot(10 + index, "")
-                    }
-                }
-                Repeater {
-                    model: editor.type === "multiPoint" ? 3 : 0
-                    delegate: MmSlider {
-                        required property int index
-                        Layout.row: index
-                        Layout.column: 3
-                        objectName: "pointDepth" + index
-                        labelWidth: 90 * ui.unit
-                        label: qsTr("Depth")
-                        shown: page.draft.points[index].depth
-                        from: page.limits.minDepth
-                        to: page.limits.maxDepth
-                        step: 0.01
-                        decimals: 2
-                        french: page.french
-                        onCommit: (v) => page.edit(d => d.points[index].depth = v)
-                    }
-                }
-            }
-
-            // DKS: the four points beside the four rows of action + when.
-            GridLayout {
-                visible: editor.type === "dks"
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 24 * ui.unit
-
-                ColumnLayout {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredWidth: editor.half
-                    Layout.maximumWidth: editor.half
-                    spacing: 8 * ui.unit
-                    Repeater {
-                        model: editor.type === "dks" ? 4 : 0
-                        delegate: MmSlider {
-                            required property int index
-                            objectName: "dksDepth" + index
-                            labelWidth: 150 * ui.unit
-                            label: page.stageNames[index].charAt(0).toUpperCase() + page.stageNames[index].slice(1)
-                            shown: page.draft.depths[index]
-                            from: page.limits.minDepth
-                            to: page.limits.maxDepth
-                            step: 0.01
-                            decimals: 2
-                            french: page.french
-                            onCommit: (v) => page.edit(d => d.depths[index] = v)
-                        }
-                    }
-                }
-                ColumnLayout {
-                    Layout.alignment: Qt.AlignTop
-                    Layout.preferredWidth: editor.half
-                    Layout.maximumWidth: editor.half
-                    spacing: 8 * ui.unit
-                    Repeater {
-                        model: editor.type === "dks" ? 4 : 0
-                        delegate: RowLayout {
-                            id: row
-                            required property int index
-                            readonly property var rowData: page.draft.rows[row.index]
-                            readonly property bool custom: page.customRow(row.rowData)
-                            readonly property var options: row.custom
-                                ? page.patternLabels.concat([qsTr("Another pattern (kept as it is)")])
-                                : page.patternLabels
-                            Layout.fillWidth: true
-                            spacing: 10 * ui.unit
-                            SlotButton { slot: 20 + row.index }
-                            AppComboBox {
-                                objectName: "dksStroke" + row.index
-                                Layout.fillWidth: true
-                                enabled: row.rowData.action !== ""
-                                model: row.options
-                                currentIndex: row.custom ? row.options.length - 1 : Math.max(0, row.rowData.pattern)
-                                // The single strokes' names are long: the list opens leftwards
-                                // over the depth sliders, half as wide again.
-                                popup.width: Math.max(width, implicitWidth, 1.5 * width)
-                                popup.x: width - popup.width
-                                onActivated: (i) => {
-                                    if (row.custom && i === row.options.length - 1)
-                                        return
-                                    page.edit(d => {
-                                        d.rows[row.index].pattern = i
-                                        if (i === 0) {
-                                            d.rows[row.index].action = ""
-                                            d.rows[row.index].stages = "00 00 00 00"
-                                        }
-                                    })
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            // SOCD: the other key and the rule.
-            GridLayout {
-                visible: editor.type === "socd"
-                Layout.fillWidth: true
-                columns: 2
-                columnSpacing: 16 * ui.unit
-                rowSpacing: 8 * ui.unit
-                Label { visible: secondKey.visible; text: qsTr("Second key") }
-                AppComboBox {
-                    id: secondKey
-                    objectName: "socdSecondKey"
-                    visible: page.selection.length !== 2
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 240 * ui.unit
-                    readonly property var ids: backend.layout.map(k => k.id).filter(id => id !== (page.draft ? page.draft.key : -1))
-                    model: secondKey.ids.map(id => page.keyName(id))
-                    currentIndex: page.draft && page.draft.key2 !== undefined ? secondKey.ids.indexOf(page.draft.key2) : -1
-                    displayText: currentIndex < 0 ? qsTr("Choose") : currentText
-                    onActivated: (i) => page.edit(d => d.key2 = secondKey.ids[i])
-                }
-                Label { text: qsTr("When both are down") }
-                AppComboBox {
-                    id: mode
-                    objectName: "socdMode"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: 320 * ui.unit
-                    readonly property var modes: ["lastInput", "neutral", "key1", "key2"]
-                    readonly property string first: page.draft ? page.keyName(page.draft.key) : ""
-                    readonly property string second: page.draft && page.draft.key2 >= 0 ? page.keyName(page.draft.key2) : qsTr("the second key")
-                    model: [qsTr("The last one pressed wins"), qsTr("Neither: they cancel out"),
-                            qsTr("%1 always wins").arg(mode.first), qsTr("%1 always wins").arg(mode.second)]
-                    currentIndex: page.draft && page.draft.mode !== undefined ? mode.modes.indexOf(page.draft.mode) : 0
-                    onActivated: (i) => page.edit(d => d.mode = mode.modes[i])
-                }
-            }
-
-
-            RowLayout {
-                Layout.fillWidth: true
-                spacing: 12 * ui.unit
-                AppButton {
-                    objectName: "saveAdvanced"
-                    Layout.alignment: Qt.AlignTop
-                    kind: "primary"
-                    text: qsTr("Save")
-                    enabled: page.dirty && page.problem() === ""
-                    onClicked: page.save()
-                }
-                AppButton {
-                    Layout.alignment: Qt.AlignTop
-                    text: qsTr("Discard changes")
-                    enabled: page.dirty
-                    onClicked: page.load()
-                }
-                AppButton {
-                    objectName: "removeAdvanced"
-                    Layout.alignment: Qt.AlignTop
-                    visible: page.withRecords.length > 0
-                    text: page.saved !== null && page.saved.type === "socd" ? qsTr("Remove the SOCD pair") : qsTr("Remove")
-                    onClicked: {
-                        backend.removeAdvanced(page.withRecords)
-                        page.draft = null
-                    }
-                }
-                // Why Save is off, and what saving takes away.
-                ColumnLayout {
-                    Layout.fillWidth: true
-                    Layout.leftMargin: 4 * ui.unit
-                    spacing: 2 * ui.unit
-                    Label {
-                        objectName: "advancedProblem"
-                        Layout.fillWidth: true
-                        visible: text !== "" && page.dirty
-                        text: page.problem()
-                        wrapMode: Text.WordWrap
-                        color: theme.accent
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        visible: text !== "" && page.dirty
-                        text: page.replaces()
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                    }
-                }
-            }
-        }
+        Item { Layout.fillWidth: true; visible: !page.picking }
     }
+    // Takes the room the column doesn't need, so it stays right under the keyboard.
+    Item { Layout.fillHeight: true }
 }

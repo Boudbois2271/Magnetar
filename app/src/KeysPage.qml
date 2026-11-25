@@ -2,8 +2,9 @@
 // Keys: one drawing, one selection, and tabs for what to change on the selected keys (action,
 // travel, advanced function). The active tab decides what each key on the drawing says. Any
 // selection can be edited in every tab: the user decides what makes sense.
-// Layout: header (title, tabs, the tab's page actions) → the keyboard, full width → the selection
-// bar under its plate → the tab's controls in columns.
+// Layout: header (title, tabs, the tab's page actions) → the keyboard (on Advanced, the keys that
+// have an advanced function beside it, as tall as it) → the selection bar under its plate → the
+// tab's controls, from the left edge.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Controls.Material
@@ -53,15 +54,22 @@ Item {
     }
 
     // The drawing is as wide as the page allows, up to its largest keys, and leaves the controls
-    // below it the same height whatever the tab or the selection: keys never move under the
-    // pointer.
-    readonly property real controlsHeight: 265 * ui.unit
+    // below it the same height whatever the selection: keys never move under the pointer. The
+    // Advanced tab's editor is taller (Dynamic keystroke has eight rows) and its key list sits
+    // beside the drawing, so there the drawing is smaller.
+    readonly property bool sidePanel: page.tab === 2
+    readonly property real sideMinWidth: 220 * ui.unit
+    readonly property real sideMaxWidth: 320 * ui.unit
+    // (In a small window it gives way first: the keyboard keeps a usable size.)
+    readonly property real controlsHeight: page.sidePanel ? Math.max(265 * ui.unit, Math.min(380 * ui.unit, 0.45 * frame.height))
+                                                          : 265 * ui.unit
     readonly property real drawingWidth: {
         // Height for the plate and the bar under it; both grow with the width (the bar by the
         // plate's bezel).
         const room = frame.height - header.height - 2 * frame.spacing - page.controlsHeight - 34 * ui.unit
         const perWidth = 1 / drawing.aspect + drawing.bezel / (drawing.columns + 2 * drawing.bezel)
-        return Math.max(400 * ui.unit, Math.min(frame.width, drawing.implicitWidth, room / perWidth))
+        const across = frame.width - (page.sidePanel ? page.sideMinWidth + keyboardRow.spacing : 0)
+        return Math.max(400 * ui.unit, Math.min(across, drawing.implicitWidth, room / perWidth))
     }
 
     // A page action: an icon and a word, at the right of the header.
@@ -123,82 +131,151 @@ Item {
 
         // ---- the keyboard and its selection bar ----------------------------
         // The box takes in the drawing's drag margin, so a drag that starts there reaches it.
-        Item {
-            readonly property real margin: drawing.dragMargin
-            Layout.fillWidth: false
-            Layout.preferredWidth: page.drawingWidth + 2 * margin
-            Layout.preferredHeight: drawing.height + selectionBar.height + 2 * margin
-            Layout.leftMargin: -margin
-            Layout.topMargin: -margin
-            Layout.bottomMargin: -margin
+        RowLayout {
+            id: keyboardRow
+            Layout.fillWidth: true
+            spacing: 16 * ui.unit
 
-            KeyboardView {
-                id: drawing
-                objectName: "keysKeyboard"
-                x: parent.margin
-                y: parent.margin
-                width: page.drawingWidth
-                height: implicitHeight
-                maxKeySize: 68 * ui.unit
-                squareBottom: true
-                labelFor: page.current.labelFor
-                markedFor: page.current.markedFor
-                colorFor: page.current.colorFor || function (id) { return "" }
-                depthFor: page.current.depthFor || function (id) { return -1 }
-                badgeFor: page.current.badgeFor || function (id) { return "" }
-                selectedKeys: page.selection
-                onKeyClicked: (id, modifiers) => page.click(id, modifiers)
-                onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
-            }
+            Item {
+                id: keyboardBox
+                readonly property real margin: drawing.dragMargin
+                Layout.fillWidth: false
+                Layout.preferredWidth: page.drawingWidth + 2 * margin
+                Layout.preferredHeight: drawing.height + selectionBar.height + 2 * margin
+                Layout.leftMargin: -margin
+                Layout.rightMargin: -margin
+                Layout.topMargin: -margin
+                Layout.bottomMargin: -margin
 
-            // Attached under the plate, on the same surface.
-            Rectangle {
-                id: selectionBar
-                x: drawing.x
-                y: drawing.y + drawing.height
-                width: drawing.width
-                height: 34 * ui.unit + drawing.inset
-                bottomLeftRadius: theme.radius
-                bottomRightRadius: theme.radius
-                color: theme.plate
+                KeyboardView {
+                    id: drawing
+                    objectName: "keysKeyboard"
+                    x: parent.margin
+                    y: parent.margin
+                    width: page.drawingWidth
+                    height: implicitHeight
+                    maxKeySize: 68 * ui.unit
+                    squareBottom: true
+                    labelFor: page.current.labelFor
+                    markedFor: page.current.markedFor
+                    colorFor: page.current.colorFor || function (id) { return "" }
+                    depthFor: page.current.depthFor || function (id) { return -1 }
+                    badgeFor: page.current.badgeFor || function (id) { return "" }
+                    selectedKeys: page.selection
+                    onKeyClicked: (id, modifiers) => page.click(id, modifiers)
+                    onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)
+                }
 
-                RowLayout {
-                    id: bar
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.leftMargin: drawing.inset
-                    anchors.rightMargin: drawing.inset
-                    spacing: 6 * ui.unit
+                // Attached under the plate, on the same surface.
+                Rectangle {
+                    id: selectionBar
+                    x: drawing.x
+                    y: drawing.y + drawing.height
+                    width: drawing.width
+                    height: 34 * ui.unit + drawing.inset
+                    bottomLeftRadius: theme.radius
+                    bottomRightRadius: theme.radius
+                    color: theme.plate
 
-                    AppButton { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
-                    AppButton { text: qsTr("Invert"); onClicked: page.invert() }
-                    AppButton {
-                        visible: page.selection.length > 0
-                        text: qsTr("None")
-                        onClicked: page.select([])
-                    }
-                    Label {
-                        objectName: "selectedCount"
-                        visible: page.selection.length > 0
-                        Layout.leftMargin: 10 * ui.unit
-                        text: page.selection.length === 1 ? qsTr("1 key selected")
-                                                          : qsTr("%1 keys selected").arg(page.selection.length)
-                        color: theme.secondary
-                        font.features: { "tnum": 1 }
-                    }
-                    Item { Layout.fillWidth: true }
+                    RowLayout {
+                        id: bar
+                        anchors.left: parent.left
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                        anchors.leftMargin: drawing.inset
+                        anchors.rightMargin: drawing.inset
+                        spacing: 6 * ui.unit
 
-                    // The keymap has layers; the drawing shows the one being edited.
-                    Segmented {
-                        objectName: "layerSwitch"
-                        visible: page.tab === 0
-                        model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
-                        currentIndex: actionTab.activeLayer
-                        onActivated: (index) => actionTab.activeLayer = index
+                        AppButton { text: qsTr("All keys"); onClicked: page.select(page.allKeys()) }
+                        AppButton { text: qsTr("Invert"); onClicked: page.invert() }
+                        AppButton {
+                            visible: page.selection.length > 0
+                            text: qsTr("None")
+                            onClicked: page.select([])
+                        }
+                        Label {
+                            objectName: "selectedCount"
+                            visible: page.selection.length > 0
+                            Layout.leftMargin: 10 * ui.unit
+                            text: page.selection.length === 1 ? qsTr("1 key selected")
+                                                              : qsTr("%1 keys selected").arg(page.selection.length)
+                            color: theme.secondary
+                            font.features: { "tnum": 1 }
+                        }
+                        Item { Layout.fillWidth: true }
+
+                        // The keymap has layers; the drawing shows the one being edited.
+                        Segmented {
+                            objectName: "layerSwitch"
+                            visible: page.tab === 0
+                            model: [qsTr("Default layer"), qsTr("Fn layer"), qsTr("Fn1 layer")]
+                            currentIndex: actionTab.activeLayer
+                            onActivated: (index) => actionTab.activeLayer = index
+                        }
                     }
                 }
             }
+
+            // ---- Advanced: every key that has one, beside the plate, as tall as it ----
+            // A click selects it. The plate's surface, so it reads as part of the keyboard.
+            Rectangle {
+                objectName: "advancedSide"
+                visible: page.sidePanel
+                Layout.alignment: Qt.AlignTop
+                Layout.fillWidth: true
+                Layout.maximumWidth: page.sideMaxWidth
+                Layout.preferredHeight: drawing.height + selectionBar.height
+                radius: theme.radius
+                color: theme.plate
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: drawing.inset
+                    spacing: 10 * ui.unit
+
+                    Label {
+                        Layout.fillWidth: true
+                        text: qsTr("Keys with an advanced function")
+                        wrapMode: Text.WordWrap
+                        font.pixelSize: ui.section
+                        font.weight: Font.DemiBold
+                    }
+                    Label {
+                        Layout.fillWidth: true
+                        visible: backend.advancedKeys.length === 0
+                        text: qsTr("None yet. Select a key, then choose a function under the keyboard.")
+                        wrapMode: Text.WordWrap
+                        color: theme.secondary
+                    }
+                    ScrollView {
+                        objectName: "advancedListBox"
+                        visible: backend.advancedKeys.length > 0
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        contentWidth: availableWidth
+
+                        Flow {
+                            id: advancedList
+                            objectName: "advancedList"
+                            width: parent.width
+                            spacing: 6 * ui.unit
+                            Repeater {
+                                model: backend.advancedKeys
+                                delegate: Chip {
+                                    required property var modelData
+                                    on: page.selection.indexOf(modelData.key) >= 0
+                                    text: advancedTab.keyName(modelData.key)
+                                          + (modelData.type === "socd" ? " + " + advancedTab.keyName(modelData.key2) : "")
+                                          + " · " + advancedTab.typeName(modelData.type)
+                                    onClicked: page.select(modelData.type === "socd" ? [modelData.key, modelData.key2] : [modelData.key])
+                                }
+                            }
+                        }
+                    }
+                    Item { Layout.fillHeight: true; visible: !(backend.advancedKeys.length > 0) }
+                }
+            }
+            Item { Layout.fillWidth: true; visible: !page.sidePanel }
         }
 
         // ---- the tab's controls ----------------------------------------------

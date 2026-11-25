@@ -113,6 +113,10 @@ reflected in `akko-protocol.md`.
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: no Undo (Remove, or saving the old values again).
 - Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
+- Advanced tab: the keyboard is drawn smaller than on Action and Travel (the key list sits beside
+  it, and the editor under it is taller), so the keys shift when switching to that tab. In a narrow
+  window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker
+  then replaces the editor column while it is open instead of sitting beside it.
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (works on Wayland;
   xcb not tried). Keys outside the evdev table (media keys, ...) record as nothing.
