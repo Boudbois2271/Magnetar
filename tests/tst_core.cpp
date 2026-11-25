@@ -326,6 +326,50 @@ private slots:
         QVERIFY(std::equal(f.begin(), f.end(), t.written.back().begin() + 1));
     }
 
+    void profileNamesLikeTheVendorApp()
+    {
+        // akko-capture13.txt marks 28-30: profile 2 renamed "Gaming", then "Onboard Profile 2".
+        const auto f = [](const char *name) { return fixtureSection("vendor-profile-names.txt", name).at(0); };
+        FakeTransport t;
+        replay(t, {f("gaming-write"), f("gaming-read-answer")});
+        Keyboard kb(t);
+        QCOMPARE(kb.setProfileName(1, "Gaming"), std::optional<std::string>("Gaming"));
+        QCOMPARE(sent(t, 0), f("gaming-write"));
+        QCOMPARE(sent(t, 1), f("gaming-read"));
+
+        FakeTransport t2;
+        FakeKeyboard fake;
+        t2.respond = std::ref(fake);
+        Keyboard kb2(t2);
+        QCOMPARE(kb2.profileName(0), std::nullopt);  // stock: all ff
+        kb2.setProfileName(1, "Onboard Profile 2");
+        QCOMPARE(sent(t2, 1), f("back-write"));
+        QCOMPARE(kb2.profileName(1), std::optional<std::string>("Onboard Profile 2"));
+        // A shorter name only overwrites the start; n bounds it.
+        QCOMPARE(kb2.setProfileName(1, "Gaming"), std::optional<std::string>("Gaming"));
+        QCOMPARE(kb2.profileName(0), std::nullopt);
+        const std::string longest(kMaxProfileName, 'x');
+        QCOMPARE(kb2.setProfileName(2, longest), std::optional<std::string>(longest));
+    }
+
+    void profileNamesRefuseWhatCantBeStored()
+    {
+        FakeTransport t;
+        FakeKeyboard fake;
+        t.respond = std::ref(fake);
+        Keyboard kb(t);
+        for (const std::string bad : {std::string(), std::string(kMaxProfileName + 1, 'x'), std::string("Caf\xc3\xa9"),
+                                      std::string("tab\there")}) {
+            QVERIFY(!profileNameProblem(bad).empty());
+            QVERIFY_THROWS_EXCEPTION(Error, kb.setProfileName(0, bad));
+        }
+        QVERIFY(t.written.empty());
+        QVERIFY(profileNameProblem("Gaming 2 ~!").empty());
+
+        fake.ignoreProfileNameWrites = true;
+        QVERIFY_THROWS_EXCEPTION(Error, kb.setProfileName(0, "Gaming"));
+    }
+
     void profileCountAndFallbacks()
     {
         for (auto [reported, expected] : {std::pair{3, 3}, {1, 1}, {8, 8}, {0, 3}, {9, 3}}) {

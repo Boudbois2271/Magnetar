@@ -85,6 +85,15 @@ struct FakeKeyboard {
     Bytes macros;                       // the macro blob, empty = no macros (reads ff ff)
     bool ignoreMacroWrites = false;     // echoes 05 00 but keeps the old blob
     Bytes macroIncoming;                // 05 00 packets gathered until the last one
+    // Profile names (1a/9a PP): each profile's 56-byte area, all ff (stock) at first. A write
+    // only overwrites the start, as on the board.
+    std::array<std::array<std::uint8_t, 56>, 8> profileNames = [] {
+        std::array<std::array<std::uint8_t, 56>, 8> a;
+        for (auto &n : a)
+            n.fill(0xFF);
+        return a;
+    }();
+    bool ignoreProfileNameWrites = false;  // echoes 1a PP but keeps the old name
     // Calibration: key → (rest, bottom), every key 10500 / 1800 at first. A 94 00 keep-alive also
     // sends the reports waiting in calibrationReports (94 02, as captured); 94 04 stores the
     // lowest value each key reached in them as its bottom.
@@ -243,6 +252,15 @@ struct FakeKeyboard {
         }
         if (cmd == 0x85)
             return {macroRead(w)};
+        if (cmd == 0x9A && sub < profileNames.size()) {
+            Bytes r(kReportLen, 0);
+            std::copy_n(w.begin(), 6, r.begin());
+            r[6] = 0x38;
+            std::copy(profileNames[sub].begin(), profileNames[sub].end(), r.begin() + 7);
+            return {r};
+        }
+        if (cmd == 0x1A && sub < profileNames.size() && !ignoreProfileNameWrites)
+            std::copy_n(w.begin() + 7, std::min<std::size_t>(w[6], 56), profileNames[sub].begin());
         if (cmd == 0x05 && sub == 0x00)
             macroWrite(w);
         if (cmd == 0x92 && sub == 0x00)
