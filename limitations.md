@@ -12,8 +12,8 @@ reflected in `akko-protocol.md`.
   and the keys on interface 1 (NKRO), so on Linux (Hyprland) the modifier doesn't apply: a Shift+A
   macro types "a" (seen again on the board 2026-11-25). Workaround: a shortcut in Keys → Action.
   Pressing the key again while its macro plays restarts it; the cut-off run's pending steps (e.g.
-  the Shift release) are never sent. Directories over 56 bytes
-  (15+ macros) are read in packets by our code, never captured.
+  the Shift release) are never sent. Directories over 56 bytes are read in packets, as the vendor
+  app does (`akko-capture13.txt`). Mouse steps (dir `20`/`a0`): left button only captured.
 
 ### Not captured at all
 - **Combo Optimization**: the toggle is decoded, what it does on the board is not known.
@@ -122,8 +122,8 @@ reflected in `akko-protocol.md`.
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (works on Wayland;
   xcb not tried). Keys outside the evdev table (media keys, ...) record as nothing.
-- Macros page: steps can only use keyboard usages (no mouse
-  or media steps: never captured). A step's key can't be changed in place (remove it, add another).
+- Macros page: steps can only use keyboard usages. Mouse-button steps are decoded (`20`/`a0`, left
+  button captured) but not offered yet; the vendor recorder has no media steps either. A step's key can't be changed in place (remove it, add another).
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).

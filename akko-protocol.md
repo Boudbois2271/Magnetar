@@ -221,16 +221,29 @@ All macros live in one blob (UI: "Macro Storage: N B / 4096B"), rewritten whole 
 | `05 00` | KNOWN | write the whole blob: `pkt_count` × up to 56 B, `pkt_index` 0.., arg `00`, echoed. Empty blob (last macro deleted) = one packet, len `00` |
 | `85 00` | KNOWN | read: bytes 1–2 (sub + arg) = byte offset, u16 BE (`00 00`, `00 38`, … `01 18`, `akko-capture11.txt`), len = bytes wanted. The app reads 2 B (directory size), then the directory, then the blob. Empty storage reads `ff ff` |
 
+Reads longer than 56 B go in packets like the writes: `85 <offset u16 BE> <pkt_count> <pkt_index> <len>`, the
+offset stepping by `38`. The directory is read that way too once it is over 56 B (15+ macros): 60 B =
+`85 00 00 02 00 38` then `85 00 38 02 01 04`; the blob (231 B) = 5 packets at offsets `00 38 70 a8 e0`, the last
+len `07`; at exactly 56 B (14 macros) the directory is one packet (`akko-capture13.txt` marks 1 and 4, frames in
+`tests/fixtures/vendor-macros-long.txt`). Magnetar's `readMacros()` sends exactly these frames (offsets, counts,
+indices and lens); `writeMacros()` matches the vendor's 5-packet `05 00` write too.
+
 Blob layout (DECODED, sizes match the UI: 127 B, 150 B, 165 B):
 - Directory: one entry per macro, `offset u16, size u16`, **little-endian** (unlike the rest of the
   protocol; confirmed above 256: one 609 B macro = `04 00 5d 02`, size 605, `akko-capture11.txt` mark 35). Directory size = 4 × macros, so the first u16 is also the
   first macro's offset.
 - Macro at `offset`: `name_len u8, name[name_len]` (ASCII; the UI requires ≥ 2 chars), then actions.
-- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release, `10` modifier press, `90` modifier release
-  (bit `80` = release, bit `10` = modifier, HID `e0`–`e7`); delay = ms to wait after
+- Action (4 B): `dir u8, delay u16 BE, hid u8`. dir `00` press, `80` release, `10` modifier press, `90` modifier release,
+  `20` mouse button press, `a0` mouse button release (bit `80` = release, bit `10` = modifier, HID `e0`–`e7`, bit `20` =
+  mouse, last byte = button: `01` left); delay = ms to wait after
   this action; the last action gets `1`. "Use Standard Delay (50ms)" sets every delay to 50.
   e.g. "ab" = `02 61 62 | 00 00 32 04 | 80 00 32 04 | 00 00 32 05 | 80 00 01 05`;
   "cc" recorded as c↓, 137 ms, c↑ = `02 63 63 | 00 00 89 06 | 80 00 01 06`.
+- Mouse steps (SEEN, `akko-capture13.txt` mark 7): the vendor recorder records real mouse clicks (not volume
+  or media keys, mark 6). One left click = `02 6d 73 | 20 00 3e 01 | a0 00 01 01` ("ms", 62 ms down). Only
+  the left button was captured; the button byte is GUESS `01`–`05` as in the keymap's `01 bb 01 00`.
+- Size: 15 macros "m1"…"m15" of one A tap each = 231 B (UI "231B"): 4 B directory entry + 1 + name + 8 B of
+  steps each (`akko-capture13.txt` mark 2).
 - Deleting a macro removes it and repacks the blob; indices of later macros shift down. The app
   refuses to delete a macro that is bound, or to bind a key that already has one (both client-side:
   no traffic). A key whose index points past the last macro sends one empty mouse report (report
