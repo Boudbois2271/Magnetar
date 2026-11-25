@@ -1754,7 +1754,7 @@ private slots:
         QTRY_COMPARE(w.backend.keymap()[0].toMap().value("99").toMap().value("code").toString(), QString("00 00 00 05"));
         auto *reset = w.item("resetLayer");
         QVERIFY(reset && reset->isVisible() && reset->property("enabled").toBool());
-        QCOMPARE(reset->property("text").toString(), QString("Reset Fn layer to factory"));
+        QCOMPARE(reset->property("text").toString(), QString("Reset layer"));
         const int reads = w.board.writesOf(0x83, 0x01);
         QMetaObject::invokeMethod(reset, "clicked");
         QTRY_COMPARE(w.cap(0x62), QString("Ins"));

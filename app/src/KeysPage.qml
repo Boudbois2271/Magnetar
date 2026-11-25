@@ -231,8 +231,8 @@ Item {
                                 objectName: "resetLayer"
                                 visible: page.tab === 0 && actionTab.activeLayer < 2
                                 iconName: "rotate-ccw"
-                                text: actionTab.activeLayer === 0 ? qsTr("Reset Default layer to factory")
-                                                                  : qsTr("Reset Fn layer to factory")
+                                // The layer switch beside it says which layer.
+                                text: qsTr("Reset layer")
                                 enabled: actionTab.layerDiffers
                                 onClicked: backend.resetLayer(actionTab.activeLayer)
                             }
