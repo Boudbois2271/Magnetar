@@ -184,6 +184,10 @@ Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Det
   Release and DKS were sent from Magnetar's Advanced tab and typed as expected on 2026-11-25.
 - An advanced key fires on the Default layer only: with a Release on Insert, Fn+Insert did not fire
   it (2026-11-25).
+- Vendor ranges (`akko-capture13.txt` marks 16–21, frames in `tests/fixtures/vendor-ranges.txt`): Mod-Tap
+  Hold Duration 0–1000 ms (max saved = `03 e8`), Multi-Point Binding Depth 0.100–3.400 mm (max saved = `02 a8`,
+  680). Only the value at Save is sent, so the minima are what the UI showed. A new Multi-Point fills the
+  other two slots with depths `00 c8` (1.00 mm) and `01 2c` (1.50 mm), action `00 00 00 00`.
 - No limit found on the count: the board kept a Mod-Tap on 80 keys at once (every key but Esc,
   Insert and Fn), each checked with a per-key read, then all cleared (2026-11-25).
 
@@ -205,12 +209,14 @@ wanted (any subset works); a full read is `93` 8 × 11 keys, `96`/`99` 12 × 7 k
 `13`/`16`/`19` and their reads are KNOWN: `core/` sent each one on F12 and read back exactly what it wrote, and
 `13` to all 83 keys at once (8 packets) also read back. `16` was only ever sent one key per frame (vendor and
 ours). Out of the box (`akko-capture2.txt`): actuation 0.6 mm, RT off at 0 / 0, dead zones off at 0.13 / 0.125.
+The vendor app has no restore-default or factory button for travel; Parameter Preset is the only bulk change
+(`akko-capture13.txt` mark 27).
 
 | cmd/sub | Status | Per key | Notes |
 |---|---|---|---|
 | `13 00` / `93 00` | KNOWN | `key u16, actuation u16, 00` (5 B, 11 per packet) | 1.37 mm → `01 12` (274), 0.42 → `00 54` (84), 0.6 → `00 78` (120). Select All = 83 keys, 8 packets. Marks "Select All, actuation -> 1.37 mm", "Deselect, select F12 only…", "restore…" |
-| `19 00` / `99 00` | KNOWN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only) |
-| `16 00` / `96 00` | KNOWN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys |
+| `19 00` / `99 00` | KNOWN | `key u16, rt on u8, press u16, release u16, 00` | Rapid Trigger. The panel has only the RT toggle, a sensitivity slider and the independent toggle; there is no "continuous RT" option (the wording in `akko-capture4.txt` mark 1 is a slip). On with defaults = press 1 / release 1 (0.005 mm). Linked slider writes press = release (0.13 → `1a`/`1a`). Independent: press 0.17 → `22`, release "0.29" → `39` (57 = 0.285; the UI rounds). Off keeps the values. The "independent" toggle sends nothing (UI only). Vendor range 0.005–3.5 mm (`0001`–`02bc`) for press and release alike, SEEN and read back (`akko-capture13.txt` marks 22–23) |
+| `16 00` / `96 00` | KNOWN | `key u16, top u16, bottom u16, on u16` | Dead zones. Toggle on → `00 1a 00 19 00 01` (top 0.13, bottom 0.125). Top 0.185 → `25`, bottom 0.23 → `2e`. Off → last u16 `00`, values kept. Read = 12 packets × 7 keys. Vendor range 0–0.5 mm (`0000`–`0064`) for both, SEEN and read back (`akko-capture13.txt` mark 24) |
 | `15 00` / `95 00` | SEEN | `key u16, model u8` | Switch model (Switch Settings). Read sends `key` only. Ultra Mag Pro+ `1f`, Star Magnetic `27`, Xingyao `43`, Star Gravity `44`, Luminous `45` (stock); all five SEEN (`akko-capture11.txt` marks 19–21). `akko-capture4.txt` marks "F12 -> Xingyao", "back to the old model" |
 
 ### Macros (`akko-capture7.txt`)

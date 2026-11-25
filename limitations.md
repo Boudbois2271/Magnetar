@@ -102,8 +102,8 @@ reflected in `akko-protocol.md`.
 - Advanced keys: Toggle (holds the action until the next tap), Multi-Point, Release and DKS were
   used from the page on the board (2026-11-25); Mod-Tap, SOCD and the clear were sent by the core
   and read back (2026-11-21).
-- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor
-  app's ranges were never captured (seen: 200 default, 322, 965 ms).
+- Advanced tab: hold time 100–1000 ms and depths 0.10–3.50 mm are our limits; the vendor app
+  offers 0–1000 ms and Multi-Point 0.100–3.400 mm (`akko-capture13.txt`), not adopted yet.
 - Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
   on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
   known. Assumed per profile (read again on a profile switch).
@@ -127,9 +127,9 @@ reflected in `akko-protocol.md`.
   Releases of keys pressed before Record are dropped; keys still held at Stop get no release step.
 - Macros page: a macro with a name and no steps can be saved (the blob format allows it); on the
   board its key sends one empty keyboard report and nothing else (2026-11-25).
-- Travel page: the Rapid Trigger (up to 1.00 mm) and dead zone (up to 0.50 mm) caps are ours, not the
-  vendor's, whose maxima were never captured. Keys set beyond them by the vendor app are shown but
-  their slider is locked.
+- Travel page: the Rapid Trigger cap (up to 1.00 mm) is ours; the vendor app goes to 3.5 mm (0.005–3.5
+  for press and release, `akko-capture13.txt`), not adopted yet. The dead-zone cap (0.50 mm) is the
+  vendor's too. Keys set beyond our caps by the vendor app are shown but their slider is locked.
   The locked slider's note adds a line under it; with press and release apart, the tab's column
   (seven rows) then runs past the default window's height.
 - Calibration screen (Settings → Calibrate): "pressed all the way down" (green) means 95 % of the travel stored at Start.
@@ -138,7 +138,8 @@ reflected in `akko-protocol.md`.
 - Calibration screen: while a session runs, other changes (profile shortcuts included) wait for Finish;
   the profile picker is disabled.
 - Travel page: assumed per profile (read again on a profile switch), not checked on the board.
-- Travel page: no "restore default" (factory values aren't certain, see Units) and no presets; Undo
+- Travel page: no "restore default" (the vendor app has none either; factory values aren't certain,
+  see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
 - Travel page: in a window at its minimum width the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
