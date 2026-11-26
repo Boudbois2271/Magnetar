@@ -92,16 +92,17 @@ reflected in `akko-protocol.md`.
 - Pages: Keys (tabs Action, Travel, Advanced), Lighting (with per-key colours and the Visualiser
   effect), Mural (workbench for app-streamed effects), Macros, Settings (with Calibration and Device).
 - Settings page: used by hand on the board (2026-11-25): Win Key Lock and polling rates 8000,
-  4000, 2000 and 1000 Hz all work (typing checked after each). Whether these settings are per profile is
-  unknown (they're read with every batch, so a profile switch would show it). The page shows the
+  4000, 2000 and 1000 Hz all work (typing checked after each). Win Key Lock is per profile (checked 2026-11-26);
+  the polling rate looks global and the other two are unknown. All four are read with every batch, so a
+  profile switch shows the board's values either way. The page shows the
   switches by name only: Combo Optimization's effect is unknown and Adaptive Calibration's is a
   likely match, not confirmed (see above).
 - Polling rate: the board drops off USB right after the write and is back after ~1 s. The app waits
   1.2 s, then retries quietly for up to 10 s before showing an error. Anything queued in the same
   batch after the change is dropped.
 - Per-key colours (Lighting page): used on the board (2026-11-25): the LEDs match the drawing,
-  and a colour set while Breathing runs is there on switching back to Custom. Assumed per profile
-  (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
+  and a colour set while Breathing runs is there on switching back to Custom. Per profile
+  (checked 2026-11-26, akko-protocol.md, Profile & device). No undo; no per-key brightness or effects.
 - Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
   `akkoctl` (and shown as read). The Lighting drawing shares the Keys sizing rule and matches it,
   except in a window too short for the Lighting options stacked under it: there it is smaller.
@@ -121,7 +122,7 @@ reflected in `akko-protocol.md`.
   and DKS depths move in 0.01 mm steps (the vendor shows 0.100, its step isn't known).
 - Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
   on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
-  known. Assumed per profile (read again on a profile switch).
+  known. Per profile (checked 2026-11-26), read again on a profile switch.
 - Advanced tab: clearing one key of a SOCD pair might leave the other key's record on the
   board; Magnetar always clears both, like the vendor app.
 - Advanced tab: a DKS row can hold several strokes (e.g. once at ↓1, then held ↑1→↑2): all 34
@@ -168,7 +169,7 @@ reflected in `akko-protocol.md`.
   board's only way out, and the old values can't be written back.
 - Calibration screen: while a session runs, other changes (profile shortcuts included) wait for Finish;
   the profile picker is disabled.
-- Travel page: assumed per profile (read again on a profile switch), not checked on the board.
+- Travel page: per profile (checked 2026-11-26), read again on a profile switch.
 - Travel page: no "restore default" (the vendor app has none either; factory values aren't certain,
   see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.

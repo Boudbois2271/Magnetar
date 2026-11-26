@@ -93,6 +93,21 @@ vendor's labels "Direction Right"/"Direction Left", swapped against the arrows; 
 | `85 00` `87 00` `a6 ff` | GUESS | `ff ff`, `ff`, zeros |
 | `a1 00` | DECODED | key → LED index: `key u16, 01, led`. LED = column×8 + row (Esc 0x00, F1 0x08, `` ` `` 0x01) |
 
+**Per profile or global** (our own reads on the board, 2026-11-26): everything read on profile 0, `10 00`
+to profile 1, read again, `10 00` back to 0, read again (profile 0 unchanged).
+
+| What | Per profile? | Evidence |
+|---|---|---|
+| Lighting `84 01` | yes | effect `01` vs `13`, brightness `14` vs `0a` |
+| Per-key colours `86 00` | yes | 74 of 83 keys differ (profile 1 all black) |
+| Travel `93`/`99`/`96 00` | yes | actuation 200 vs 44 on all 83 keys, dead zones differ |
+| Macros `85 00` | yes | 2 macros vs none |
+| Advanced keys `92 00` | yes | Toggle written on Insert on profile 0 (`12 00`): profile 1's list stayed empty; cleared after |
+| Win Key Lock `84 15` | yes | set `01` on profile 0 (`04 15`): profile 1 read `00`; set back to `00` after |
+| Polling rate `84 17` | unknown, likely global | `06` (2000 Hz, not stock) on both profiles; a write restarts the board, not tried |
+| Combo Optimization, Adaptive Calibration `84 18`/`84 19` | unknown | stock `01` on both profiles, never written |
+| Keymap `83 LL` | not shown | Default layer identical on both (factory) |
+
 ### Base Functions (`akko-capture6b.txt`)
 One byte each, `04 xx` write `[value]` / `84 xx` read. The page reads all of the `84` subs below on load.
 KNOWN: sent by Magnetar's core (each switch toggled and restored, polling 1000 → 500 → 1000), read back right.
