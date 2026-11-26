@@ -7,8 +7,12 @@ import QtQuick
 QtObject {
     id: names
 
-    // HID keyboard page usage → name, as printed on the keycaps (US layout).
+    // HID keyboard page usage → name, as printed on the keycaps: what a typing key types in the
+    // desktop's layout (keyLayout, AZERTY: "A" on the Q position), US names otherwise.
     function usageName(u) {
+        const typed = keyLayout.labels[u]
+        if (typed)
+            return typed
         if (u >= 0x04 && u <= 0x1d)
             return String.fromCharCode(0x41 + u - 0x04)  // A–Z
         if (u >= 0x1e && u <= 0x26)

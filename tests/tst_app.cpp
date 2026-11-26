@@ -3,6 +3,7 @@
 // and translator, and the whole QML window loaded offscreen.
 #include "backend.h"
 #include "hotplug_watch.h"
+#include "keyboard_layout.h"
 #include "report_listener.h"
 
 #include <fcntl.h>
@@ -228,6 +229,7 @@ struct KeysWindow {
     ColorPalette colorPalette{dir.filePath("settings.ini")};
     FakeAudio audio;
     MuralController mural{backend, dir.filePath("settings.ini"), audio.factory()};
+    KeyboardLayout keyLayout;  // no keymap: US names
     QQmlApplicationEngine engine;
     QList<QQmlError> warnings;
     QQuickWindow *window = nullptr;
@@ -242,6 +244,7 @@ struct KeysWindow {
         engine.rootContext()->setContextProperty("ui", &ui);
         engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
         engine.rootContext()->setContextProperty("mural", &mural);
+        engine.rootContext()->setContextProperty("keyLayout", &keyLayout);
         engine.load(QUrl("qrc:/Main.qml"));
         window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
         if (!window)
@@ -1516,6 +1519,7 @@ private slots:
         ColorPalette colorPalette(dir.filePath("settings.ini"));
         FakeAudio audio;
         MuralController mural(backend, dir.filePath("settings.ini"), audio.factory());
+        KeyboardLayout keyLayout;
 
         QQmlApplicationEngine engine;
         QList<QQmlError> warnings;
@@ -1526,6 +1530,7 @@ private slots:
         engine.rootContext()->setContextProperty("ui", &ui);
         engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
         engine.rootContext()->setContextProperty("mural", &mural);
+        engine.rootContext()->setContextProperty("keyLayout", &keyLayout);
         engine.load(QUrl("qrc:/Main.qml"));
         QCOMPARE(engine.rootObjects().size(), 1);
         auto *window = qobject_cast<QQuickWindow *>(engine.rootObjects().first());
@@ -2046,6 +2051,64 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // Typing keys are named as the desktop's layout types them, from a fixed keymap here, never
+    // the test machine's; the other keys, and every key without a keymap, keep their US names.
+    void keyboardLayoutLabelsTheTypingKeys()
+    {
+        KeyboardLayout us;
+        QCOMPARE(us.label(0x14), QString());
+        QVERIFY(us.loadNames("us"));
+        QCOMPARE(us.label(0x14), QString("Q"));
+        QCOMPARE(us.label(0x1e), QString("1"));
+        QCOMPARE(us.label(0x33), QString(";"));
+        QCOMPARE(us.label(0x29), QString());  // Esc: a name, not a character
+
+        KeyboardLayout fr;
+        QSignalSpy changed(&fr, &KeyboardLayout::changed);
+        QVERIFY(fr.loadNames("fr"));
+        QCOMPARE(changed.size(), 1);
+        QCOMPARE(fr.name(), QString("French"));
+        QCOMPARE(fr.label(0x14), QString("A"));   // Q position
+        QCOMPARE(fr.label(0x04), QString("Q"));   // A position
+        QCOMPARE(fr.label(0x1a), QString("Z"));   // W position
+        QCOMPARE(fr.label(0x33), QString("M"));   // ; position
+        QCOMPARE(fr.label(0x10), QString(","));   // M position
+        QCOMPARE(fr.label(0x1e), QString("&"));   // what the 1 key types
+        QCOMPARE(fr.label(0x1f), QString("é"));   // not a capital: Shift gives 2
+        QCOMPARE(fr.label(0x2f), QString("^"));   // dead key: the accent alone
+        QCOMPARE(fr.label(0x28), QString());      // Enter keeps its name
+
+        QVERIFY(!fr.loadKeymap({}));
+        QVERIFY(!fr.loadKeymap("not a keymap"));
+        QCOMPARE(fr.label(0x14), QString("A"));   // a failed load keeps the last layout
+    }
+
+    void keycapsFollowTheKeyboardLayout()
+    {
+        // Board key ids with their factory usages: 0x1d types Q, 0x2b A, 0x34 ;, 0x01 Esc.
+        KeysWindow w;
+        QVERIFY(w.keyLayout.loadNames("fr"));
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady());
+        QTRY_COMPARE(w.cap(0x1d), QString("A"));
+        QCOMPARE(w.cap(0x2b), QString("Q"));
+        QCOMPARE(w.cap(0x34), QString("M"));
+        QCOMPARE(w.cap(0x01), QString("Esc"));
+        // The current action names the same character; the stored usage doesn't change.
+        w.click(0x1d);
+        QTRY_COMPARE(w.item("currentAction")->property("text").toString(), QString("A"));
+        QCOMPARE(w.backend.keymap()[0].toMap()[QString::number(0x1d)].toMap()["keys"].toList().value(0).toInt(), 0x14);
+        // The Typing list reads A–Z, each letter on the usage that types it.
+        const auto typing = w.item("actionPicker")->property("categories").toList().value(0).toMap()["items"].toList();
+        QCOMPARE(typing.value(0).toMap()["label"].toString(), QString("A"));
+        QCOMPARE(typing.value(0).toMap()["usage"].toInt(), 0x14);
+        QCOMPARE(typing.value(25).toMap()["label"].toString(), QString("Z"));
+        // Back to US names when the layout changes.
+        QVERIFY(w.keyLayout.loadNames("us"));
+        QTRY_COMPARE(w.cap(0x1d), QString("Q"));
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void lightingPreviewShowsTheBoard()
     {
         KeysWindow w;
@@ -2112,6 +2175,7 @@ private slots:
         QTRY_COMPARE(w.translator.language(), QString("fr"));
         qGuiApp->installTranslator(&w.translator);
         auto cleanup = qScopeGuard([&] { qGuiApp->removeTranslator(&w.translator); });
+        QVERIFY(w.keyLayout.loadNames("fr"));
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready() && w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
         QVERIFY(w.backend.saveAdvanced({QVariantMap{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}}));
