@@ -102,8 +102,8 @@ reflected in `akko-protocol.md`.
   and a colour set while Breathing runs is there on switching back to Custom. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
 - Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
-  `akkoctl` (and shown as read). The Lighting drawing is sized like the Keys one by the same rule,
-  not shared with it: the two can differ by a few pixels.
+  `akkoctl` (and shown as read). The Lighting drawing shares the Keys sizing rule and matches it,
+  except in a window too short for the Lighting options stacked under it: there it is smaller.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   was used on the board for Nothing / Restore default on three keys (2026-11-25); the rest is
   tested against the fake keyboard only.
@@ -129,7 +129,9 @@ reflected in `akko-protocol.md`.
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: Undo is one level (the last save or removal), cleared on a profile switch; not
   tried on the board.
-- Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
+- Advanced tab: from the minimum window size up the SOCD, DKS and Multi tags show whole on 1u
+  keys; the longer Mod-Tap, Toggle and Release tags are cut there ("Mod…") until the window is
+  wider. Shorter tag names would fix it (a wording choice, not made).
 - Advanced tab: the keyboard is drawn smaller than on Action and Travel (the key list sits beside
   it, and the editor under it is taller), so the keys shift when switching to that tab. In a narrow
   window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker
@@ -165,7 +167,9 @@ reflected in `akko-protocol.md`.
   see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
-- Travel page: in a window at its minimum width the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
+- Travel page: the keycap numbers are one size on every key, the largest that fits a 1u cap
+  beside its depth gauge; at the minimum window size that is about 8 px with 14 px text
+  (7 px with 12 px text). Larger needs a larger drawing or shorter numbers.
 - Keys page: system (`07`), profile (`09`), "www" (`11`) and select-effect (`08 09 nn`) actions are
   shown but can't be assigned; the Fn layer's factory ones show as "System function" / "Profile N" /
   "Lighting control". The vendor's 15 lighting actions, mouse back/forward and media keys are
@@ -175,7 +179,10 @@ reflected in `akko-protocol.md`.
   Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
   only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
-- Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
+- Keys page: keycap legends fit whole from the app's minimum window size up (the drawing never
+  goes under 560 px at 14 px text). In a window tiled narrower than that (a third of a 1080p
+  screen) the longest 1u names ("Échap") can still be cut. At the minimum window height the
+  pages run past the bottom edge (they already did before the larger drawing).
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
   blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.

@@ -59,20 +59,18 @@ Item {
     // beside the drawing, so there the drawing is smaller.
     readonly property bool sidePanel: page.tab === 2
     // In a narrow window the list goes under the keyboard instead, as a short box.
-    readonly property bool sideBelow: frame.width < 400 * ui.unit + page.sideMinWidth + 16 * ui.unit
+    readonly property bool sideBelow: frame.width < drawing.minimumWidth + page.sideMinWidth + 16 * ui.unit
     readonly property real sideMinWidth: 220 * ui.unit
     readonly property real sideMaxWidth: 320 * ui.unit
     // (In a small window it gives way first: the keyboard keeps a usable size.)
-    readonly property real controlsHeight: page.sidePanel ? Math.max(265 * ui.unit, Math.min(380 * ui.unit, 0.45 * frame.height))
-                                                          : 265 * ui.unit
+    readonly property real controlsHeight: page.sidePanel ? Math.max(drawing.pageControls, Math.min(380 * ui.unit, 0.45 * frame.height))
+                                                          : drawing.pageControls
+    // KeyboardView.pageWidth, shared with the Lighting page: the same drawing on both.
     readonly property real drawingWidth: {
-        // Height for the plate and the bar under it; both grow with the width (the bar by the
-        // plate's bezel).
-        const room = frame.height - header.height - 2 * frame.spacing - page.controlsHeight - 34 * ui.unit
+        const tall = frame.height - header.height - 2 * frame.spacing
                      - (page.sidePanel && page.sideBelow ? 126 * ui.unit : 0)
-        const perWidth = 1 / drawing.aspect + drawing.bezel / (drawing.columns + 2 * drawing.bezel)
         const across = frame.width - (page.sidePanel && !page.sideBelow ? page.sideMinWidth + keyboardRow.columnSpacing : 0)
-        return Math.max(400 * ui.unit, Math.min(across, drawing.implicitWidth, room / perWidth))
+        return drawing.pageWidth(across, tall, page.controlsHeight)
     }
 
     // A page action: an icon and a word, at the right of the header.
@@ -181,6 +179,7 @@ Item {
                     colorFor: page.current.colorFor || function (id) { return "" }
                     depthFor: page.current.depthFor || function (id) { return -1 }
                     badgeFor: page.current.badgeFor || function (id) { return "" }
+                    uniformLabels: page.current.uniformLabels === true
                     selectedKeys: page.selection
                     onKeyClicked: (id, modifiers) => page.click(id, modifiers)
                     onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)

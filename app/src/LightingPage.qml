@@ -109,13 +109,10 @@ Item {
         return best
     }
 
-    // The drawing is as large as on the Keys page: as wide as the page allows, up to the same
-    // largest keys, leaving room for the options under it.
-    readonly property real drawingWidth: {
-        const room = frame.height - frame.headerHeight - 2 * frame.spacing - options.implicitHeight - 34 * ui.unit
-        const perWidth = 1 / preview.aspect + preview.bezel / (preview.columns + 2 * preview.bezel)
-        return Math.max(400 * ui.unit, Math.min(frame.width, preview.implicitWidth, room / perWidth))
-    }
+    // The drawing is the Keys page's (KeyboardView.pageWidth, the same room for the controls
+    // under it), so the two match; only options taller than that room make it smaller.
+    readonly property real drawingWidth: preview.pageWidth(frame.width, frame.height - frame.headerHeight - 2 * frame.spacing,
+                                                            Math.max(preview.pageControls, options.implicitHeight))
 
     KeyNames { id: names }
 
