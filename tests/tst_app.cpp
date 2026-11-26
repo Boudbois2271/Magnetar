@@ -1022,6 +1022,56 @@ private slots:
         QCOMPARE(ColorPalette::normalized("#ab"), QString());
     }
 
+    // Legends on LED colours read (WCAG ≥ 4.5:1) on both a dark and a light Omarchy theme
+    // (tokyo-night, flexoki-light), dark LEDs included: on a cap filled with the colour as Lighting
+    // draws it (mixed into the cap by brightness), and lit in the colour on a cap, keeping its hue.
+    void ledLegendsRead()
+    {
+        const QStringList leds{"#00008b", "#0000ff", "#1e1eb4", "#4b0082", "#800080", "#8000ff",
+                               "#8b0000", "#ff0000", "#008000", "#ff00ff", "#ffffff", "#ffff00"};
+        const QList<QByteArray> themes{
+            "mode = \"dark\"\nbackground = \"#1a1b26\"\nforeground = \"#a9b1d6\"\n",
+            "mode = \"light\"\nbackground = \"#FFFCF0\"\nforeground = \"#100F0F\"\n"};
+        const auto tint = [](const QColor &base, const QColor &over, double a) {
+            return QColor::fromRgbF(float(base.redF() * (1 - a) + over.redF() * a),
+                                    float(base.greenF() * (1 - a) + over.greenF() * a),
+                                    float(base.blueF() * (1 - a) + over.blueF() * a));
+        };
+        for (const QByteArray &toml : themes) {
+            QTemporaryDir dir;
+            QVERIFY(QDir().mkpath(dir.filePath("theme")));
+            QFile colors(dir.filePath("theme/colors.toml"));
+            QVERIFY(colors.open(QIODevice::WriteOnly));
+            colors.write(toml);
+            colors.close();
+            Theme theme(dir.path(), nullptr, "/nonexistent-hyprctl");
+            // The face a lit legend sits on (KeyboardView: the theme's cap, dark on a light theme).
+            QList<QColor> faces{theme.capTop()};
+            if (!theme.dark())
+                faces = {tint(theme.foreground(), theme.background(), .16), tint(theme.foreground(), theme.background(), .24)};
+            for (const QString &hex : leds) {
+                const QColor led(hex);
+                for (double level : {1.0, 0.75, 0.5, 0.25, 0.1}) {
+                    const QColor fill = tint(theme.capTop(), led, level);
+                    const double c = ColorPalette::contrast(ColorPalette::inkOn(fill), fill);
+                    QVERIFY2(c >= ColorPalette::kLegible, qPrintable(QString("%1 at %2 on %3: %4").arg(hex).arg(level).arg(fill.name()).arg(c)));
+                }
+                for (const QColor &face : faces) {
+                    const QColor lit = ColorPalette::legibleOn(led, face);
+                    const double c = ColorPalette::contrast(lit, face);
+                    QVERIFY2(c >= ColorPalette::kLegible - 0.01, qPrintable(QString("%1 lit on %2: %3").arg(hex, face.name()).arg(c)));
+                    if (ColorPalette::contrast(led, face) >= ColorPalette::kLegible)
+                        QCOMPARE(lit, led);  // a colour that reads is shown as it is
+                    else if (led.hsvSaturationF() > 0)  // the same hue (OKLCH), within a few degrees
+                        QVERIFY2(std::abs(std::remainder(ColorPalette::oklchHue(lit) - ColorPalette::oklchHue(led), 360.0)) < 3,
+                                 qPrintable(QString("%1 lit on %2: %3").arg(hex, face.name(), lit.name())));
+                }
+            }
+        }
+        QCOMPARE(ColorPalette::contrast(Qt::black, Qt::white), 21.0);
+        QCOMPARE(ColorPalette::contrast(Qt::red, Qt::red), 1.0);
+    }
+
     // Saved colours: two rows of ten slots, kept in the settings file across runs; anything
     // in that file that isn't a colour reads as an empty slot.
     void colorPaletteKeepsSavedColors()

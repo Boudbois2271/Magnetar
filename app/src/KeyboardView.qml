@@ -149,8 +149,6 @@ Item {
             // A lit legend on a light theme sits on a dark cap, as LEDs show through dark caps:
             // white or yellow would vanish on the light one.
             readonly property bool darkCap: lit !== "" && !theme.dark
-            // Light colours get dark text, dark ones light text.
-            readonly property bool lightFill: fill !== "" && (0.299 * Qt.color(fill).r + 0.587 * Qt.color(fill).g + 0.114 * Qt.color(fill).b) > 0.55
             // The top face: the key's colour when it has one (kept when selected: a ring marks
             // it instead), else the accent when selected, else the theme's cap.
             readonly property color color: fill !== "" ? fill
@@ -178,8 +176,10 @@ Item {
                 // A long word may run to the face's edge, or to the depth gauge.
                 anchors.rightMargin: cap.depth >= 0 ? view.gaugeRoom : 1
                 text: view.labelFor(cap.keyId)
-                color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0")
-                     : cap.lit !== "" ? (Qt.color(cap.lit).hslLightness > 0 ? cap.lit : theme.secondary)  // black: the key is dark
+                // On a coloured cap, the cap shows the LED colour as it is and the legend is
+                // neutral ink; a lit legend keeps its hue, lifted (or darkened) until it reads.
+                color: cap.fill !== "" ? colorPalette.inkOn(cap.color)
+                     : cap.lit !== "" ? (Qt.color(cap.lit).hslLightness > 0 ? colorPalette.legibleOn(cap.lit, cap.color) : theme.secondary)  // black: the key is dark
                      : cap.selected ? theme.accentForeground : Material.foreground
                 font.weight: cap.lit !== "" && Qt.color(cap.lit).hslLightness > 0 ? Font.DemiBold : Font.Normal
                 // Names break between words only: a word too long for the cap shrinks to fit,

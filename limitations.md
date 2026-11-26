@@ -183,8 +183,11 @@ reflected in `akko-protocol.md`.
   goes under 560 px at 14 px text). In a window tiled narrower than that (a third of a 1080p
   screen) the longest 1u names ("Échap") can still be cut. At the minimum window height the
   pages run past the bottom edge (they already did before the larger drawing).
-- Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
-  blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
+- Legends on LED colours (Lighting, Mural, and lit legends, which no page uses since per-key
+  colour moved to Lighting) reach WCAG 4.5:1 against the cap as drawn (tests, offscreen screenshots
+  in tokyo-night and flexoki-light): a coloured cap gets black or white ink; a lit legend too dark
+  to read is lifted in OKLCH, same hue, so a deep blue shows as a lighter blue. Not judged against
+  the board's real LEDs. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.
 - A key write the board doesn't keep shows as a connection error banner, then the keymap is re-read.
 - Profile names (`1a`/`9a PP`): the app reads and renames them (1–55 printable ASCII characters), not
