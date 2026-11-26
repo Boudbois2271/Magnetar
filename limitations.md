@@ -209,11 +209,12 @@ reflected in `akko-protocol.md`.
   once from the board's unsolicited `fe 0b` / `fe 09` reports (vendor node opened read-only,
   reopened after every read of the board); after an effect, colour or profile report the board is
   read again (reads only), since those change more than the report carries. Win lock (Fn+Win) sends
-  no report: it shows when the window regains focus, when a page is shown, or on Ctrl+R; pressed
-  while Settings is already shown, it waits for one of those. Fn+Left/Right (direction) and Fn+W
-  (WASD swap) send nothing and aren't shown by the app. The report decoding is tested against the
-  fake keyboard with frames logged on the board (2026-11-26); the live app not yet checked on the
-  board. Brightness on the board was missed once (2026-11-25), most likely a listener left closed
+  no report: it shows when the window regains focus, when a page is shown, on Ctrl+R, and within
+  2 s while Settings is shown in the active window (read again every 2 s there, reads only, not
+  while calibrating; `84 15` followed every Fn+Win within a second on the board, 2026-11-26).
+  Fn+Left/Right (direction) and Fn+W (WASD swap) send nothing and aren't shown by the app.
+  Effect, speed, colour, brightness and profile were checked on the board (2026-11-26); the 2 s
+  Win lock read only against the fake keyboard. Brightness on the board was missed once (2026-11-25), most likely a listener left closed
   after its node went away unseen; fixed against the fake keyboard only. Changes made by `akkoctl` or
   the bar widget show when Magnetar's window regains focus (their write echoes reach the listener too,
   but aren't used).
