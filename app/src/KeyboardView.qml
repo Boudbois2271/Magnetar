@@ -227,12 +227,13 @@ Item {
                 anchors.right: face.right
                 anchors.bottom: face.bottom
                 anchors.margins: Math.max(1, cap.height * 0.06)
+                anchors.rightMargin: 1  // the legend's room: a 1u cap is short of it
                 text: cap.badge
                 color: cap.selected && !cap.ringed ? theme.accentForeground : theme.accent
                 font.pixelSize: Math.max(Math.round(9 * ui.unit), Math.round(view.unit * 0.9))
                 font.weight: Font.DemiBold
                 fontSizeMode: Text.HorizontalFit
-                minimumPixelSize: Math.round(6 * ui.unit)
+                minimumPixelSize: Math.round(7 * ui.unit)  // the smallest legend
                 elide: Text.ElideRight
             }
 

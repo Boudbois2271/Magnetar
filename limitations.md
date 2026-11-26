@@ -123,7 +123,9 @@ reflected in `akko-protocol.md`.
   bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: no Undo (Remove, or saving the old values again).
-- Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
+- Advanced tab: from the minimum window size up the SOCD, DKS and Multi tags show whole on 1u
+  keys; the longer Mod-Tap, Toggle and Release tags are cut there ("Mod…") until the window is
+  wider. Shorter tag names would fix it (a wording choice, not made).
 - Advanced tab: the keyboard is drawn smaller than on Action and Travel (the key list sits beside
   it, and the editor under it is taller), so the keys shift when switching to that tab. In a narrow
   window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker

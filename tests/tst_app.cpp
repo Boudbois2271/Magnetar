@@ -2017,7 +2017,8 @@ private slots:
     }
 
     // In the smallest window, in French (the longest names), every keycap legend shows whole on
-    // the Keys tabs and the Lighting drawing: none cut short, none broken inside a word.
+    // the Keys tabs and the Lighting drawing: none cut short, none broken inside a word. So does
+    // the SOCD tag on two 1u keys (Advanced tab).
     void keycapLabelsFitTheSmallestWindow()
     {
         KeysWindow w;
@@ -2034,6 +2035,8 @@ private slots:
         auto cleanup = qScopeGuard([&] { qGuiApp->removeTranslator(&w.translator); });
         QVERIFY(w.open());
         QTRY_VERIFY(w.backend.ready() && w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        QVERIFY(w.backend.saveAdvanced({QVariantMap{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}}}));
+        QTRY_COMPARE(w.backend.advancedKeys().size(), 1);
         w.window->resize(w.window->minimumSize());
         QStringList cut;
         auto check = [&](const QString &where, QQuickItem *view) {
@@ -2046,6 +2049,9 @@ private slots:
                 if (label->property("truncated").toBool()
                     || label->property("lineCount").toInt() > text.split(' ').size())
                     cut << where + ": " + text;
+                auto *badge = findItem(cap, "badge");
+                if (badge->isVisible() && badge->property("truncated").toBool())
+                    cut << where + ", tag: " + badge->property("text").toString();
             }
         };
         for (int tab = 0; tab < 3; ++tab) {
