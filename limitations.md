@@ -80,8 +80,9 @@ reflected in `akko-protocol.md`.
 - `transact()` matches responses on `cmd`/`sub`/packet index, not `arg` (which only advanced keys use).
 - The CLI covers profile, global lighting (`10/90 00`, `04/84 01`), the keymap (`83/03/11 LL`) and
   the Base Functions settings (`04/84 15–19`); travel, advanced keys, macros, per-key colours and
-  calibration are app-only. `akkoctl key`, `keymap` and `settings` are tested against the fake
-  keyboard only, not yet on the board. After `settings polling-rate` the keyboard re-enumerates, so
+  calibration are app-only. `akkoctl key` (set and `factory`) and `settings
+  win-key-lock` worked on the board; `keymap` and the other settings are tested against the fake
+  keyboard only. After `settings polling-rate` the keyboard re-enumerates, so
   the other three values printed are the ones read before the write. Keys are named by hex ID, not
   by label. `akkoctl key` refuses the GUESS action forms (`07`, `09`, `08 09`) unless they are the
   key's factory action.
