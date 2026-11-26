@@ -976,24 +976,29 @@ private slots:
         check(TravelPart::DeadZones, "write-dz-f12-off");
     }
 
-    void deadZonesGoOneKeyPerFrame()
+    void deadZonesGoSevenKeysPerFrame()
     {
         FakeTransport t;
         FakeKeyboard board;
         t.respond = std::ref(board);
         Keyboard kb(t);
-        const std::uint16_t ids[] = {0x01, 0x02, 0x0d};
+        // 9 keys: a frame of 7, then a frame of 2, each a single packet.
+        const std::uint16_t ids[] = {0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x0d};
         auto keys = kb.readTravel(ids);
         t.written.clear();
         for (auto &k : keys)
             k.deadZones = true;
         kb.setTravel(TravelPart::DeadZones, keys);
-        for (std::size_t i = 0; i < 3; ++i) {
+        const std::uint8_t lens[] = {7 * 8, 2 * 8};
+        for (std::size_t i = 0; i < 2; ++i) {
             QCOMPARE(t.written[i][1], std::uint8_t(0x16));
             QCOMPARE(t.written[i][4], std::uint8_t(1));  // packet count
-            QCOMPARE(t.written[i][6], std::uint8_t(8));  // one entry
+            QCOMPARE(t.written[i][5], std::uint8_t(0));  // packet index
+            QCOMPARE(t.written[i][6], lens[i]);
         }
+        QCOMPARE(t.written[2][1], std::uint8_t(0x93));  // then the read-back
         QVERIFY(board.travel[0x02].deadZones);
+        QVERIFY(board.travel[0x0d].deadZones);
     }
 
     // ---- macros -----------------------------------------------------------

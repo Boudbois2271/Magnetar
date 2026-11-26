@@ -175,8 +175,9 @@ reflected in `akko-protocol.md`.
 - Travel page: no "restore default" (the vendor app has none either; factory values aren't certain,
   see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
-- Travel page: dead zones are sent one key per frame (83 frames for all keys), as the vendor app does.
-  A frame of 7 keys works on the board (2026-11-26); `setTravel` still sends one key per frame.
+- Travel page: dead zones are sent 7 keys per frame (12 frames for all keys), each a single packet,
+  the form checked on the board (all 83 keys, 2026-11-26). The vendor app sends one key per frame; a multi-packet `16 00` was
+  never sent.
 - Travel page: the keycap numbers are one size on every key, the largest that fits a 1u cap
   beside its depth gauge; at the minimum window size that is about 8 px with 14 px text
   (7 px with 12 px text). Larger needs a larger drawing or shorter numbers.

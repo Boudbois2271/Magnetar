@@ -347,8 +347,11 @@ std::vector<KeyTravel> Keyboard::setTravel(TravelPart part, std::span<const KeyT
                ignore);
         break;
     case TravelPart::DeadZones:
-        for (std::size_t i = 0; i < ids.size(); ++i)
-            perKey(0x16, kWidePerPacket, kWideEntry, std::span(ids).subspan(i, 1),
+        // Each frame a single packet of up to 7 keys: the form checked on the board. A
+        // multi-packet 16 00 was never sent.
+        for (std::size_t i = 0; i < ids.size(); i += kWidePerPacket)
+            perKey(0x16, kWidePerPacket, kWideEntry,
+                   std::span(ids).subspan(i, std::min(kWidePerPacket, ids.size() - i)),
                    [&](std::vector<std::uint8_t> &out, std::uint16_t id) {
                        const auto &t = entry(id);
                        put16(out, id);

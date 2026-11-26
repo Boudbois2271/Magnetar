@@ -128,9 +128,9 @@ public:
     // packets of 11 keys, 96 00 and 99 00 in packets of 7.
     std::vector<KeyTravel> readTravel(std::span<const std::uint16_t> keys = keyReadOrder());
     // Writes one part for these keys, then reads them back and returns what the board has. 13 00
-    // goes in packets of 11 and 19 00 in packets of 7, as captured; 16 00 one key per frame, the
-    // only form ever captured. Throws before sending anything if a value is out of range, and
-    // after writing if the read-back differs.
+    // goes in packets of 11 and 19 00 in packets of 7, as captured; 16 00 as single-packet frames
+    // of up to 7 keys (the vendor sends one key per frame; 7 checked on the board). Throws before
+    // sending anything if a value is out of range, and after writing if the read-back differs.
     std::vector<KeyTravel> setTravel(TravelPart part, std::span<const KeyTravel> keys);
 
     // Custom-effect colours of these keys (all 83 by default, in keyReadOrder() like the vendor

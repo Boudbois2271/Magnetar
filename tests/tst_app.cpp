@@ -813,10 +813,10 @@ private slots:
         QVERIFY(f12().value("rapidTrigger").toBool());
         QTRY_VERIFY(!b.canUndoTravel());
 
-        // Dead zones: one 16 00 frame per key.
+        // Dead zones: up to 7 keys per 16 00 frame.
         const int before = board.writesOf(0x16, 0x00);
         QVERIFY(b.changeTravel({0x01, 0x02, 0x03}, {{"deadZones", true}, {"deadTop", 0.185}}));
-        QTRY_COMPARE(board.writesOf(0x16, 0x00), before + 3);
+        QTRY_COMPARE(board.writesOf(0x16, 0x00), before + 1);
         QTRY_COMPARE(b.travel().value("2").toMap().value("deadTop").toDouble(), 0.185);
 
         // Bad input sends nothing.
