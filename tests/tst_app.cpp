@@ -3019,6 +3019,10 @@ private slots:
         // A third of it: the narrowest a tiling window manager usually makes a window.
         QTest::newRow("en, third width") << "en" << QSize(640, 1030);
         QTest::newRow("fr, third width") << "fr" << QSize(640, 1030);
+        // A tiled window on a 1440p screen at 125 %: short, and too narrow for the Advanced
+        // picker beside its column.
+        QTest::newRow("en, short") << "en" << QSize(1028, 574);
+        QTest::newRow("fr, short") << "fr" << QSize(1028, 574);
     }
 
     // At the default window size, and at half a 1080p desktop, with 12 px text (Omarchy's small
@@ -3080,10 +3084,22 @@ private slots:
             advanced->setProperty("slot", -1);
             check(QString("advanced %1").arg(type), picker);
         }
-        for (const auto &[type, slot] : {std::pair{"modTap", 0}, {"toggle", 0}, {"multiPoint", 10}, {"dks", 20}}) {
+        // Save stays in reach: beside the picker, or back in the column after Back or a pick.
+        auto *save = w.item("saveAdvanced");
+        for (const auto &[type, slot] : {std::pair{"modTap", 0}, {"toggle", 0}, {"release", 0}, {"multiPoint", 10}, {"dks", 20}}) {
             call(advanced, "chooseType", QString(type));
             advanced->setProperty("slot", slot);
             check(QString("advanced %1, picker").arg(type), picker);
+            if (save->isVisible())
+                continue;
+            QMetaObject::invokeMethod(w.item("pickerBack"), "clicked");
+            if (!save->isVisible())
+                problems << QString("advanced %1: no Save after Back").arg(type);
+            advanced->setProperty("slot", slot);
+            QMetaObject::invokeMethod(w.item("advancedPicker"), "picked", Q_ARG(QString, "00 00 00 04"));
+            check(QString("advanced %1, picked").arg(type), picker);
+            if (!save->isVisible())
+                problems << QString("advanced %1: no Save after picking").arg(type);
         }
         advanced->setProperty("slot", -1);
 
@@ -3114,22 +3130,30 @@ private slots:
         QVERIFY(scrolls("macroSteps"));
 
         w.show("lightingPage");
-        check("lighting");
-        call(w.item("lightingPage"), "select", threeKeys);
-        check("lighting, three keys");
-        call(w.item("lightingPage"), "select", QVariantList{});
+        // Lighting, Settings and Calibration don't fit a short window yet: their bottoms run off
+        // the window (limitations.md).
+        const bool shortWindow = size.isValid() && size.height() < 640;
+        if (!shortWindow) {
+            check("lighting");
+            call(w.item("lightingPage"), "select", threeKeys);
+            check("lighting, three keys");
+            call(w.item("lightingPage"), "select", QVariantList{});
+        }
         w.mural.setOn(true);  // the Visualiser effect, not hearing yet: the warning shows
-        check("lighting, visualiser, no sound");
+        if (!shortWindow)
+            check("lighting, visualiser, no sound");
         w.show("muralPage");
         check("mural");
         w.mural.setOn(false);
-        w.window->setProperty("page", PageSettings);
-        check("settings");
-        QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
-        QTest::qWait(400);  // the push transition
-        w.backend.startCalibration();
-        check("calibration");
-        w.backend.finishCalibration();
+        if (!shortWindow) {
+            w.window->setProperty("page", PageSettings);
+            check("settings");
+            QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
+            QTest::qWait(400);  // the push transition
+            w.backend.startCalibration();
+            check("calibration");
+            w.backend.finishCalibration();
+        }
 
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join("\n")));
     }

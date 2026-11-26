@@ -138,7 +138,10 @@ reflected in `akko-protocol.md`.
 - Advanced tab: the keyboard is drawn smaller than on Action and Travel (the key list sits beside
   it, and the editor under it is taller), so the keys shift when switching to that tab. In a narrow
   window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker
-  then replaces the editor column while it is open instead of sitting beside it.
+  then replaces the editor column while it is open instead of sitting beside it, until an action
+  is picked or Back is pressed (Save is in the column). In a short window DKS puts its four points
+  beside its four actions. Checked offscreen at 1028 × 574 (a tiled window on a 1440p screen at
+  125 %), not yet on the desktop.
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (both record the
   right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
@@ -237,6 +240,9 @@ reflected in `akko-protocol.md`.
   Macros list above the editor) is checked offscreen only, not yet on the desktop. Pages never
   scroll, even below the minimum size. At a third of the screen the Travel sliders are at their
   shortest (100 u, about 0.05 mm per pixel over Rapid Trigger's 3.5 mm): type exact values there.
+- Short windows (1028 × 574, a tiled window on a 1440p screen at 125 %): Keys (every Advanced
+  type), Macros and Mural fit; Lighting (its Colour section), Settings and Calibration run off the
+  bottom, and the test skips them at that size.
 
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command

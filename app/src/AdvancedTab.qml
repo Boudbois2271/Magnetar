@@ -305,7 +305,8 @@ ColumnLayout {
     // ---- layout ---------------------------------------------------------------
     // One column from the left edge, under the keyboard: the function, then its settings top to
     // bottom, then Save. Opening an action slot shows the picker to the right of the column; the
-    // column stays where it is (in a window too narrow for both, the picker takes its place). The
+    // column stays where it is (in a window too narrow for both, the picker takes its place until
+    // an action is picked or Back is pressed). The
     // keys that have a function are listed beside the keyboard (KeysPage).
     readonly property real rowHeight: 34 * ui.unit
     // Narrower in a narrow window, so the column stays in it.
@@ -317,7 +318,8 @@ ColumnLayout {
             w += typeRepeater.itemAt(i) ? typeRepeater.itemAt(i).implicitWidth : 0
         return Math.ceil(w)
     }
-    readonly property real editorWidth: Math.min(page.width, Math.max(page.labelWidth + page.controlsWidth, page.typesWidth))
+    readonly property real columnWidth: Math.max(page.labelWidth + page.controlsWidth, page.typesWidth)
+    readonly property real editorWidth: Math.min(page.width, page.columnWidth + (page.dksBeside ? 24 * ui.unit + page.dksPointsWidth : 0))
     readonly property real slotWidth: 150 * ui.unit
     readonly property bool picking: page.draft !== null && page.slot >= 0
     readonly property bool pickerBeside: page.width >= page.editorWidth + 24 * ui.unit + 320 * ui.unit
@@ -331,8 +333,16 @@ ColumnLayout {
     // In a narrow column the two points of a row go one under the other.
     readonly property real pointFixedWidth: page.pointLabelWidth + page.pointBoxWidth + 3 * 8 * ui.unit + page.measure("mm") + 2
     readonly property bool pointsStacked: (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth < 90 * ui.unit
-    readonly property real pointSliderWidth: page.pointsStacked ? page.controlsWidth - page.pointFixedWidth
+    readonly property real pointSliderWidth: page.dksBeside ? 90 * ui.unit
+                                           : page.pointsStacked ? page.controlsWidth - page.pointFixedWidth
                                                                 : (page.controlsWidth - 16 * ui.unit) / 2 - page.pointFixedWidth
+    // DKS in a short window: the four points, one under the other, go beside the four actions,
+    // so Save stays in the window. The height the column would take with the points above.
+    readonly property real dksPointsWidth: page.pointFixedWidth + 90 * ui.unit
+    readonly property real dksStackedHeight: editor.implicitHeight - dksBody.implicitHeight + dksActions.implicitHeight
+        + (page.pointsStacked ? 4 : 2) * (page.rowHeight + 4 * ui.unit) + 8 * ui.unit
+    readonly property bool dksBeside: editor.type === "dks" && page.height < page.dksStackedHeight
+                                      && page.width >= page.columnWidth + 24 * ui.unit + page.dksPointsWidth
     // Multi-Point: name, action, depth slider, value, "mm", Clear on one row when the page is wide enough.
     readonly property bool pointsUnder: page.labelWidth + page.slotWidth + (140 + 3 * 8 + 76) * ui.unit
                                         + page.measure("mm") + page.measure(qsTr("Clear")) + 40 * ui.unit > page.width
@@ -486,77 +496,99 @@ ColumnLayout {
             }
 
             // ---- Dynamic keystroke: the four points, then the four actions ----
-            // The points two by two, named as the patterns name them (↓1 = going down, 1st point).
-            Repeater {
-                model: editor.type === "dks" ? 2 : 0
-                delegate: RowLayout {
-                    id: pair
-                    required property int index
-                    spacing: 0
-                    RowLabel {
-                        Layout.alignment: Qt.AlignTop
-                        text: pair.index === 0 ? qsTr("Going down") : qsTr("Coming up")
-                    }
-                    GridLayout {
-                        columns: page.pointsStacked ? 1 : 2
-                        columnSpacing: 16 * ui.unit
-                        rowSpacing: 4 * ui.unit
-                        Repeater {
-                            model: 2
-                            delegate: MmSlider {
-                                required property int index
-                                readonly property int point: 2 * pair.index + index
-                                objectName: "dksDepth" + point
-                                Layout.fillWidth: false
-                                labelWidth: page.pointLabelWidth
-                                boxWidth: page.pointBoxWidth
-                                sliderWidth: page.pointSliderWidth
-                                label: page.pointNames[point]
-                                shown: page.draft.depths[point]
-                                from: page.limits.minDepth
-                                to: page.limits.maxDepth
-                                step: 0.01
-                                decimals: 2
-                                french: page.french
-                                onCommit: (v) => page.edit(d => d.depths[point] = v)
+            // The points two by two, named as the patterns name them (↓1 = going down, 1st point);
+            // in a short window, one under the other beside the actions.
+            GridLayout {
+                id: dksBody
+                visible: editor.type === "dks"
+                columns: page.dksBeside ? 2 : 1
+                columnSpacing: 24 * ui.unit
+                rowSpacing: 4 * ui.unit
+                ColumnLayout {
+                    Layout.row: 0
+                    Layout.column: page.dksBeside ? 1 : 0
+                    Layout.alignment: Qt.AlignTop
+                    spacing: 4 * ui.unit
+                    Repeater {
+                        model: editor.type === "dks" ? 2 : 0
+                        delegate: RowLayout {
+                            id: pair
+                            required property int index
+                            spacing: 0
+                            RowLabel {
+                                Layout.alignment: Qt.AlignTop
+                                visible: !page.dksBeside  // the arrows say it
+                                text: pair.index === 0 ? qsTr("Going down") : qsTr("Coming up")
+                            }
+                            GridLayout {
+                                columns: page.pointsStacked || page.dksBeside ? 1 : 2
+                                columnSpacing: 16 * ui.unit
+                                rowSpacing: 4 * ui.unit
+                                Repeater {
+                                    model: 2
+                                    delegate: MmSlider {
+                                        required property int index
+                                        readonly property int point: 2 * pair.index + index
+                                        objectName: "dksDepth" + point
+                                        Layout.fillWidth: false
+                                        labelWidth: page.pointLabelWidth
+                                        boxWidth: page.pointBoxWidth
+                                        sliderWidth: page.pointSliderWidth
+                                        label: page.pointNames[point]
+                                        shown: page.draft.depths[point]
+                                        from: page.limits.minDepth
+                                        to: page.limits.maxDepth
+                                        step: 0.01
+                                        decimals: 2
+                                        french: page.french
+                                        onCommit: (v) => page.edit(d => d.depths[point] = v)
+                                    }
+                                }
                             }
                         }
                     }
                 }
-            }
-            Repeater {
-                model: editor.type === "dks" ? 4 : 0
-                delegate: RowLayout {
-                    id: row
-                    required property int index
-                    readonly property var rowData: page.draft.rows[row.index]
-                    readonly property bool custom: page.customRow(row.rowData)
-                    readonly property var options: row.custom
-                        ? page.patternLabels.concat([qsTr("Another pattern (kept as it is)")])
-                        : page.patternLabels
-                    Layout.topMargin: row.index === 0 ? 8 * ui.unit : 0
-                    spacing: 0
-                    RowLabel { text: page.slotName(20 + row.index) }
-                    SlotButton { slot: 20 + row.index }
-                    AppComboBox {
-                        objectName: "dksStroke" + row.index
-                        Layout.leftMargin: 8 * ui.unit
-                        Layout.preferredWidth: page.controlsWidth - page.slotWidth - 8 * ui.unit
-                        enabled: row.rowData.action !== ""
-                        model: row.options
-                        currentIndex: row.custom ? row.options.length - 1 : Math.max(0, row.rowData.pattern)
-                        // The single strokes' names are long: the list opens half as wide again.
-                        popup.width: Math.max(width, implicitWidth, 1.5 * width)
-                        onActivated: (i) => {
-                            if (row.custom && i === row.options.length - 1)
-                                return
-                            page.edit(d => {
-                                d.rows[row.index].pattern = i
-                                if (i === 0) {
-                                    d.rows[row.index].action = ""
-                                    d.rows[row.index].stages = "00 00 00 00"
+                ColumnLayout {
+                    id: dksActions
+                    Layout.row: page.dksBeside ? 0 : 1
+                    Layout.column: 0
+                    Layout.alignment: Qt.AlignTop
+                    Layout.topMargin: page.dksBeside ? 0 : 4 * ui.unit
+                    spacing: 4 * ui.unit
+                    Repeater {
+                        model: editor.type === "dks" ? 4 : 0
+                        delegate: RowLayout {
+                            id: row
+                            required property int index
+                            readonly property var rowData: page.draft.rows[row.index]
+                            readonly property bool custom: page.customRow(row.rowData)
+                            readonly property var options: row.custom
+                                ? page.patternLabels.concat([qsTr("Another pattern (kept as it is)")])
+                                : page.patternLabels
+                            spacing: 0
+                            RowLabel { text: page.slotName(20 + row.index) }
+                            SlotButton { slot: 20 + row.index }
+                            AppComboBox {
+                                objectName: "dksStroke" + row.index
+                                Layout.leftMargin: 8 * ui.unit
+                                Layout.preferredWidth: page.controlsWidth - page.slotWidth - 8 * ui.unit
+                                enabled: row.rowData.action !== ""
+                                model: row.options
+                                currentIndex: row.custom ? row.options.length - 1 : Math.max(0, row.rowData.pattern)
+                                // The single strokes' names are long: the list opens half as wide again.
+                                popup.width: Math.max(width, implicitWidth, 1.5 * width)
+                                onActivated: (i) => {
+                                    if (row.custom && i === row.options.length - 1)
+                                        return
+                                    page.edit(d => {
+                                        d.rows[row.index].pattern = i
+                                        if (i === 0) {
+                                            d.rows[row.index].action = ""
+                                            d.rows[row.index].stages = "00 00 00 00"
+                                        }
+                                    })
                                 }
-                            })
+                            }
                         }
                     }
                 }
@@ -653,14 +685,28 @@ ColumnLayout {
             Layout.maximumHeight: implicitHeight
             title: qsTr("%1: choose an action").arg(page.slotName(page.slot))
 
+            // In the column's place: back to it without picking.
+            AppButton {
+                objectName: "pickerBack"
+                visible: !page.pickerBeside
+                kind: "quiet"
+                text: qsTr("Back")
+                onClicked: page.slot = -1
+            }
             ActionPicker {
                 id: picker
+                objectName: "advancedPicker"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
                 offerNothing: false
                 compact: true
                 currentCode: page.slotCode(page.slot) || ""
-                onPicked: (code) => page.setSlot(page.slot, code)
+                // In the column's place, a pick goes back to the column, where Save is.
+                onPicked: (code) => {
+                    page.setSlot(page.slot, code)
+                    if (!page.pickerBeside)
+                        page.slot = -1
+                }
             }
         }
         Item { Layout.fillWidth: true; visible: !page.picking }
