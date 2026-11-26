@@ -178,7 +178,10 @@ reflected in `akko-protocol.md`.
 - Keys page: "Reset … layer to factory" (`11 LL`, then the layer read again) is offered on Default and
   Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
   only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
-- Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
+- Keycap labels follow the desktop's layout (Wayland compositor keymap, else `XKB_DEFAULT_LAYOUT`),
+  read once at start, first layout group only: switching layouts while the app is open, or a
+  second group, isn't followed. X11 sessions without those variables keep the US names. Only
+  the typing keys change; Enter, F1, arrows… keep their names. The CLI stays on US names.
 - Keys page: keycap legends fit whole from the app's minimum window size up (the drawing never
   goes under 560 px at 14 px text). In a window tiled narrower than that (a third of a 1080p
   screen) the longest 1u names ("Échap") can still be cut. At the minimum window height the

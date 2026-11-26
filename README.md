@@ -29,7 +29,7 @@ tool for scripts and status bars.
 
 | Page | What you can do |
 |---|---|
-| **Keys** | Click keys on the drawing (or drag a box, Ctrl+drag to add) and edit them together in three tabs: **Action** (what the key sends, on all three layers), **Travel** (actuation point, Rapid Trigger, dead zones) and **Advanced** (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD). |
+| **Keys** | Click keys on the drawing (or drag a box, Ctrl+drag to add) and edit them together in three tabs: **Action** (what the key sends, on all three layers), **Travel** (actuation point, Rapid Trigger, dead zones) and **Advanced** (Mod-Tap, Toggle, Release, Multi-point, Dynamic keystroke, SOCD). Keycaps show what each key types in your desktop keyboard layout (AZERTY, QWERTZ…). |
 | **Lighting** | Lights on/off, brightness, effect, speed, colour or rainbow, with a preview of the keyboard. Colour picker (saturation/brightness field, hue strip, hex code, classic colours and 20 slots to save your own). Select keys on the preview to give them their own colour (Custom effect). The last effect, **Visualiser**, is Magnetar's own: spectrum bars from what your computer plays (the default output, through PipeWire/PulseAudio), low notes on the left, in a rainbow or the picked colour, at the brightness set above (dark with the lights off). It needs Magnetar open (any page, minimised too) and comes back on at the next launch if you left it on. Nothing is stored on the keyboard: pick another effect and the keyboard goes back to its own lighting within a few seconds. |
 | **Mural** | Where new effects streamed by the app are tried, one at a time, before they join Lighting's list; shows what is being sent. |
 | **Macros** | Record key presses and releases with their timing, edit the steps and delays (or use the standard 50 ms), drag steps to reorder them, save them to the keyboard's 4096-byte storage. Macros are per profile; bind one to a key on Keys → Action → Macros, played a number of times, until a key is pressed, or while held. |
@@ -48,7 +48,7 @@ Every page planned so far is in; Magnetar grows one page at a time.
 ## Install
 
 Build requirements: Linux, a C++20 compiler, `make` and Qt 6 (on Arch:
-`base-devel qt6-base qt6-declarative libpulse systemd-libs`). The installed `akkoctl` itself has no dependencies.
+`base-devel qt6-base qt6-declarative libpulse systemd-libs libxkbcommon wayland`). The installed `akkoctl` itself has no dependencies.
 
 ```sh
 # Let your user talk to the keyboard

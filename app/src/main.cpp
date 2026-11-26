@@ -12,6 +12,7 @@
 #include "color_palette.h"
 #include "desktop_size.h"
 #include "hotplug_watch.h"
+#include "keyboard_layout.h"
 #include "mural_controller.h"
 #include "report_listener.h"
 #include "theme.h"
@@ -56,6 +57,10 @@ int main(int argc, char *argv[])
     // backend goes.
     MuralController mural(backend, settings);
 
+    // Keycap labels in the desktop's layout, read once at start.
+    KeyboardLayout keyLayout;
+    keyLayout.loadSystem();
+
     QQmlApplicationEngine engine;
     QObject::connect(&translator, &Translator::changed, &engine, &QQmlEngine::retranslate);
     engine.rootContext()->setContextProperty("translator", &translator);
@@ -64,6 +69,7 @@ int main(int argc, char *argv[])
     engine.rootContext()->setContextProperty("ui", &ui);
     engine.rootContext()->setContextProperty("colorPalette", &colorPalette);
     engine.rootContext()->setContextProperty("mural", &mural);
+    engine.rootContext()->setContextProperty("keyLayout", &keyLayout);
     engine.load(QUrl("qrc:/Main.qml"));
     if (engine.rootObjects().isEmpty())
         return 1;

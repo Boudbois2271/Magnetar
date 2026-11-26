@@ -38,6 +38,12 @@ ColumnLayout {
     function keyItems(usages) {
         return usages.map(u => ({ label: names.usageName(u), code: backend.keyCode(u), usage: u }))
     }
+    // The typing keys, letters A–Z first whatever the layout puts where, then the rest in order.
+    function typingItems() {
+        const items = picker.keyItems(picker.range(0x04, 0x1d).concat(picker.symbols))
+        const letter = i => /^[A-Z]$/.test(i.label)
+        return items.filter(letter).sort((a, b) => a.label < b.label ? -1 : 1).concat(items.filter(i => !letter(i)))
+    }
 
     readonly property var navigation: [0x29, 0x28, 0x2a, 0x2b, 0x2c, 0x39, 0x49, 0x4c, 0x4a, 0x4d, 0x4b,
                                        0x4e, 0x52, 0x51, 0x50, 0x4f, 0x46, 0x47, 0x48, 0x65]
@@ -46,7 +52,7 @@ ColumnLayout {
 
     // Every action the picker offers, by category. "shortcut" is the builder, not a list.
     readonly property var categories: [
-        { name: qsTr("Typing"), items: picker.keyItems(picker.range(0x04, 0x1d).concat(picker.symbols)) },
+        { name: qsTr("Typing"), items: picker.typingItems() },
         { name: qsTr("Function keys and numpad"), items: picker.keyItems(picker.functionKeys.concat(picker.range(0x53, 0x63))) },
         { name: qsTr("Editing and navigation"), items: picker.keyItems(picker.navigation) },
         // "Nothing" (unbound) ends this list, unless the picker doesn't offer it.
@@ -89,8 +95,8 @@ ColumnLayout {
     }
 
     // Keys a shortcut can use: everything that is a plain key in the lists above.
-    readonly property var shortcutKeys: picker.keyItems(picker.range(0x04, 0x1d).concat(
-        picker.symbols, picker.functionKeys, picker.navigation, picker.range(0x53, 0x63)))
+    readonly property var shortcutKeys: picker.typingItems().concat(picker.keyItems(
+        picker.functionKeys.concat(picker.navigation, picker.range(0x53, 0x63))))
 
 
     RowLayout {
