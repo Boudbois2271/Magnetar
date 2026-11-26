@@ -154,15 +154,20 @@ ColumnLayout {
         }
 
         Card {
-            title: qsTr("Change it to")
+            // A short window drops the heading too: the search box says what the picker is for.
+            title: picker.compact ? "" : qsTr("Change it to")
             Layout.alignment: Qt.AlignTop
             Layout.fillHeight: true
             Layout.maximumHeight: implicitHeight
 
             ActionPicker {
+                id: picker
                 objectName: "actionPicker"
                 Layout.fillWidth: true
                 Layout.fillHeight: true
+                // In a short window the categories are a drop-down beside the search box, so a
+                // few rows of actions still show under it.
+                compact: tab.height > 0 && tab.height < 240 * ui.unit
                 currentCode: tab.current !== undefined ? tab.current.code : ""
                 onPicked: (code) => tab.assign(code)
             }

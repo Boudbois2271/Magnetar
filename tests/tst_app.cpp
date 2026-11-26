@@ -1922,6 +1922,53 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // At the smallest window (12 px text) the Action tab still shows actions to pick: the
+    // categories become a drop-down and the heading goes, so the first rows fit in the window.
+    // The default window keeps the row of categories.
+    void actionPickerFitsTheSmallestWindow()
+    {
+        for (const char *language : {"en", "fr"}) {
+            KeysWindow w;
+            QFont small("Sans");
+            small.setPixelSize(12);
+            w.ui.setBase(small, 1);
+            {
+                QFile file(w.dir.filePath("language"));
+                QVERIFY(file.open(QIODevice::WriteOnly));
+                file.write(language);
+            }
+            QTRY_COMPARE(w.translator.language(), QString(language));
+            qGuiApp->installTranslator(&w.translator);
+            auto cleanup = qScopeGuard([&] { qGuiApp->removeTranslator(&w.translator); });
+            QVERIFY(w.open());
+            QTRY_VERIFY(w.backend.keymapReady());
+            w.click(0x14);
+            auto *picker = w.item("actionPicker");
+            QTRY_VERIFY(picker->isVisible());
+            QVERIFY(!picker->property("compact").toBool());
+
+            w.window->resize(w.window->minimumWidth(), w.window->minimumHeight());
+            QTRY_VERIFY(picker->property("compact").toBool());
+            QTest::qWait(60);
+            auto *items = w.item("pickerItems");
+            QQuickItem *first = nullptr;
+            std::function<void(QQuickItem *)> find = [&](QQuickItem *i) {
+                for (auto *c : i->childItems()) {
+                    if (!first && c->property("text").toString() == "A" && c->inherits("QQuickAbstractButton"))
+                        first = c;
+                    find(c);
+                }
+            };
+            find(items);
+            QVERIFY2(first, language);
+            const QRectF r = first->mapRectToScene(QRectF(0, 0, first->width(), first->height()));
+            QVERIFY2(r.bottom() <= w.window->height() && r.right() <= w.window->width(), language);
+            // A second row fits too: the list box is at least two chips high.
+            QVERIFY2(items->height() >= 2 * first->height(), language);
+            QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+        }
+    }
+
     void keysPageSavesAdvancedKeys()
     {
         KeysWindow w;

@@ -18,7 +18,7 @@ Rectangle {
     readonly property real space: card.filled ? 0 : 8 * ui.unit
 
     Layout.fillWidth: true
-    implicitHeight: heading.implicitHeight + 10 * ui.unit + inner.implicitHeight + 2 * card.padding + card.space
+    implicitHeight: (card.title !== "" ? heading.implicitHeight + 10 * ui.unit : 0) + inner.implicitHeight + 2 * card.padding + card.space
     radius: theme.radius
     color: card.filled ? theme.card : "transparent"
 
@@ -28,6 +28,7 @@ Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.margins: card.padding
+        visible: card.title !== ""  // no title, no room for one
         text: card.title
         elide: Text.ElideRight
         font.pixelSize: ui.section
@@ -36,12 +37,12 @@ Rectangle {
 
     ColumnLayout {
         id: inner
-        anchors.top: heading.bottom
+        anchors.top: card.title !== "" ? heading.bottom : parent.top
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
         anchors.margins: card.padding
-        anchors.topMargin: 10 * ui.unit
+        anchors.topMargin: card.title !== "" ? 10 * ui.unit : card.padding
         anchors.bottomMargin: card.padding + card.space
         spacing: 12 * ui.unit
     }
