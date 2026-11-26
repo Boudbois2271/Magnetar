@@ -2610,13 +2610,27 @@ private slots:
         QCOMPARE(winLock->property("checked").toBool(), false);
         QCOMPARE(combo->property("checked").toBool(), true);
         QCOMPARE(rate->property("displayText").toString(), QString("1000 Hz"));
-        // One narrow column: controls near their labels, Device and About under the options.
+        // One narrow column: controls near their labels, Device and About under the options. In a
+        // window too short for it, Device and About go beside them.
         auto *settings = w.item("settingsPage");
+        auto *columns = w.item("settingsColumns");
+        auto left = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(0, 0)).x(); };
         auto right = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(i->width(), 0)).x(); };
         auto top = [&](QQuickItem *i) { return i->mapToItem(settings, QPointF(0, 0)).y(); };
+        QTRY_VERIFY(!columns->property("two").toBool());
+        QTest::qWait(60);  // layouts settle on the next frame
         QVERIFY(right(winLock) < settings->width() / 2);
         QVERIFY(top(w.item("firmwareLabel")) > top(rate));
         QVERIFY(top(about) > top(w.item("firmwareLabel")));
+        const QSize size = w.window->size();
+        w.window->resize(size.width(), 500);
+        QTRY_VERIFY(columns->property("two").toBool());
+        QTest::qWait(60);
+        QVERIFY(right(winLock) < settings->width() / 2);
+        QVERIFY(left(w.item("firmwareLabel")) > right(rate));
+        QVERIFY(top(about) > top(w.item("firmwareLabel")));
+        w.window->resize(size);
+        QTRY_VERIFY(!columns->property("two").toBool());
 
         // A click writes, and the switch shows the board's read-back.
         winLock->setProperty("checked", true);

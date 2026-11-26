@@ -79,128 +79,154 @@ Item {
     }
 
     // One column, options first, then Device and About. Narrow, so each control sits near its
-    // label.
+    // label. In a window too short for it, Device and About go in a second column beside it.
     Item {
         id: settings
 
         PageLayout {
+            id: frame
             title: qsTr("Settings")
             // Nothing to show until the keyboard has been read once: no made-up values.
             visible: backend.ready
             enabled: backend.connected && !backend.restarting
 
-            ColumnLayout {
+            GridLayout {
+                id: columns
+                objectName: "settingsColumns"
+                // The one column's height, from the cards' (About wraps a little more in two
+                // columns, so going back to one waits until it surely fits).
+                readonly property real oneColumnHeight: options.implicitHeight + columns.rowSpacing + device.implicitHeight
+                readonly property bool two: columns.oneColumnHeight > frame.height - frame.headerHeight - 2 * frame.spacing
                 Layout.fillWidth: true
-                Layout.maximumWidth: 460 * ui.unit
-                spacing: 8 * ui.unit
+                Layout.maximumWidth: (columns.two ? 2 : 1) * 460 * ui.unit + (columns.two ? columns.columnSpacing : 0)
+                columns: columns.two ? 2 : 1
+                columnSpacing: 48 * ui.unit
+                rowSpacing: 8 * ui.unit
 
-                Card {
-                    title: qsTr("Keyboard")
-                    Rows {
-                        SettingRow {
-                            objectName: "winKeyLock"
-                            name: qsTr("Win Key Lock")
-                            value: backend.winKeyLock
-                            onToggled: (on) => backend.setWinKeyLock(on)
-                        }
-                        SettingRow {
-                            objectName: "comboOptimization"
-                            name: qsTr("Combo Optimization")
-                            value: backend.comboOptimization
-                            onToggled: (on) => backend.setComboOptimization(on)
-                        }
-                        SettingRow {
-                            objectName: "adaptiveCalibration"
-                            name: qsTr("Adaptive Calibration")
-                            value: backend.adaptiveCalibration
-                            onToggled: (on) => backend.setAdaptiveCalibration(on)
-                        }
-                    }
-                }
+                ColumnLayout {
+                    id: options
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    Layout.maximumWidth: 460 * ui.unit
+                    spacing: 8 * ui.unit
 
-                Card {
-                    title: qsTr("Calibration")
-                    Rows {
-                        OptionRow {
-                            name: qsTr("Key travel")
-                            AppButton {
-                                objectName: "openCalibrationButton"
-                                kind: "secondary"
-                                text: qsTr("Calibrate")
-                                onClicked: stack.push(calibrationScreen)
+                    Card {
+                        title: qsTr("Keyboard")
+                        Rows {
+                            SettingRow {
+                                objectName: "winKeyLock"
+                                name: qsTr("Win Key Lock")
+                                value: backend.winKeyLock
+                                onToggled: (on) => backend.setWinKeyLock(on)
+                            }
+                            SettingRow {
+                                objectName: "comboOptimization"
+                                name: qsTr("Combo Optimization")
+                                value: backend.comboOptimization
+                                onToggled: (on) => backend.setComboOptimization(on)
+                            }
+                            SettingRow {
+                                objectName: "adaptiveCalibration"
+                                name: qsTr("Adaptive Calibration")
+                                value: backend.adaptiveCalibration
+                                onToggled: (on) => backend.setAdaptiveCalibration(on)
                             }
                         }
                     }
-                }
 
-                Card {
-                    title: qsTr("Connection")
-                    Rows {
-                        OptionRow {
-                            name: qsTr("Polling rate")
-                            AppComboBox {
-                                id: rateBox
-                                objectName: "pollingRateBox"
-                                Layout.preferredWidth: 150 * ui.unit
-                                model: backend.pollingRates
-                                currentIndex: backend.pollingRates.indexOf(backend.pollingRate)
-                                displayText: qsTr("%1 Hz").arg(currentValue)
-                                font.features: { "tnum": 1 }
-                                delegate: ItemDelegate {
-                                    required property int index
-                                    required property int modelData
-                                    width: ListView.view ? ListView.view.width : implicitWidth
-                                    text: qsTr("%1 Hz").arg(modelData)
-                                    highlighted: rateBox.highlightedIndex === index
-                                }
-                                onActivated: (index) => {
-                                    const hz = backend.pollingRates[index]
-                                    if (hz !== backend.pollingRate)
-                                        backend.setPollingRate(hz)
-                                    currentIndex = Qt.binding(() => backend.pollingRates.indexOf(backend.pollingRate))
+                    Card {
+                        title: qsTr("Calibration")
+                        Rows {
+                            OptionRow {
+                                name: qsTr("Key travel")
+                                AppButton {
+                                    objectName: "openCalibrationButton"
+                                    kind: "secondary"
+                                    text: qsTr("Calibrate")
+                                    onClicked: stack.push(calibrationScreen)
                                 }
                             }
+                        }
+                    }
+
+                    Card {
+                        title: qsTr("Connection")
+                        Rows {
+                            OptionRow {
+                                name: qsTr("Polling rate")
+                                AppComboBox {
+                                    id: rateBox
+                                    objectName: "pollingRateBox"
+                                    Layout.preferredWidth: 150 * ui.unit
+                                    model: backend.pollingRates
+                                    currentIndex: backend.pollingRates.indexOf(backend.pollingRate)
+                                    displayText: qsTr("%1 Hz").arg(currentValue)
+                                    font.features: { "tnum": 1 }
+                                    delegate: ItemDelegate {
+                                        required property int index
+                                        required property int modelData
+                                        width: ListView.view ? ListView.view.width : implicitWidth
+                                        text: qsTr("%1 Hz").arg(modelData)
+                                        highlighted: rateBox.highlightedIndex === index
+                                    }
+                                    onActivated: (index) => {
+                                        const hz = backend.pollingRates[index]
+                                        if (hz !== backend.pollingRate)
+                                            backend.setPollingRate(hz)
+                                        currentIndex = Qt.binding(() => backend.pollingRates.indexOf(backend.pollingRate))
+                                    }
+                                }
+                            }
+                            Label {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                color: theme.secondary
+                                font.pixelSize: ui.small
+                                visible: backend.restarting
+                                text: qsTr("Restarting the keyboard…")
+                            }
+                        }
+                    }
+
+                }
+
+                ColumnLayout {
+                    id: device
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignTop
+                    Layout.maximumWidth: 460 * ui.unit
+                    spacing: 8 * ui.unit
+
+                    Card {
+                        title: qsTr("Device")
+                        Rows {
+                            InfoRow { name: qsTr("Model"); value: "Akko TAC75 HE (38ee:0016)" }
+                            InfoRow { name: qsTr("Firmware"); value: backend.firmware || "—"; valueName: "firmwareLabel" }
+                            InfoRow { name: qsTr("Onboard profiles"); value: backend.profileCount }
+                            InfoRow { name: qsTr("Device node"); value: backend.devicePath || "—"; mono: true }
+                            InfoRow { name: qsTr("Status"); value: backend.connected ? qsTr("Connected") : qsTr("Not connected") }
+                        }
+                    }
+
+                    // The app's one statement that it is unofficial (the README has it too).
+                    Card {
+                        objectName: "aboutSection"
+                        title: qsTr("About")
+
+                        Label {
+                            objectName: "disclaimer"
+                            Layout.fillWidth: true
+                            wrapMode: Text.WordWrap
+                            color: theme.secondary
+                            text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")
                         }
                         Label {
                             Layout.fillWidth: true
                             wrapMode: Text.WordWrap
                             color: theme.secondary
                             font.pixelSize: ui.small
-                            visible: backend.restarting
-                            text: qsTr("Restarting the keyboard…")
+                            text: qsTr("License: GPL-3.0-or-later")
                         }
-                    }
-                }
-
-                Card {
-                    title: qsTr("Device")
-                    Rows {
-                        InfoRow { name: qsTr("Model"); value: "Akko TAC75 HE (38ee:0016)" }
-                        InfoRow { name: qsTr("Firmware"); value: backend.firmware || "—"; valueName: "firmwareLabel" }
-                        InfoRow { name: qsTr("Onboard profiles"); value: backend.profileCount }
-                        InfoRow { name: qsTr("Device node"); value: backend.devicePath || "—"; mono: true }
-                        InfoRow { name: qsTr("Status"); value: backend.connected ? qsTr("Connected") : qsTr("Not connected") }
-                    }
-                }
-
-                // The app's one statement that it is unofficial (the README has it too).
-                Card {
-                    objectName: "aboutSection"
-                    title: qsTr("About")
-
-                    Label {
-                        objectName: "disclaimer"
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        text: qsTr("Magnetar is a free, open-source configurator. It is not made, endorsed or supported by Akko or the keyboard's firmware vendor. Writing settings changes what is stored on the keyboard.")
-                    }
-                    Label {
-                        Layout.fillWidth: true
-                        wrapMode: Text.WordWrap
-                        color: theme.secondary
-                        font.pixelSize: ui.small
-                        text: qsTr("License: GPL-3.0-or-later")
                     }
                 }
             }
