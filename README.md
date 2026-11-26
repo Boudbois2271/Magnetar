@@ -15,7 +15,7 @@ tool for scripts and status bars.
 | Path | What it does |
 |---|---|
 | `app/` | **Magnetar**, the desktop app (see below). English and French. |
-| `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off. Prints the keyboard state as JSON. |
+| `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off, read and remap keys. Prints the keyboard state as JSON. |
 | `core/` | The C++ library that talks to the keyboard, shared by the CLI and Magnetar. |
 | `tests/` | Automated tests (no keyboard needed). |
 | `omarchy-widget/boudbois.akko/` | Bar widget for [Omarchy](https://omarchy.org) built on `akkoctl`. |
@@ -76,7 +76,16 @@ akkoctl profile 2            # switch to onboard profile 2
 akkoctl brightness 10        # 0-20
 akkoctl color '#ff6a00'      # fixed colour, or: akkoctl color rainbow
 akkoctl toggle               # also: on, off (off remembers the last brightness)
+akkoctl keymap fn            # a layer of the active profile: default, fn or fn1
+akkoctl keymap default reset # Default or Fn layer back to factory
+akkoctl key default 2a       # one key: ID in hex (2a = Caps Lock), its action and factory action
+akkoctl key default 2a '00 01 00 00'  # Caps Lock becomes Left Ctrl
+akkoctl key default 2a factory        # also: unbound (the key does nothing)
 ```
+
+Key IDs and the 4-byte action format are in `akko-protocol.md` (Units, Keymap). `akkoctl key`
+only sends action forms captured from the vendor app (keys and shortcuts, mouse buttons, media,
+macros, lighting keys, Fn/Fn1, unbound); `factory` puts back whatever the key shipped with.
 
 Close the vendor web app while using `akkoctl`: if two programs talk to the keyboard at the same
 time, the firmware stops sending keystrokes until the next clean command (`akkoctl status` or a

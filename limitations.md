@@ -78,8 +78,10 @@ reflected in `akko-protocol.md`.
 - `profileCount()` reads `82 0F` payload[3]. Only one sample (value 3) backs that offset; a value
   outside 1–8 falls back to 3.
 - `transact()` matches responses on `cmd`/`sub`/packet index, not `arg` (which only advanced keys use).
-- The CLI only covers profile and global lighting (`10/90 00`, `04/84 01`); the keymap and the
-  Base Functions settings are app-only.
+- The CLI covers profile, global lighting (`10/90 00`, `04/84 01`) and the keymap (`83/03/11 LL`);
+  the Base Functions settings are app-only. `akkoctl key` and `keymap` are tested against the fake
+  keyboard only, not yet on the board. Keys are named by hex ID, not by label. `akkoctl key`
+  refuses the GUESS action forms (`07`, `09`, `08 09`) unless they are the key's factory action.
 
 ## Magnetar (desktop app)
 

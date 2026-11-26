@@ -40,6 +40,34 @@ QString readAll(const QString &path)
     return f.open(QIODevice::ReadOnly) ? QString::fromUtf8(f.readAll()) : QString();
 }
 
+// One akkoctl run against `fake`: what it printed (the error line on failure) and what it sent.
+struct Run {
+    QString out;
+    QStringList sent;
+    bool failed = false;
+};
+
+Run runOn(FakeKeyboard &fake, const std::vector<std::string> &args)
+{
+    const cli::Parsed p = cli::parseArgs(args);
+    if (!p.command)
+        return {QString::fromStdString(p.message), {}, true};
+    FakeTransport t;
+    t.respond = std::ref(fake);
+    Keyboard kb(t);
+    QTemporaryDir dir;
+    Run r;
+    try {
+        r.out = QString::fromStdString(cli::execute(kb, *p.command, (dir.path() + "/state.json").toStdString()));
+    } catch (const Error &e) {
+        r.out = QString::fromStdString(cli::errorJson(e.what()));
+        r.failed = true;
+    }
+    for (const auto &w : t.written)
+        r.sent << describeSent(w);
+    return r;
+}
+
 }  // namespace
 
 class CliTests : public QObject {
@@ -142,6 +170,24 @@ private slots:
         QTest::newRow("not a number") << QStringList{"brightness", "ten"} << 2;
         QTest::newRow("extra argument") << QStringList{"on", "now"} << 2;
         QTest::newRow("extra number") << QStringList{"profile", "1", "2"} << 2;
+        QTest::newRow("keymap without layer") << QStringList{"keymap"} << 2;
+        QTest::newRow("no such layer") << QStringList{"keymap", "fn2"} << 2;
+        QTest::newRow("keymap bad verb") << QStringList{"keymap", "fn", "clear"} << 2;
+        QTest::newRow("fn1 reset never captured") << QStringList{"keymap", "fn1", "reset"} << 2;
+        QTest::newRow("key without key") << QStringList{"key", "default"} << 2;
+        QTest::newRow("no such key") << QStringList{"key", "default", "68"} << 2;
+        QTest::newRow("key not hex") << QStringList{"key", "default", "caps"} << 2;
+        QTest::newRow("action too short") << QStringList{"key", "fn", "2a", "00 00 29"} << 2;
+        QTest::newRow("action badly spaced") << QStringList{"key", "fn", "2a", "0000 0029"} << 2;
+        // Forms never captured being written are refused before anything is sent.
+        QTest::newRow("system key") << QStringList{"key", "fn", "2a", "07 00 00 04"} << 2;
+        QTest::newRow("profile key") << QStringList{"key", "fn", "2a", "09 00 00 01"} << 2;
+        QTest::newRow("select effect") << QStringList{"key", "fn", "2a", "08 09 01 00"} << 2;
+        QTest::newRow("usage in byte 2 alone") << QStringList{"key", "fn", "2a", "00 00 04 00"} << 2;
+        QTest::newRow("empty key") << QStringList{"key", "fn", "2a", "00000000"} << 2;
+        QTest::newRow("mouse 6") << QStringList{"key", "fn", "2a", "01 06 01 00"} << 2;
+        QTest::newRow("macro loop 3") << QStringList{"key", "fn", "2a", "03 03 00 00"} << 2;
+        QTest::newRow("Fn2 key") << QStringList{"key", "fn", "2a", "0d 02 00 00"} << 2;
     }
 
     void usageErrors()
@@ -155,6 +201,85 @@ private slots:
         QVERIFY(!p.command.has_value());
         QCOMPARE(p.exitCode, exitCode);
         QVERIFY(QString::fromStdString(p.message).startsWith("usage: akkoctl"));
+    }
+
+    void keyReadsAndSets()
+    {
+        FakeKeyboard fake;
+        fake.profile = 1;
+
+        // Read: profile, then the one key.
+        Run r = runOn(fake, {"key", "default", "2a"});
+        QCOMPARE(r.out, QString("{\"connected\": true, \"profile\": 2, \"layer\": \"default\", \"key\": \"2a\", "
+                                "\"action\": \"00 00 00 39\", \"factory\": \"00 00 00 39\"}\n"));
+        QCOMPARE(r.sent, (QStringList{"90 00", "83 00 00 2a"}));
+
+        // Caps → Ctrl on Fn1, given as four arguments and with 0x: read, write, read back.
+        r = runOn(fake, {"key", "FN1", "0x2A", "00", "01", "00", "00"});
+        QVERIFY(!r.failed);
+        QVERIFY(r.out.contains("\"layer\": \"fn1\", \"key\": \"2a\", \"action\": \"00 01 00 00\", "
+                               "\"factory\": \"00 00 00 39\"}"));
+        QCOMPARE(r.sent, (QStringList{"90 00", "83 02 00 2a", "03 02 00 2a 00 01 00 00", "83 02 00 2a"}));
+        QCOMPARE(fake.keymap[2][0x2a], (Action{0x00, 0x01, 0x00, 0x00}));
+
+        // The same action again: read only, nothing written.
+        r = runOn(fake, {"key", "fn1", "2a", "00010000"});
+        QCOMPARE(r.sent, (QStringList{"90 00", "83 02 00 2a"}));
+
+        // Factory puts back the Default copy on Fn1.
+        r = runOn(fake, {"key", "fn1", "2a", "factory"});
+        QCOMPARE(r.sent, (QStringList{"90 00", "83 02 00 2a", "03 02 00 2a 00 00 00 39", "83 02 00 2a"}));
+        QCOMPARE(fake.keymap[2][0x2a], factoryAction(2, 0x2a));
+
+        // Factory may write a GUESS form the board shipped with (Fn+` = 07 00 00 04).
+        fake.keymap[1][0x0e] = kUnbound;
+        r = runOn(fake, {"key", "fn", "0e", "factory"});
+        QCOMPARE(r.sent.value(2), QString("03 01 00 0e 07 00 00 04"));
+        QCOMPARE(fake.keymap[1][0x0e], (Action{0x07, 0x00, 0x00, 0x04}));
+
+        r = runOn(fake, {"key", "default", "62", "unbound"});
+        QCOMPARE(r.sent.value(2), QString("03 00 00 62 ff ff ff ff"));
+
+        // A read-back that differs is an error line.
+        fake.ignoreKeyWrites = true;
+        r = runOn(fake, {"key", "default", "62", "00 00 00 4a"});
+        QVERIFY(r.failed);
+        QCOMPARE(r.out, QString("{\"connected\": false, \"error\": \"the keyboard kept ff ff ff ff instead of "
+                                "00 00 00 4a\"}\n"));
+    }
+
+    void keyChecksTheMacroExists()
+    {
+        FakeKeyboard fake;  // no macros
+        const Run r = runOn(fake, {"key", "default", "62", "03 01 01 00"});
+        QVERIFY(r.failed);
+        QVERIFY(r.out.contains("no macro 1 on this profile (it has 0)"));
+        for (const auto &s : r.sent)
+            QVERIFY(!s.startsWith("03 "));
+    }
+
+    void keymapReadsAndResets()
+    {
+        FakeKeyboard fake;
+        fake.keymap[0][0x62] = kUnbound;
+        Run r = runOn(fake, {"keymap", "default"});
+        QVERIFY(!r.failed);
+        QVERIFY(r.out.startsWith("{\"connected\": true, \"profile\": 1, \"layer\": \"default\", \"keys\": [{\"key\": "
+                                 "\"01\", \"action\": \"00 00 00 29\", \"factory\": \"00 00 00 29\"}, {\"key\": \"02\""));
+        QVERIFY(r.out.contains("{\"key\": \"62\", \"action\": \"ff ff ff ff\", \"factory\": \"00 00 00 49\"}"));
+        QVERIFY(r.out.endsWith("{\"key\": \"4d\", \"action\": \"00 00 00 4f\", \"factory\": \"00 00 00 4f\"}]}\n"));
+        QCOMPARE(r.out.count("\"key\""), kKeyCount);
+        QCOMPARE(QJsonDocument::fromJson(r.out.toUtf8())["keys"].toArray().size(), kKeyCount);
+        QCOMPARE(r.sent.size(), 11);  // 90 00, then 10 packets of 83 00
+        for (const auto &s : r.sent)
+            QVERIFY(!s.startsWith("03 "));
+
+        // Reset: 11 00 01, then the whole layer read again.
+        r = runOn(fake, {"keymap", "default", "reset"});
+        QCOMPARE(r.sent.value(1), QString("11 00 01"));
+        QCOMPARE(r.sent.size(), 12);
+        QVERIFY(r.out.contains("{\"key\": \"62\", \"action\": \"00 00 00 49\""));
+        QCOMPARE(fake.keymap[0][0x62], factoryAction(0, 0x62));
     }
 
     void numbersParseLikePython()

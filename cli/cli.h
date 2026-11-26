@@ -5,6 +5,7 @@
 
 #include "keyboard.h"
 
+#include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
@@ -12,9 +13,11 @@
 namespace akko::cli {
 
 struct Command {
-    enum Kind { Status, Profile, Brightness, Color, On, Off, Toggle } kind = Status;
+    enum Kind { Status, Profile, Brightness, Color, On, Off, Toggle, Keymap, Key } kind = Status;
     int number = 0;     // profile (1-based) or brightness
-    std::string value;  // colour
+    std::string value;  // colour; Key: the action to set ("" = read only); Keymap: "reset" or ""
+    int layer = 0;      // Keymap, Key: 0 Default, 1 Fn, 2 Fn1
+    std::uint16_t key = 0;  // Key: key ID
 };
 
 // What parsing the arguments decided. When `command` is empty, print `message` and exit with

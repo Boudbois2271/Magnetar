@@ -22,10 +22,10 @@ namespace akko::cli {
 namespace {
 
 const char *const kUsage =
-    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle} ...\n";
+    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key} ...\n";
 
 const char *const kHelp =
-    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle} ...\n"
+    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key} ...\n"
     "\n"
     "Akko TAC75 HE profile/lighting control\n"
     "\n"
@@ -37,8 +37,16 @@ const char *const kHelp =
     "  on            lighting on\n"
     "  off           lighting off\n"
     "  toggle        lighting toggle\n"
+    "  keymap LAYER [reset]\n"
+    "                print a layer of the active profile (default, fn, fn1);\n"
+    "                reset puts default or fn back to factory\n"
+    "  key LAYER KEY [ACTION]\n"
+    "                print or set one key; KEY = hex key ID (e.g. 2a for Caps),\n"
+    "                ACTION = 4 hex bytes ('00 00 00 29'), 'factory' or 'unbound'\n"
     "\n"
     "Every command prints the keyboard state as one line of JSON.\n";
+
+const char *const kChoices = "status, profile, brightness, color, on, off, toggle, keymap, key";
 
 Parsed usageError(const std::string &what)
 {
@@ -92,6 +100,181 @@ std::string statusJson(Keyboard &kb, const std::string &stateFile)
     return buf;
 }
 
+// ---- keymap ----------------------------------------------------------------
+
+const char *const kLayerNames[kLayerCount] = {"default", "fn", "fn1"};
+
+std::optional<int> parseLayer(const std::string &text)
+{
+    const std::string l = lower(text);
+    for (int i = 0; i < kLayerCount; ++i)
+        if (l == kLayerNames[i])
+            return i;
+    return std::nullopt;
+}
+
+// A key ID as akko-protocol.md writes it ("2a"), with or without 0x; only the board's 83 keys.
+std::optional<std::uint16_t> parseKeyId(const std::string &text)
+{
+    std::string h = lower(text);
+    if (h.rfind("0x", 0) == 0)
+        h = h.substr(2);
+    if (h.empty() || h.size() > 4 || !std::all_of(h.begin(), h.end(), [](char c) { return std::isxdigit(static_cast<unsigned char>(c)) != 0; }))
+        return std::nullopt;
+    const auto id = static_cast<std::uint16_t>(std::stoul(h, nullptr, 16));
+    for (const auto &k : layout())
+        if (k.id == id)
+            return id;
+    return std::nullopt;
+}
+
+// "00 00 00 29", "00000029" or "unbound", normalised to actionHex() form.
+std::optional<Action> parseActionText(const std::string &text)
+{
+    const std::string t = lower(text);
+    if (t == "unbound")
+        return kUnbound;
+    std::string digits;
+    for (char c : t)
+        if (c != ' ')
+            digits += c;
+    if (digits.size() != 8 || !std::all_of(digits.begin(), digits.end(), [](char c) { return std::isxdigit(static_cast<unsigned char>(c)) != 0; }))
+        return std::nullopt;
+    // Spaces, if any, must split the bytes as actionHex() does.
+    if (t.find(' ') != std::string::npos && t.size() != 11)
+        return std::nullopt;
+    Action a;
+    for (int i = 0; i < 4; ++i)
+        a[i] = static_cast<std::uint8_t>(std::stoul(digits.substr(2 * i, 2), nullptr, 16));
+    return a;
+}
+
+// Only the action forms seen written by the vendor app (akko-protocol.md, Units): system (07),
+// profile (09) and select-effect (08 09) keys are GUESS and are refused, except as a key's
+// factory action ('factory'), which puts back what the board shipped with.
+bool capturedAction(const Action &a)
+{
+    switch (actionKind(a)) {
+    case ActionKind::Key: {
+        const auto c = keyCombo(a);
+        try {
+            return comboAction(c->modifiers, c->keys) == a;
+        } catch (const Error &) {
+            return false;
+        }
+    }
+    case ActionKind::Mouse: return a[1] >= 1 && a[1] <= 5 && a[2] == 0x01 && a[3] == 0x00;
+    case ActionKind::Consumer: return a[1] == 0x00 && (a[2] || a[3]);
+    case ActionKind::Macro:
+        return (a[1] == 0x01 && a[2] >= 1) || ((a[1] == 0x02 || a[1] == 0x04) && a[2] == 0x00);
+    case ActionKind::Lighting: return a[1] <= 4 && a[2] <= 2 && a[3] == 0x00;
+    case ActionKind::Layer: return (a[1] == 0x00 || a[1] == 0x01) && a[2] == 0x00 && a[3] == 0x00;
+    case ActionKind::Special: return true;  // only 11 00 00 00 maps to Special
+    case ActionKind::Unbound: return true;
+    default: return false;
+    }
+}
+
+Parsed parseKeymap(Command cmd, const std::vector<std::string> &args)
+{
+    const bool key = cmd.kind == Command::Key;
+    if (args.size() < (key ? 3u : 2u))
+        return usageError(std::string("the following arguments are required: ") + (key ? "layer, key" : "layer"));
+    const auto layer = parseLayer(args[1]);
+    if (!layer)
+        return usageError("argument layer: invalid choice: '" + args[1] + "' (choose from default, fn, fn1)");
+    cmd.layer = *layer;
+
+    if (!key) {
+        if (args.size() > 3)
+            return usageError("unrecognized arguments: " + args[3]);
+        if (args.size() == 3) {
+            if (lower(args[2]) != "reset")
+                return usageError("argument action: invalid choice: '" + args[2] + "' (choose from reset)");
+            // 11 02 (Fn1) was never captured.
+            if (cmd.layer == 2)
+                return usageError("only the default and fn layers can be reset");
+            cmd.value = "reset";
+        }
+        return {cmd, {}, 0};
+    }
+
+    const auto id = parseKeyId(args[2]);
+    if (!id)
+        return usageError("argument key: no such key ID: '" + args[2] + "' (hex, e.g. 2a; see akko-protocol.md)");
+    cmd.key = *id;
+    if (args.size() == 3)
+        return {cmd, {}, 0};
+
+    // The action may come as one argument or as four bytes.
+    std::string text;
+    for (std::size_t i = 3; i < args.size(); ++i)
+        text += (text.empty() ? "" : " ") + args[i];
+    if (lower(text) == "factory") {
+        cmd.value = "factory";
+        return {cmd, {}, 0};
+    }
+    const auto action = parseActionText(text);
+    if (!action)
+        return usageError("argument action: invalid action: '" + text +
+                          "' (4 hex bytes like '00 00 00 29', 'factory' or 'unbound')");
+    if (!capturedAction(*action))
+        return usageError("argument action: " + actionHex(*action) +
+                          " is not a form captured from the vendor app, so it is not sent");
+    cmd.value = actionHex(*action);
+    return {cmd, {}, 0};
+}
+
+std::string keyId(std::uint16_t key)
+{
+    char buf[8];
+    std::snprintf(buf, sizeof buf, "%02x", key);
+    return buf;
+}
+
+std::string keyJson(std::uint16_t key, const Action &action, const Action &factory)
+{
+    return "\"key\": \"" + keyId(key) + "\", \"action\": \"" + actionHex(action) + "\", \"factory\": \"" +
+           actionHex(factory) + "\"";
+}
+
+std::string runKey(Keyboard &kb, const Command &cmd)
+{
+    const int profile = kb.profile() + 1;
+    const Action factory = factoryAction(cmd.layer, cmd.key);
+    // Read first: the answer shows what was there, and an unchanged key is not written.
+    Action now = kb.readKey(cmd.layer, cmd.key);
+    if (!cmd.value.empty()) {
+        const Action want = cmd.value == "factory" ? factory : *parseAction(cmd.value);
+        if (actionKind(want) == ActionKind::Macro) {
+            const std::size_t count = kb.readMacros().size();
+            if (want[3] >= count)
+                throw Error("no macro " + std::to_string(want[3] + 1) + " on this profile (it has " +
+                            std::to_string(count) + ")");
+        }
+        if (want != now)
+            now = kb.setKey(cmd.layer, cmd.key, want);
+    }
+    return "{\"connected\": true, \"profile\": " + std::to_string(profile) + ", \"layer\": \"" +
+           kLayerNames[cmd.layer] + "\", " + keyJson(cmd.key, now, factory) + "}\n";
+}
+
+std::string runKeymap(Keyboard &kb, const Command &cmd)
+{
+    const int profile = kb.profile() + 1;
+    const auto read = cmd.value == "reset" ? kb.resetLayer(cmd.layer) : kb.readLayer(cmd.layer);
+    // Printed in layout order (rows top to bottom), not the read order.
+    std::string keys;
+    for (const auto &k : layout()) {
+        const auto it = std::find_if(read.begin(), read.end(), [&](const auto &r) { return r.first == k.id; });
+        if (it == read.end())
+            throw Error("incomplete keymap read on layer " + std::to_string(cmd.layer));
+        keys += (keys.empty() ? "{" : ", {") + keyJson(k.id, it->second, factoryAction(cmd.layer, k.id)) + "}";
+    }
+    return "{\"connected\": true, \"profile\": " + std::to_string(profile) + ", \"layer\": \"" +
+           kLayerNames[cmd.layer] + "\", \"keys\": [" + keys + "]}\n";
+}
+
 }  // namespace
 
 Parsed parseArgs(const std::vector<std::string> &args)
@@ -105,15 +288,16 @@ Parsed parseArgs(const std::vector<std::string> &args)
     static const std::vector<std::pair<std::string, Command::Kind>> kinds = {
         {"status", Command::Status}, {"profile", Command::Profile}, {"brightness", Command::Brightness},
         {"color", Command::Color},   {"on", Command::On},           {"off", Command::Off},
-        {"toggle", Command::Toggle},
+        {"toggle", Command::Toggle}, {"keymap", Command::Keymap}, {"key", Command::Key},
     };
     const auto it = std::find_if(kinds.begin(), kinds.end(), [&](auto &k) { return k.first == args[0]; });
     if (it == kinds.end())
-        return usageError("argument cmd: invalid choice: '" + args[0] +
-                          "' (choose from status, profile, brightness, color, on, off, toggle)");
+        return usageError("argument cmd: invalid choice: '" + args[0] + "' (choose from " + kChoices + ")");
 
     Command cmd;
     cmd.kind = it->second;
+    if (cmd.kind == Command::Keymap || cmd.kind == Command::Key)
+        return parseKeymap(cmd, args);
     const bool takesValue =
         cmd.kind == Command::Profile || cmd.kind == Command::Brightness || cmd.kind == Command::Color;
     const std::size_t want = takesValue ? 2 : 1;
@@ -185,6 +369,10 @@ std::string execute(Keyboard &kb, const Command &cmd, const std::string &stateFi
                                                     : LightsAction::Toggle,
                      stateFile);
         break;
+    case Command::Keymap:
+        return runKeymap(kb, cmd);
+    case Command::Key:
+        return runKey(kb, cmd);
     }
     return statusJson(kb, stateFile);
 }
