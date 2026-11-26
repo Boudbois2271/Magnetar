@@ -102,6 +102,7 @@ ColumnLayout {
             onTextEdited: picker.search = text
         }
         AppComboBox {
+            id: categoryBox
             objectName: "categoryBox"
             visible: picker.compact
             Layout.preferredWidth: 150 * ui.unit
@@ -109,6 +110,10 @@ ColumnLayout {
             model: picker.categories.map(c => c.name)
             currentIndex: picker.category
             onActivated: (i) => picker.category = i
+            // The list is as wide as its longest name, opening leftwards from the box's right edge.
+            popup.width: Math.max(width, Math.ceil(Math.max(...picker.categories.map(c => nameWidth.advanceWidth(c.name)))) + 40 * ui.unit)
+            popup.x: width - popup.width
+            FontMetrics { id: nameWidth; font: categoryBox.font }
         }
     }
 
