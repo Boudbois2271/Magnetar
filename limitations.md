@@ -140,8 +140,8 @@ reflected in `akko-protocol.md`.
   window the key list keeps 220 px (at 14 px text) and the keyboard gets small; the action picker
   then replaces the editor column while it is open instead of sitting beside it, until an action
   is picked or Back is pressed (Save is in the column). In a short window DKS puts its four points
-  beside its four actions. Checked offscreen at 1028 × 574 (a tiled window on a 1440p screen at
-  125 %), not yet on the desktop.
+  beside its four actions. Saving from a tiled window (1028 × 574, a 1440p screen at 125 %)
+  worked on the desktop (2026-11-26).
 - Macros page: recording maps a key event's `nativeScanCode()` to a HID
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (both record the
   right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
