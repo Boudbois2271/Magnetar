@@ -107,17 +107,20 @@ ColumnLayout {
                 color: theme.accent  // like the selected keys on the drawing
             }
             Label {
+                objectName: "factoryNote"
                 readonly property var factory: tab.selection.length === 1
                     ? backend.factoryAction(tab.activeLayer, tab.selection[0]) : undefined
                 text: tab.notFactory.length === 0 ? (tab.selection.length > 1 ? qsTr("These are the factory settings.")
                                                                              : qsTr("This is the factory setting."))
                       : factory !== undefined ? qsTr("Factory setting: %1").arg(names.name(factory))
                       : qsTr("%1 of them differ from the factory setting.").arg(tab.notFactory.length)
-                // Gives way first in a narrow window, so Restore default stays in it.
+                // Gives way first in a narrow window, so Restore default stays in it, and wraps
+                // then. Rounded up: the layout rounds widths down, which cut off the last letters.
                 Layout.fillWidth: true
                 Layout.minimumWidth: 0
-                Layout.maximumWidth: implicitWidth
-                elide: Text.ElideRight
+                Layout.preferredWidth: Math.ceil(implicitWidth)
+                Layout.maximumWidth: Math.ceil(implicitWidth)
+                wrapMode: Text.Wrap
                 color: theme.secondary
             }
             // Resets the selected keys on this layer, not the whole layer.
