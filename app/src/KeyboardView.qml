@@ -90,13 +90,16 @@ Item {
     // The one sizing rule of the pages that show the drawing over their controls (Keys,
     // Lighting), so it is the same size on both: as wide as `across` allows, up to the largest
     // keys, and low enough that the plate, the bar attached under it (it grows with the bezel)
-    // and `controls` fit in `tall`. Never under 400 px at 14 px text: below that the caps can't
-    // be read; the page's own minimum size keeps it in the window.
+    // and `controls` fit in `tall`. Never under minimumWidth (below it the legends can't be read)
+    // unless the page is narrower still: a window tiled narrower than the app's minimum width.
     readonly property real pageControls: 265 * ui.unit  // the controls' height under the drawing
+    // The smallest drawing: the longest word on a 1u cap ("Échap", "Suppr") still fits in it at
+    // the smallest legend size, with a little to spare for wider desktop fonts.
+    readonly property real minimumWidth: 560 * ui.unit
     function pageWidth(across, tall, controls) {
         const room = tall - controls - 34 * ui.unit
         const perWidth = 1 / aspect + bezel / (columns + 2 * bezel)
-        return Math.max(400 * ui.unit, Math.min(across, implicitWidth, room / perWidth))
+        return Math.max(Math.min(minimumWidth, across), Math.min(across, implicitWidth, room / perWidth))
     }
 
     Rectangle {
@@ -152,19 +155,22 @@ Item {
                 z: 1
                 anchors.fill: face
                 anchors.margins: Math.max(1, cap.height * 0.06)
+                anchors.rightMargin: 1  // a long word may run to the face's edge
                 text: view.labelFor(cap.keyId)
                 color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0")
                      : cap.lit !== "" ? (Qt.color(cap.lit).hslLightness > 0 ? cap.lit : theme.secondary)  // black: the key is dark
                      : cap.selected ? theme.accentForeground : Material.foreground
                 font.weight: cap.lit !== "" && Qt.color(cap.lit).hslLightness > 0 ? Font.DemiBold : Font.Normal
                 // Sized from the key (about a quarter of the cap's height, like printed legends),
-                // so it grows with the drawing; long names shrink on their own, then are cut.
+                // so it grows with the drawing. Names break between words only: a word too long
+                // for the cap shrinks to fit, down to the smallest legend (the drawing's
+                // minimumWidth is where the longest word on a 1u cap still fits at that size).
                 font.pixelSize: Math.max(Math.round(9 * ui.unit), Math.round(view.unit * 1.1))
                 fontSizeMode: Text.HorizontalFit
                 minimumPixelSize: Math.round(7 * ui.unit)
                 horizontalAlignment: Text.AlignLeft
                 verticalAlignment: Text.AlignTop
-                wrapMode: Text.Wrap
+                wrapMode: Text.WordWrap
                 maximumLineCount: 2
                 elide: Text.ElideRight
             }

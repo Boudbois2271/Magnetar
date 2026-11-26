@@ -59,7 +59,7 @@ Item {
     // beside the drawing, so there the drawing is smaller.
     readonly property bool sidePanel: page.tab === 2
     // In a narrow window the list goes under the keyboard instead, as a short box.
-    readonly property bool sideBelow: frame.width < 400 * ui.unit + page.sideMinWidth + 16 * ui.unit
+    readonly property bool sideBelow: frame.width < drawing.minimumWidth + page.sideMinWidth + 16 * ui.unit
     readonly property real sideMinWidth: 220 * ui.unit
     readonly property real sideMaxWidth: 320 * ui.unit
     // (In a small window it gives way first: the keyboard keeps a usable size.)

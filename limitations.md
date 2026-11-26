@@ -169,7 +169,10 @@ reflected in `akko-protocol.md`.
   Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
   only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
-- Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
+- Keys page: keycap legends fit whole from the app's minimum window size up (the drawing never
+  goes under 560 px at 14 px text). In a window tiled narrower than that (a third of a 1080p
+  screen) the longest 1u names ("Échap") can still be cut. At the minimum window height the
+  pages run past the bottom edge (they already did before the larger drawing).
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
   blue or purple legend is hard to read on either theme. Keys → Travel's depth gauge is
   linear over the board's whole range, so 0.30 and 0.60 mm differ by a few pixels; the value says it.

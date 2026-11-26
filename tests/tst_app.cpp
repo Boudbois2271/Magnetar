@@ -2016,6 +2016,47 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // In the smallest window, in French (the longest names), every keycap legend shows whole on
+    // the Keys tabs and the Lighting drawing: none cut short, none broken inside a word.
+    void keycapLabelsFitTheSmallestWindow()
+    {
+        KeysWindow w;
+        QFont small("Sans");
+        small.setPixelSize(12);
+        w.ui.setBase(small, 1);
+        {
+            QFile file(w.dir.filePath("language"));
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write("fr");
+        }
+        QTRY_COMPARE(w.translator.language(), QString("fr"));
+        qGuiApp->installTranslator(&w.translator);
+        auto cleanup = qScopeGuard([&] { qGuiApp->removeTranslator(&w.translator); });
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready() && w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.window->resize(w.window->minimumSize());
+        QStringList cut;
+        auto check = [&](const QString &where, QQuickItem *view) {
+            QTest::qWait(60);
+            for (auto *cap : view->childItems()) {
+                if (!cap->objectName().startsWith("key_"))
+                    continue;
+                auto *label = cap->childItems().value(0);
+                const QString text = label->property("text").toString();
+                if (label->property("truncated").toBool()
+                    || label->property("lineCount").toInt() > text.split(' ').size())
+                    cut << where + ": " + text;
+            }
+        };
+        for (int tab = 0; tab < 3; ++tab) {
+            w.page->setProperty("tab", tab);
+            check(QString("keys tab %1").arg(tab), w.view);
+        }
+        w.show("lightingPage");
+        check("lighting", w.item("lightingPreview"));
+        QVERIFY2(cut.isEmpty(), qPrintable(cut.join("\n")));
+    }
+
     // Brightness offers six levels; a level the board has outside them shows on the nearest one
     // and isn't written back.
     void lightingBrightnessLevels()
