@@ -260,8 +260,14 @@ reflected in `akko-protocol.md`.
   arrives. Any tool must serialise access; the web app and our code can't run together.
 - Each effect stores its own colour and speed; `04 02` loads them (it doesn't reset speed).
 - Per-key colours (`06 00`): writes go in frames of at most 8 keys, the most ever captured in one
-  frame (11 would fit). Verified on the board under Custom; a write made while Breathing ran
-  stuck (2026-11-25).
+  frame. A frame of 11 keys works too (read back 2026-11-26); Magnetar keeps 8. A write made while
+  Breathing runs sticks (read back under Breathing, Custom and Steady, 2026-11-26).
+- Per-key colours, unexplained reset (2026-11-26): during a board read (Steady, Breathing, one key
+  written, Custom, back), profile 0's layout was found replaced by another one (73 of 83 keys:
+  1–7, QWER, ASDF, ZXC, Space coloured, rest black). No Fn shortcut, no other tool; the same steps
+  run twice more changed nothing. Restored from a full read made 20 minutes before. Where that layout
+  comes from (factory Custom layout?) and what loads it are unknown; Magnetar keeps no copy of
+  the colours, so such a reset can't be undone from the app.
 
 ## Repo / docs
 - Capture logs are not published, so the evidence behind `akko-protocol.md` can't be checked
