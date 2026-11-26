@@ -1743,6 +1743,24 @@ private slots:
         QVERIFY(!offered.contains("11 00 00 00"));  // www: shown when read, never offered
         QCOMPARE(offered.removeDuplicates(), 0);
 
+        // "Nothing" is the last of "Modifiers and layers", not a category; a picker without it
+        // (the advanced key editors) drops the action only.
+        auto modifiersAndLayers = [&] {
+            for (const auto &c : picker->property("categories").toList())
+                if (c.toMap().value("name").toString() == "Modifiers and layers")
+                    return c.toMap().value("items").toList();
+            return QVariantList();
+        };
+        const int categoryCount = picker->property("categories").toList().size();
+        QCOMPARE(categoryCount, 8);
+        QCOMPARE(modifiersAndLayers().size(), 11);
+        QCOMPARE(modifiersAndLayers().last().toMap().value("code").toString(), w.backend.unboundCode());
+        picker->setProperty("offerNothing", false);
+        QCOMPARE(picker->property("categories").toList().size(), categoryCount);
+        QCOMPARE(modifiersAndLayers().size(), 10);
+        QCOMPARE(modifiersAndLayers().last().toMap().value("label").toString(), QString("Fn1"));
+        picker->setProperty("offerNothing", true);
+
         QMetaObject::invokeMethod(tab, "assign", Q_ARG(QVariant, w.backend.lightingCode(4, 0)));
         QTRY_COMPARE(w.cap(0x62), QString("Speed cycle"));
         QCOMPARE(w.item("currentAction")->property("text").toString(), QString("Speed cycle"));

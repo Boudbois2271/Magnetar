@@ -11,7 +11,7 @@ ColumnLayout {
     id: picker
 
     property string currentCode: ""   // filled in among the choices
-    property bool offerNothing: true  // the "Nothing" category (unbound)
+    property bool offerNothing: true  // the "Nothing" action (unbound), last of "Modifiers and layers"
     property int category: 0
     property string search: ""
     property string macroLoop: "times"  // how a picked macro plays: times, untilKeyPressed, whileHeld
@@ -42,25 +42,22 @@ ColumnLayout {
 
     // Every action the picker offers, by category. "shortcut" is the builder, not a list.
     readonly property var categories: [
-        { name: qsTr("Letters"), items: picker.keyItems(picker.range(0x04, 0x1d)) },
-        { name: qsTr("Numbers and symbols"), items: picker.keyItems(picker.symbols) },
-        { name: qsTr("Function keys"), items: picker.keyItems(picker.functionKeys) },
+        { name: qsTr("Typing"), items: picker.keyItems(picker.range(0x04, 0x1d).concat(picker.symbols)) },
+        { name: qsTr("Function keys and numpad"), items: picker.keyItems(picker.functionKeys.concat(picker.range(0x53, 0x63))) },
         { name: qsTr("Editing and navigation"), items: picker.keyItems(picker.navigation) },
-        { name: qsTr("Numpad"), items: picker.keyItems(picker.range(0x53, 0x63)) },
-        { name: qsTr("Modifiers"), items: [1, 2, 4, 8, 16, 32, 64, 128].map(
-              b => ({ label: names.modifierName(b), code: backend.comboCode(b, []) })) },
+        // "Nothing" (unbound) ends this list, unless the picker doesn't offer it.
+        { name: qsTr("Modifiers and layers"), items: [1, 2, 4, 8, 16, 32, 64, 128].map(
+              b => ({ label: names.modifierName(b), code: backend.comboCode(b, []) })).concat(
+              [{ label: "Fn", code: backend.layerCode(0) }, { label: "Fn1", code: backend.layerCode(1) }],
+              picker.offerNothing ? [{ label: qsTr("Nothing (the key does nothing)"), code: backend.unboundCode() }] : []) },
         { name: qsTr("Shortcut"), shortcut: true, items: [] },
         { name: qsTr("Macros"), macros: true, items: backend.macros.map((m, i) => ({
               label: names.macroName(i), code: backend.macroCode(i, picker.macroLoop, picker.macroCount) })) },
-        { name: qsTr("Media"), items: names.media.map(m => ({ label: m.name, code: backend.consumerCode(m.usage) })) },
-        { name: qsTr("Mouse"), items: [1, 2, 3, 4, 5].map(b => ({ label: names.mouseName(b), code: backend.mouseCode(b) })) },
+        { name: qsTr("Media and mouse"), items: names.media.map(m => ({ label: m.name, code: backend.consumerCode(m.usage) })).concat(
+              [1, 2, 3, 4, 5].map(b => ({ label: names.mouseName(b), code: backend.mouseCode(b) }))) },
         { name: qsTr("Lighting"), items: [].concat(...names.lighting.map((row, t) => row.map(
-              (label, s) => ({ label: label, code: backend.lightingCode(t, s) })))) },
-        { name: qsTr("Layers"), items: [
-              { label: "Fn", code: backend.layerCode(0) },
-              { label: "Fn1", code: backend.layerCode(1) }] },
-        { name: qsTr("Nothing"), items: [{ label: qsTr("Nothing (the key does nothing)"), code: backend.unboundCode() }] }
-    ].filter(c => picker.offerNothing || c.items.length === 0 || c.items[0].code !== backend.unboundCode())
+              (label, s) => ({ label: label, code: backend.lightingCode(t, s) })))) }
+    ]
     readonly property bool onMacros: picker.search.trim() === "" && picker.categories[picker.category].macros === true
 
     // A key that runs a macro opens on Macros, with its loop mode and count.
