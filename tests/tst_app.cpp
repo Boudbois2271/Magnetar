@@ -470,6 +470,96 @@ private slots:
         QTRY_VERIFY(!listener.listening());
     }
 
+    // The other Fn reports: the value shows at once; after an effect, colour or profile change
+    // the board is read again (reads only), since those change more than the report carries.
+    void fnReportsAreShownThenReadBack()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        int writeEnd = -1;
+        auto cleanup = qScopeGuard([&] { if (writeEnd >= 0) ::close(writeEnd); });
+        ReportListener listener;
+        listener.setOpener([&] {
+            int fds[2];
+            if (::pipe2(fds, O_NONBLOCK | O_CLOEXEC) != 0)
+                return -1;
+            writeEnd = fds[1];
+            return fds[0];
+        });
+        b.setReportListener(&listener);
+        QTRY_VERIFY(b.ready());
+        QTRY_VERIFY(listener.listening());
+        auto send = [&](std::initializer_list<std::uint8_t> bytes) {
+            std::vector<std::uint8_t> r(akko::kReportLen, 0);
+            r[0] = akko::kReportId;
+            std::copy(bytes.begin(), bytes.end(), r.begin() + 1);
+            r[akko::kReportLen - 1] = akko::checksum(std::span(r).subspan(1));
+            QCOMPARE(::write(writeEnd, r.data(), r.size()), ssize_t(r.size()));
+        };
+        auto writes = [&] { std::lock_guard lock(board.mutex); return board.written.size(); };
+
+        // Speed: shown, nothing read.
+        int sessions = board.sessions;
+        auto sent = writes();
+        send({0xfe, 0x0b, 0x03, 0x01});
+        QTRY_COMPARE(b.speed(), 1);
+        QTest::qWait(Backend::kReportReadMs + 200);
+        QCOMPARE(board.sessions.load(), sessions);
+        QCOMPARE(writes(), sent);
+
+        // Effect: shown, then the board's own colour/brightness/speed for it come with a read.
+        {
+            std::lock_guard lock(board.mutex);
+            board.keyboard.lighting = {0x04, 0x07, 0xff, 0x00, 0x00, 12, 0x02};
+        }
+        send({0xfe, 0x0b, 0x01, 0x04});
+        QTRY_COMPARE(b.effect(), 0x04);
+        QTRY_COMPARE(b.brightness(), 12);
+        QVERIFY(b.rainbow());
+        QCOMPARE(b.speed(), 2);
+        QVERIFY(board.sessions > sessions);
+
+        // Colour (Fn+backslash): mode and colour shown.
+        {
+            std::lock_guard lock(board.mutex);
+            board.keyboard.lighting = {0x04, 0x03, 0xff, 0x61, 0x00, 12, 0x02};
+        }
+        send({0xfe, 0x0b, 0x04, 0x03, 0xff, 0x61, 0x00});
+        QTRY_COMPARE(b.color(), QString("#ff6100"));
+        QVERIFY(!b.rainbow());
+
+        // Profile (Fn+F10): read with its keymap.
+        sessions = board.sessions;
+        {
+            std::lock_guard lock(board.mutex);
+            board.keyboard.profile = 1;
+        }
+        send({0xfe, 0x09, 0x01});
+        QTRY_COMPARE(b.profile(), 2);
+        QVERIFY(board.sessions > sessions);
+        {
+            std::lock_guard lock(board.mutex);
+            for (const auto &w : board.written)  // reads only
+                QVERIFY2(w[1] & 0x80, qPrintable(QString("wrote %1 %2").arg(w[1], 2, 16, QChar('0')).arg(w[2], 2, 16, QChar('0'))));
+        }
+    }
+
+    // Win lock (Fn+Win) sends no report: showing a page reads the board again.
+    void showingAPageReadsTheBoard()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        {
+            std::lock_guard lock(w.board.mutex);
+            w.board.keyboard.base[0x15] = 1;
+        }
+        w.window->setProperty("page", PageSettings);
+        QTRY_VERIFY(w.backend.winKeyLock());
+        QTRY_COMPARE(w.item("winKeyLockSwitch")->property("checked").toBool(), true);
+    }
+
     void settingsAreWrittenAndReadBack()
     {
         FakeBoard board;

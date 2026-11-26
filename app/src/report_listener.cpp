@@ -67,8 +67,13 @@ void ReportListener::readReports()
             emit lost();
             return;
         }
-        if (const auto v = akko::brightnessReport(std::span(buf.data(), std::size_t(n))))
-            last = *v;
+        const auto r = akko::boardReport(std::span(buf.data(), std::size_t(n)));
+        if (!r)
+            continue;
+        if (r->kind == akko::BoardReport::Kind::Brightness)
+            last = r->value;
+        else
+            emit boardReported(*r);
     }
     if (last >= 0)
         emit brightnessReported(last);

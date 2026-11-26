@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Listens to the keyboard's unsolicited input reports between (and during) the app's sessions,
 // with the vendor hidraw node opened read-only: nothing is ever sent, so it needs no session
-// lock and can't disturb another tool. For now only the brightness report (`fe 0b`, after an
-// Fn brightness shortcut) is used.
+// lock and can't disturb another tool. Used: the reports the board sends after an Fn shortcut
+// changes the lighting (`fe 0b`) or the profile (`fe 09`).
 #pragma once
+
+#include "lights.h"
 
 #include <QObject>
 #include <QString>
@@ -31,7 +33,9 @@ public:
     void setOpener(std::function<int()> opener) { m_opener = std::move(opener); }
 
 signals:
-    void brightnessReported(int value);
+    void brightnessReported(int value);  // the last of a burst only
+    // Any other change the board reported (effect, speed, colour, profile), in order.
+    void boardReported(const akko::BoardReport &report);
     // The node stopped answering (unplugged, or the board dropped off USB and came back as a new
     // node): listening stopped until the next open().
     void lost();

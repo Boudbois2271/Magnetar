@@ -5,6 +5,7 @@
 #pragma once
 
 #include "device_worker.h"
+#include "lights.h"
 
 #include <QObject>
 #include <QPointer>
@@ -160,6 +161,11 @@ public:
     void keyboardRemoved(const QString &node);
     // The board reported a new brightness on its own (fe 0b, Fn shortcut): show it.
     void brightnessReported(int value);
+    // The board reported another change on its own (Fn shortcut): show the reported value now,
+    // then read the board again (reads only) after an effect, colour or profile change, which
+    // also changes what the report doesn't carry (an effect brings its own colour, brightness
+    // and speed; a profile everything).
+    void boardReported(const akko::BoardReport &report);
     // Shows what the listener hears and keeps it open: it's (re)opened after every successful
     // read of the board, so a node that went away and came back while we still looked connected
     // (a missed unplug, USB re-enumeration after suspend) is listened to again. When the listener
@@ -259,6 +265,8 @@ public:
     // Linux), and how long to keep waiting before showing the error.
     static constexpr int kRestartWaitMs = 1200;
     static constexpr int kRestartGiveUpMs = 10000;
+    // After the last of a burst of Fn reports (a cycle key held or pressed again and again).
+    static constexpr int kReportReadMs = 400;
     static constexpr int kRetryMs = 3000;
     static constexpr int kHotplugFallbackMs = 10000;
 
@@ -305,6 +313,7 @@ private:
     bool m_restarting = false;
     QPointer<ReportListener> m_reports;
     QTimer m_restartWait;  // single shot: read the keyboard again
+    QTimer m_reportRead;   // single shot: read the board once a burst of Fn reports is over
     QElapsedTimer m_restartClock;
     // Calibration session, shared with the worker: stop asks it to Finish.
     struct CalibrationRun {

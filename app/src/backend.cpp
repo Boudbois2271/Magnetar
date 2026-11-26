@@ -23,6 +23,12 @@ Backend::Backend(SessionFactory sessions, const QString &stateFile, QObject *par
     connect(&m_retry, &QTimer::timeout, this, &Backend::refresh);
     m_restartWait.setSingleShot(true);
     connect(&m_restartWait, &QTimer::timeout, this, &Backend::refresh);
+    m_reportRead.setSingleShot(true);
+    m_reportRead.setInterval(kReportReadMs);
+    connect(&m_reportRead, &QTimer::timeout, this, [this] {
+        if (m_connected && !m_restarting)
+            refresh();
+    });
 
     // The worker calls back on its own thread; hop to this one before touching state.
     m_worker = std::make_unique<DeviceWorker>(
@@ -1099,6 +1105,7 @@ void Backend::setReportListener(ReportListener *listener)
 {
     m_reports = listener;
     connect(listener, &ReportListener::brightnessReported, this, &Backend::brightnessReported);
+    connect(listener, &ReportListener::boardReported, this, &Backend::boardReported);
     connect(listener, &ReportListener::lost, this, [this] {
         if (m_connected && !m_restarting)
             refresh();  // a read: fails if it was unplugged, reopens the listener if it's back
@@ -1113,6 +1120,38 @@ void Backend::brightnessReported(int value)
         return;
     b = static_cast<std::uint8_t>(value);
     emit stateChanged();
+}
+
+void Backend::boardReported(const akko::BoardReport &report)
+{
+    if (!m_ready)
+        return;
+    using Kind = akko::BoardReport::Kind;
+    auto &l = m_state.lighting;
+    const auto before = l;
+    switch (report.kind) {
+    case Kind::Brightness:
+        brightnessReported(report.value);
+        return;
+    case Kind::Effect:
+        l[akko::Lighting::Effect] = report.value;
+        break;
+    case Kind::Speed:
+        l[akko::Lighting::Speed] = report.value;
+        break;
+    case Kind::Color:
+        l[akko::Lighting::ColorMode] = report.value;
+        l[akko::Lighting::Red] = report.rgb[0];
+        l[akko::Lighting::Green] = report.rgb[1];
+        l[akko::Lighting::Blue] = report.rgb[2];
+        break;
+    case Kind::Profile:
+        break;  // the read below brings the new profile's keymap along with it
+    }
+    if (l.bytes != before.bytes)
+        emit stateChanged();
+    if (report.kind != Kind::Speed)
+        m_reportRead.start();  // restarted by each report of a burst
 }
 
 int Backend::calibrationFull() const

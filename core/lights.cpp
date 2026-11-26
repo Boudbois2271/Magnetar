@@ -246,13 +246,48 @@ void rememberBrightness(const std::string &stateFile, int value)
     fs::rename(tmp, path);
 }
 
-std::optional<int> brightnessReport(std::span<const std::uint8_t> report)
+std::optional<BoardReport> boardReport(std::span<const std::uint8_t> report)
 {
-    if (report.size() != kReportLen || report[0] != kReportId || report[1] != 0xfe || report[2] != 0x0b
-        || report[3] != 0x02 || report[4] > kMaxBrightness
+    if (report.size() != kReportLen || report[0] != kReportId || report[1] != 0xfe
         || checksum(report.subspan(1)) != report[kReportLen - 1])
         return std::nullopt;
-    return report[4];
+    using Kind = BoardReport::Kind;
+    if (report[2] == 0x09) {  // fe 09 pp: profile pp (0-based), Fn+F9/F10/F11
+        if (report[3] >= 8)  // profileCount() allows 1–8
+            return std::nullopt;
+        return BoardReport{Kind::Profile, report[3], {}};
+    }
+    if (report[2] != 0x0b)
+        return std::nullopt;
+    const std::uint8_t v = report[4];
+    switch (report[3]) {
+    case 0x01:  // effect, Fn+Home/End/PgUp/PgDn
+        if (v > kEffectCustom)
+            return std::nullopt;
+        return BoardReport{Kind::Effect, v, {}};
+    case 0x02:  // brightness, Fn+Up/Down
+        if (v > kMaxBrightness)
+            return std::nullopt;
+        return BoardReport{Kind::Brightness, v, {}};
+    case 0x03:  // speed, Fn+=/-
+        if (v > kMaxSpeed)
+            return std::nullopt;
+        return BoardReport{Kind::Speed, v, {}};
+    case 0x04:  // colour mode, r, g, b, Fn+backslash
+        if (v > 7)
+            return std::nullopt;
+        return BoardReport{Kind::Color, v, {report[5], report[6], report[7]}};
+    default:
+        return std::nullopt;
+    }
+}
+
+std::optional<int> brightnessReport(std::span<const std::uint8_t> report)
+{
+    const auto r = boardReport(report);
+    if (!r || r->kind != BoardReport::Kind::Brightness)
+        return std::nullopt;
+    return r->value;
 }
 
 std::array<std::uint8_t, 3> parseColor(const std::string &text)

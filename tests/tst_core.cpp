@@ -186,6 +186,42 @@ class CoreTests : public QObject {
 
 private slots:
     // ---- frames ----------------------------------------------------------
+    // Reports logged on the vendor node while each Fn shortcut was pressed (2026-11-26), whole
+    // 64-byte reports with the board's checksum.
+    void boardReports()
+    {
+        auto report = [](std::initializer_list<std::uint8_t> bytes) {
+            std::vector<std::uint8_t> r(kReportLen, 0);
+            r[0] = kReportId;
+            std::copy(bytes.begin(), bytes.end(), r.begin() + 1);
+            r[kReportLen - 1] = checksum(std::span(r).subspan(1));
+            return r;
+        };
+        using Kind = BoardReport::Kind;
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x01, 0x04})), (std::optional(BoardReport{Kind::Effect, 0x04, {}})));
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x01, 0x13})), (std::optional(BoardReport{Kind::Effect, 0x13, {}})));
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x02, 0x0f})), (std::optional(BoardReport{Kind::Brightness, 15, {}})));
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x03, 0x04})), (std::optional(BoardReport{Kind::Speed, 4, {}})));
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x04, 0x03, 0xff, 0x61, 0x00})),
+                 (std::optional(BoardReport{Kind::Color, 3, {0xff, 0x61, 0x00}})));
+        QCOMPARE(boardReport(report({0xfe, 0x0b, 0x04, 0x07, 0x00, 0xff, 0x00})),
+                 (std::optional(BoardReport{Kind::Color, 7, {0x00, 0xff, 0x00}})));
+        QCOMPARE(boardReport(report({0xfe, 0x09, 0x02})), (std::optional(BoardReport{Kind::Profile, 2, {}})));
+        QCOMPARE(boardReport(report({0xfe, 0x09, 0x00})), (std::optional(BoardReport{Kind::Profile, 0, {}})));
+        QVERIFY(!boardReport(report({0xfe, 0x0b, 0x01, 0x14})));  // past the last effect
+        QVERIFY(!boardReport(report({0xfe, 0x0b, 0x03, 0x05})));  // past the fastest speed
+        QVERIFY(!boardReport(report({0xfe, 0x0b, 0x04, 0x08})));  // past rainbow
+        QVERIFY(!boardReport(report({0xfe, 0x09, 0x08})));        // past 8 profiles
+        QVERIFY(!boardReport(report({0xfe, 0x0b, 0x05, 0x01})));  // never seen
+        QVERIFY(!boardReport(report({0x84, 0x01, 0x00, 0x01})));  // an answer to a read
+        QVERIFY(!boardReport(report({0x04, 0x01, 0x00, 0x01})));  // a write's echo
+        auto r = report({0xfe, 0x09, 0x01});
+        r[kReportLen - 1] ^= 1;
+        QVERIFY(!boardReport(r));  // bad checksum
+        QCOMPARE(brightnessReport(report({0xfe, 0x0b, 0x02, 0x05})), std::optional<int>(5));
+        QVERIFY(!brightnessReport(report({0xfe, 0x0b, 0x03, 0x02})));  // speed, not brightness
+    }
+
     // fe 0b reports as captured (akko-capture11.txt mark 14), whole 64-byte reports.
     void brightnessReports()
     {

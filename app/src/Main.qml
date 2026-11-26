@@ -27,8 +27,10 @@ ApplicationWindow {
     property bool helpVisible: false
     property int page: 0
 
-    // On-board Fn shortcuts can change the lighting behind our back: re-read on focus.
+    // On-board Fn shortcuts can change state behind our back. Lighting and profile changes are
+    // reported (ReportListener); the rest (Win lock) is re-read on focus and when a page is shown.
     onActiveChanged: if (active) backend.refresh()
+    onPageChanged: backend.refresh()
 
     Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
