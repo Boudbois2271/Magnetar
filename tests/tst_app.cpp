@@ -1995,6 +1995,27 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // The Lighting drawing is the Keys one (Action tab): one sizing rule, the same size, at the
+    // default window, a larger one, and half a 1080p desktop (its options stacked).
+    void lightingDrawingMatchesKeys()
+    {
+        KeysWindow w;
+        QFont small("Sans");
+        small.setPixelSize(12);
+        w.ui.setBase(small, 1);
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready() && w.backend.keymapReady() && w.backend.travelReady() && w.backend.advancedReady());
+        w.page->setProperty("tab", 0);
+        w.show("lightingPage");
+        auto *preview = w.item("lightingPreview");
+        for (const QSize size : {QSize(1234, 789), QSize(1600, 1000), QSize(960, 1030)}) {
+            w.window->resize(size);
+            QVERIFY(QTest::qWaitFor([&] { return w.view->width() > 0 && qFuzzyCompare(preview->width(), w.view->width()); }, 2000));
+            QCOMPARE(preview->height(), w.view->height());
+        }
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     // Brightness offers six levels; a level the board has outside them shows on the nearest one
     // and isn't written back.
     void lightingBrightnessLevels()

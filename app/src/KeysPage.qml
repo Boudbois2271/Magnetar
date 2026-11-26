@@ -63,16 +63,14 @@ Item {
     readonly property real sideMinWidth: 220 * ui.unit
     readonly property real sideMaxWidth: 320 * ui.unit
     // (In a small window it gives way first: the keyboard keeps a usable size.)
-    readonly property real controlsHeight: page.sidePanel ? Math.max(265 * ui.unit, Math.min(380 * ui.unit, 0.45 * frame.height))
-                                                          : 265 * ui.unit
+    readonly property real controlsHeight: page.sidePanel ? Math.max(drawing.pageControls, Math.min(380 * ui.unit, 0.45 * frame.height))
+                                                          : drawing.pageControls
+    // KeyboardView.pageWidth, shared with the Lighting page: the same drawing on both.
     readonly property real drawingWidth: {
-        // Height for the plate and the bar under it; both grow with the width (the bar by the
-        // plate's bezel).
-        const room = frame.height - header.height - 2 * frame.spacing - page.controlsHeight - 34 * ui.unit
+        const tall = frame.height - header.height - 2 * frame.spacing
                      - (page.sidePanel && page.sideBelow ? 126 * ui.unit : 0)
-        const perWidth = 1 / drawing.aspect + drawing.bezel / (drawing.columns + 2 * drawing.bezel)
         const across = frame.width - (page.sidePanel && !page.sideBelow ? page.sideMinWidth + keyboardRow.columnSpacing : 0)
-        return Math.max(400 * ui.unit, Math.min(across, drawing.implicitWidth, room / perWidth))
+        return drawing.pageWidth(across, tall, page.controlsHeight)
     }
 
     // A page action: an icon and a word, at the right of the header.

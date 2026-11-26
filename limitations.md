@@ -97,8 +97,8 @@ reflected in `akko-protocol.md`.
   and a colour set while Breathing runs is there on switching back to Custom. Assumed per profile
   (read again on a profile switch), not checked. No undo; no per-key brightness or effects.
 - Lighting page: the brightness slider offers 0, 1, 5, 10, 15 and 20 only; other levels are set with
-  `akkoctl` (and shown as read). The Lighting drawing is sized like the Keys one by the same rule,
-  not shared with it: the two can differ by a few pixels.
+  `akkoctl` (and shown as read). The Lighting drawing shares the Keys sizing rule and matches it,
+  except in a window too short for the Lighting options stacked under it: there it is smaller.
 - Keys page: editing many keys at once (one action, one advanced function on each, Remove on several)
   was used on the board for Nothing / Restore default on three keys (2026-11-25); the rest is
   tested against the fake keyboard only.

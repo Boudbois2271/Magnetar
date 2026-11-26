@@ -87,6 +87,18 @@ Item {
     readonly property real dragMargin: mouse.margin  // a drag may start this far outside the plate
     readonly property real aspect: (columns + 2 * bezel) / (rows + 2 * bezel)  // width / height
 
+    // The one sizing rule of the pages that show the drawing over their controls (Keys,
+    // Lighting), so it is the same size on both: as wide as `across` allows, up to the largest
+    // keys, and low enough that the plate, the bar attached under it (it grows with the bezel)
+    // and `controls` fit in `tall`. Never under 400 px at 14 px text: below that the caps can't
+    // be read; the page's own minimum size keeps it in the window.
+    readonly property real pageControls: 265 * ui.unit  // the controls' height under the drawing
+    function pageWidth(across, tall, controls) {
+        const room = tall - controls - 34 * ui.unit
+        const perWidth = 1 / aspect + bezel / (columns + 2 * bezel)
+        return Math.max(400 * ui.unit, Math.min(across, implicitWidth, room / perWidth))
+    }
+
     Rectangle {
         objectName: "plate"
         anchors.fill: parent
