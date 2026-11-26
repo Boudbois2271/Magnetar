@@ -250,7 +250,7 @@ reflected in `akko-protocol.md`.
 - Short windows (1028 × 574, a tiled window on a 1440p screen at 125 %): every page fits. Lighting
   keeps the colour beside its settings, seven swatches a row and the hex field on the title's row;
   Settings puts Device and About in a second column; Calibration's drawing shrinks to the height
-  left (never under the smallest drawing). Checked offscreen only, not yet on the desktop.
+  left (never under the smallest drawing). Checked on the desktop (tiled window, 1440p at 125 %).
 
 ## Firmware behaviour
 - Two concurrent HID sessions wedge the keyboard: it stops sending keystrokes until a clean command
