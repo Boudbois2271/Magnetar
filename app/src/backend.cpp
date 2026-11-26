@@ -604,7 +604,9 @@ void rememberAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t
             if (std::find(keys.begin(), keys.end(), id) == keys.end())
                 keys.push_back(id);
     }
-    s.advancedUndo = Snapshot::AdvancedUndo{profile, std::move(keys), std::move(before)};
+    s.advancedUndo.push_back({profile, std::move(keys), std::move(before)});
+    if (s.advancedUndo.size() > Snapshot::kAdvancedUndoDepth)
+        s.advancedUndo.erase(s.advancedUndo.begin());
 }
 
 }  // namespace
@@ -690,14 +692,15 @@ void Backend::undoAdvanced()
 {
     post("", [](akko::Keyboard &kb, Snapshot &s) {
         const int profile = kb.profile();
-        if (!s.advancedUndo || s.advancedUndo->profile != profile)
+        if (s.advancedUndo.empty() || s.advancedUndo.back().profile != profile)
             return;
-        const auto undo = *s.advancedUndo;
-        s.advancedUndo.reset();
+        const auto undo = s.advancedUndo.back();
         // Cleared first (12 00 type 00, both keys of a pair), then the old records saved back.
+        // Dropped from the history only once it worked: both steps can simply be tried again.
         storeAdvanced(s, kb.clearAdvanced(undo.keys), profile);
         if (!undo.before.empty())
             storeAdvanced(s, kb.setAdvanced(undo.before), profile);
+        s.advancedUndo.pop_back();
     });
 }
 

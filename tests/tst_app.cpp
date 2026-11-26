@@ -856,12 +856,30 @@ private slots:
         QTRY_COMPARE(b.advancedKeys().size(), 1);
         QCOMPARE(b.advancedKeys()[0].toMap(), socd);
 
-        // One level only: a second Undo sends nothing.
+        // Undo again walks further back: the pair's own save goes, and the history is empty.
+        QVERIFY(b.canUndoAdvanced());
+        b.undoAdvanced();
+        QTRY_VERIFY(b.advancedKeys().isEmpty());
         QTRY_VERIFY(!b.canUndoAdvanced());
         const int after = board.writesOf(0x12, 0x00);
         b.undoAdvanced();
         QTest::qWait(50);
         QCOMPARE(board.writesOf(0x12, 0x00), after);
+
+        // The same key changed one more time than the history holds: undoing all the way back
+        // leaves the oldest change, the first hold time.
+        auto toggle = [](int holdMs) {
+            return QVariantMap{{"type", "toggle"}, {"key", 0x31}, {"action", "00 00 00 0e"}, {"holdMs", holdMs}};
+        };
+        const int depth = int(Snapshot::kAdvancedUndoDepth);
+        for (int i = 0; i <= depth; ++i)
+            QVERIFY(b.saveAdvanced({toggle(100 + 10 * i)}));
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap(), toggle(100 + 10 * depth));
+        for (int i = 0; i < depth; ++i)
+            b.undoAdvanced();  // queued in a row, each one builds on the one before
+        QTRY_VERIFY(!b.canUndoAdvanced());
+        QCOMPARE(b.advancedKeys().size(), 1);
+        QCOMPARE(b.advancedKeys()[0].toMap(), toggle(100));
     }
 
     void macrosAreSavedAndDeleted()

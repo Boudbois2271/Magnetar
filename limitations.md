@@ -128,8 +128,9 @@ reflected in `akko-protocol.md`.
   patterns of the four points are offered. Rows of several strokes are composed from the stage
   bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
-- Advanced tab: Undo is one level (the last save or removal), cleared on a profile switch; not
-  tried on the board.
+- Advanced tab: Undo walks back the last 20 saves or removals, held in memory only (gone when
+  the app closes) and cleared on a profile switch. No Redo. Several undos in a row not tried on
+  the board.
 - Advanced tab: from the minimum window size up the SOCD, DKS and Multi tags show whole on 1u
   keys; the longer Mod-Tap, Toggle and Release tags are cut there ("Mod…") until the window is
   wider. Shorter tag names would fix it (a wording choice, not made).
