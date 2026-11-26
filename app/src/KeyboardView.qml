@@ -23,6 +23,9 @@ Item {
     property var depthFor: function (id) { return -1 }  // 0..1 of the travel, filled from the top; < 0: none
     property var badgeFor: function (id) { return "" }  // short text at the cap's foot
     property var legendColorFor: function (id) { return "" }  // the legend lit in this colour when not ""
+    // Every legend one size, the largest at which the longest fits a 1u cap (beside the depth
+    // gauge): for legends read as a set, like Travel's numbers. Off: each shrinks on its own.
+    property bool uniformLabels: false
     property var selectedKeys: []
     property bool interactive: true
     property bool squareBottom: false  // the plate goes on below it (a bar attached under it)
@@ -102,6 +105,23 @@ Item {
         return Math.max(Math.min(minimumWidth, across), Math.min(across, implicitWidth, room / perWidth))
     }
 
+    // The legend size, as a key's size goes: about a quarter of the cap's height, like printed
+    // legends, so it grows with the drawing.
+    readonly property int labelPixelSize: Math.max(Math.round(9 * ui.unit), Math.round(unit * 1.1))
+    // A 1u cap's legend room (as laid out in the delegate), and the uniform size that fits it.
+    readonly property real capHeight: 4 * unit - gap
+    readonly property real gaugeRoom: Math.max(2, capHeight * 0.08) + Math.max(3, unit * 0.35) + 1  // up to the gauge
+    readonly property real oneUnitRoom: capHeight - 2 * Math.max(1, capHeight * 0.08) - Math.max(1, capHeight * 0.06)
+                                        - (depthFor(keys.length > 0 ? keys[0].id : -1) >= 0 ? gaugeRoom : 1)
+    readonly property int uniformPixelSize: widest.text === "" ? labelPixelSize
+        : Math.max(1, Math.min(labelPixelSize, Math.floor(widest.font.pixelSize * oneUnitRoom / widest.implicitWidth)))
+    Label {
+        id: widest  // measures the longest legend in the legends' own font
+        visible: false
+        font.pixelSize: 100
+        text: view.uniformLabels ? view.keys.reduce((a, k) => { const t = view.labelFor(k.id); return t.length > a.length ? t : a }, "") : ""
+    }
+
     Rectangle {
         objectName: "plate"
         anchors.fill: parent
@@ -155,18 +175,18 @@ Item {
                 z: 1
                 anchors.fill: face
                 anchors.margins: Math.max(1, cap.height * 0.06)
-                anchors.rightMargin: 1  // a long word may run to the face's edge
+                // A long word may run to the face's edge, or to the depth gauge.
+                anchors.rightMargin: cap.depth >= 0 ? view.gaugeRoom : 1
                 text: view.labelFor(cap.keyId)
                 color: cap.fill !== "" ? (cap.lightFill ? "#0e0e10" : "#f0f0f0")
                      : cap.lit !== "" ? (Qt.color(cap.lit).hslLightness > 0 ? cap.lit : theme.secondary)  // black: the key is dark
                      : cap.selected ? theme.accentForeground : Material.foreground
                 font.weight: cap.lit !== "" && Qt.color(cap.lit).hslLightness > 0 ? Font.DemiBold : Font.Normal
-                // Sized from the key (about a quarter of the cap's height, like printed legends),
-                // so it grows with the drawing. Names break between words only: a word too long
-                // for the cap shrinks to fit, down to the smallest legend (the drawing's
-                // minimumWidth is where the longest word on a 1u cap still fits at that size).
-                font.pixelSize: Math.max(Math.round(9 * ui.unit), Math.round(view.unit * 1.1))
-                fontSizeMode: Text.HorizontalFit
+                // Names break between words only: a word too long for the cap shrinks to fit,
+                // down to the smallest legend (the drawing's minimumWidth is where the longest
+                // word on a 1u cap still fits at that size).
+                font.pixelSize: view.uniformLabels ? view.uniformPixelSize : view.labelPixelSize
+                fontSizeMode: view.uniformLabels ? Text.FixedSize : Text.HorizontalFit
                 minimumPixelSize: Math.round(7 * ui.unit)
                 horizontalAlignment: Text.AlignLeft
                 verticalAlignment: Text.AlignTop

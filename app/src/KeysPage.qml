@@ -170,6 +170,7 @@ Item {
                     colorFor: page.current.colorFor || function (id) { return "" }
                     depthFor: page.current.depthFor || function (id) { return -1 }
                     badgeFor: page.current.badgeFor || function (id) { return "" }
+                    uniformLabels: page.current.uniformLabels === true
                     selectedKeys: page.selection
                     onKeyClicked: (id, modifiers) => page.click(id, modifiers)
                     onBoxSelected: (ids, modifiers) => page.box(ids, modifiers)

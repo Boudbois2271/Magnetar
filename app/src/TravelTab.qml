@@ -53,6 +53,7 @@ ColumnLayout {
     }
 
     readonly property var labelFor: page.capLabel
+    readonly property bool uniformLabels: true  // the numbers read as a set: one size on every cap
     // The actuation point as a share of the deepest one the board takes: 0.30 mm stands out.
     readonly property var depthFor: function (id) {
         const t = page.travel[String(id)]

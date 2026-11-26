@@ -161,7 +161,9 @@ reflected in `akko-protocol.md`.
   see Units) and no presets; Undo
   covers the last change only. Switch model (`15 00`) and calibration aren't on the page.
 - Travel page: dead zones are sent one key per frame (83 frames for all keys), the only form captured.
-- Travel page: in a window at its minimum width the 1u keycap numbers shrink to 7 px while wide keys keep a larger size.
+- Travel page: the keycap numbers are one size on every key, the largest that fits a 1u cap
+  beside its depth gauge; at the minimum window size that is about 8 px with 14 px text
+  (7 px with 12 px text). Larger needs a larger drawing or shorter numbers.
 - Keys page: system (`07`), profile (`09`), "www" (`11`) and select-effect (`08 09 nn`) actions are
   shown but can't be assigned; the Fn layer's factory ones show as "System function" / "Profile N" /
   "Lighting control". The vendor's 15 lighting actions, mouse back/forward and media keys are

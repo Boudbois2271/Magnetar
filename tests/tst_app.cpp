@@ -2058,6 +2058,21 @@ private slots:
             w.page->setProperty("tab", tab);
             check(QString("keys tab %1").arg(tab), w.view);
         }
+        // Travel: the numbers are one size on every cap, wide or 1u, and stop short of the gauge.
+        w.page->setProperty("tab", 1);
+        QTest::qWait(60);
+        std::set<int> sizes;
+        for (auto *cap : w.view->childItems()) {
+            if (!cap->objectName().startsWith("key_"))
+                continue;
+            auto *label = cap->childItems().value(0);
+            sizes.insert(label->property("fontInfo").toMap().value("pixelSize").toInt());
+            auto *gauge = findItem(cap, "depth");
+            const qreal end = label->mapToItem(cap, QPointF(label->property("contentWidth").toReal(), 0)).x();
+            if (end > gauge->mapToItem(cap, QPointF(0, 0)).x() + 0.5)
+                cut << "travel, under the gauge: " + label->property("text").toString();
+        }
+        QCOMPARE(int(sizes.size()), 1);
         w.show("lightingPage");
         check("lighting", w.item("lightingPreview"));
         QVERIFY2(cut.isEmpty(), qPrintable(cut.join("\n")));
