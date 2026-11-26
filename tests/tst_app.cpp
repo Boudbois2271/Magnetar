@@ -560,6 +560,31 @@ private slots:
         QTRY_COMPARE(w.item("winKeyLockSwitch")->property("checked").toBool(), true);
     }
 
+    // Fn+Win pressed while Settings is already shown: read again every 2 s while it's shown.
+    void settingsKeepsReadingWinLock()
+    {
+        KeysWindow w;
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.ready());
+        w.window->requestActivate();
+        QVERIFY(QTest::qWaitForWindowActive(w.window));
+        w.window->setProperty("page", PageSettings);
+        auto *winLock = w.item("winKeyLockSwitch");
+        QTRY_COMPARE(w.board.sessions.load() > 0, true);
+        QTest::qWait(300);  // the page change's own read is done
+        {
+            std::lock_guard lock(w.board.mutex);
+            w.board.keyboard.base[0x15] = 1;
+        }
+        QTRY_COMPARE_WITH_TIMEOUT(winLock->property("checked").toBool(), true, 4000);
+        // Another page: no more reads.
+        w.window->setProperty("page", PageKeys);
+        QTest::qWait(300);
+        const int sessions = w.board.sessions;
+        QTest::qWait(2500);
+        QCOMPARE(w.board.sessions.load(), sessions);
+    }
+
     void settingsAreWrittenAndReadBack()
     {
         FakeBoard board;

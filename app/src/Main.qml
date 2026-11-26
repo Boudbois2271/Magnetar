@@ -28,9 +28,17 @@ ApplicationWindow {
     property int page: 0
 
     // On-board Fn shortcuts can change state behind our back. Lighting and profile changes are
-    // reported (ReportListener); the rest (Win lock) is re-read on focus and when a page is shown.
+    // reported (ReportListener); the rest (Win lock) is re-read on focus, when a page is shown and
+    // while Settings is shown (below).
     onActiveChanged: if (active) backend.refresh()
     onPageChanged: backend.refresh()
+    // Settings shows Win lock, which Fn+Win changes without a report: keep reading it while shown.
+    Timer {
+        interval: 2000
+        repeat: true
+        running: win.active && settingsPage.visible && backend.connected && !backend.calibrating
+        onTriggered: backend.refresh()
+    }
 
     Shortcut { sequence: "?"; context: Qt.ApplicationShortcut; onActivated: win.helpVisible = !win.helpVisible }
     Shortcut { sequence: "Esc"; context: Qt.ApplicationShortcut; enabled: win.helpVisible; onActivated: win.helpVisible = false }
@@ -313,7 +321,7 @@ ApplicationWindow {
                     LightingPage { objectName: "lightingPage" }
                     MuralPage { objectName: "muralPage" }
                     MacrosPage { objectName: "macrosPage" }
-                    SettingsPage { objectName: "settingsPage" }
+                    SettingsPage { id: settingsPage; objectName: "settingsPage" }
                 }
             }
         }
