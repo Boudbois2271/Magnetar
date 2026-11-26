@@ -120,14 +120,42 @@ ColumnLayout {
         Layout.fillWidth: true
         visible: picker.search.trim() === "" && !picker.compact
         spacing: 6 * ui.unit
+        // Categories read as tabs, apart from the filled chips of the actions under them: text
+        // only, and the open one on a chip fill, in bold, underlined in the accent colour.
         Repeater {
             model: picker.categories
-            delegate: Chip {
+            delegate: AppButton {
+                id: categoryTab
                 required property int index
                 required property var modelData
-                on: picker.category === index
+                readonly property bool on: picker.category === index
+                kind: on ? "secondary" : "quiet"
                 text: modelData.name
                 onClicked: picker.category = index
+                // As wide as in bold, so the row doesn't shift when another category opens.
+                implicitWidth: Math.max(implicitHeight, boldText.implicitWidth + 16 * ui.unit)
+                Label {
+                    id: boldText
+                    visible: false
+                    text: categoryTab.text
+                    font.weight: Font.DemiBold
+                }
+                contentItem: Label {
+                    text: categoryTab.text
+                    font.weight: categoryTab.on ? Font.DemiBold : Font.Normal
+                    color: categoryTab.on || categoryTab.hovered ? theme.foreground : theme.secondary
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                }
+                Rectangle {
+                    visible: categoryTab.on
+                    anchors.bottom: parent.bottom
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: boldText.implicitWidth
+                    height: Math.max(2, Math.round(2 * ui.unit))
+                    radius: height / 2
+                    color: theme.accent
+                }
             }
         }
     }
