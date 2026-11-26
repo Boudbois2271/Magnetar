@@ -133,7 +133,8 @@ reflected in `akko-protocol.md`.
   right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
   The vendor app's recorder takes real mouse clicks but not volume keys (they act on the system).
 - Macros page: steps use keyboard usages or a left click (`20`/`a0` button `01`, SEEN in
-  `akko-capture13.txt`, written by Magnetar but not yet run on the board). Right/middle/back/forward
+  `akko-capture13.txt`, run on the board 2026-11-26). The left click is the only mouse step offered;
+  the other mouse actions of the Action tab (not shortcuts, not nothing) are missing. Right/middle/back/forward
   are a GUESS (`02`–`05`), not offered. Clicks aren't recorded (add them by hand); the vendor's
   recorder takes them. Steps of unknown kinds are shown as "Unknown step" and kept on save. The
   vendor recorder has no media steps either. A step's key is changed from its row's list, along with
@@ -166,6 +167,7 @@ reflected in `akko-protocol.md`.
 - Keys page: "Reset … layer to factory" (`11 LL`, then the layer read again) is offered on Default and
   Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
   only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
+- Keys → Action: the bind categories and the binds below them look the same (no visual separation yet).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
