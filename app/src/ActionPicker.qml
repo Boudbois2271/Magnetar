@@ -25,6 +25,10 @@ ColumnLayout {
 
     KeyNames { id: names }
 
+    // The search box and the actions under it are as wide as the rows of categories.
+    readonly property real columnWidth: picker.compact ? Number.POSITIVE_INFINITY
+                                                       : Math.max(categoryChips.childrenRect.width, 200 * ui.unit)
+
     function range(from, to) {
         let r = []
         for (let u = from; u <= to; ++u)
@@ -96,7 +100,7 @@ ColumnLayout {
             objectName: "searchField"
             Layout.fillWidth: true
             // No wider than the rows of categories under it.
-            Layout.maximumWidth: picker.compact ? Number.POSITIVE_INFINITY : Math.max(categoryChips.childrenRect.width, 200 * ui.unit)
+            Layout.maximumWidth: picker.columnWidth
             placeholderText: qsTr("Search, e.g. volume or F5")
             text: picker.search
             onTextEdited: picker.search = text
@@ -195,6 +199,7 @@ ColumnLayout {
         id: itemsBox
         objectName: "pickerItems"
         Layout.fillWidth: true
+        Layout.maximumWidth: picker.columnWidth  // wraps under the categories, not past them
         Layout.fillHeight: true
         Layout.preferredHeight: items.implicitHeight
         Layout.minimumHeight: Math.min(items.implicitHeight, 80 * ui.unit)

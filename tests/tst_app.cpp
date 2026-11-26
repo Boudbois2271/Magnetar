@@ -1838,6 +1838,35 @@ private slots:
         QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
     }
 
+    // In a wide window, every category's actions wrap under the search box and the categories,
+    // not past them; and the factory note is never cut (15 px text gives it a fractional width).
+    void actionPickerWrapsUnderItsCategories()
+    {
+        KeysWindow w;
+        QFont font("Sans");
+        font.setPixelSize(15);
+        w.ui.setBase(font, 1);
+        QVERIFY(w.open());
+        QTRY_VERIFY(w.backend.keymapReady());
+        w.window->resize(1818, 833);
+        w.click(0x14);
+        auto *picker = w.item("actionPicker");
+        auto *search = w.item("searchField");
+        auto *items = w.item("pickerItems");
+        auto right = [](QQuickItem *i) { return i->mapToScene(QPointF(i->width(), 0)).x(); };
+        const int count = picker->property("categories").toList().size();
+        for (int c = 0; c < count; ++c) {
+            picker->setProperty("category", c);
+            QTest::qWait(30);
+            if (items->isVisible())
+                QVERIFY2(right(items) <= right(search) + 1, qPrintable(QString("category %1").arg(c)));
+        }
+        auto *note = w.item("factoryNote");
+        QCOMPARE(note->property("text").toString(), QString("This is the factory setting."));
+        QVERIFY(note->width() >= note->implicitWidth());
+        QVERIFY2(w.warnings.isEmpty(), qPrintable(w.warningText()));
+    }
+
     void keysPageSavesAdvancedKeys()
     {
         KeysWindow w;
