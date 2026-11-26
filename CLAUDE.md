@@ -12,8 +12,8 @@ Current phase: protocol reverse engineering is done (a few gaps remain), and the
 starting. Stack: **C++20 and Qt Quick, built with qmake6**, the way Omarchy's own apps are built.
 One protocol library (`core/`) is shared by the CLI and the app.
 
-What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching and
-global lighting (effect, colour, brightness); an Omarchy bar widget that shells out to `akkoctl`;
+What exists today: the core library; `akkoctl`, a CLI on top of it covering profile switching,
+global lighting (effect, colour, brightness), the keymap and the Base Functions settings; an Omarchy bar widget that shells out to `akkoctl`;
 and **Magnetar**, the desktop app (sidebar of pages: Keys, with Action / Travel / Advanced tabs on one shared selection, Lighting (with per-key colours, and Visualiser, an audio visualiser streamed while the app is open), Mural (the workbench where app-streamed effects are tried before they join Lighting), Macros, and Settings, which also opens Calibration and shows the device info).
 
 Names: the project, repo and desktop app are **Magnetar**. `akkoctl` is the CLI inside it, and keeps

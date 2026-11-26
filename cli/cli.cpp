@@ -22,10 +22,10 @@ namespace akko::cli {
 namespace {
 
 const char *const kUsage =
-    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key} ...\n";
+    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key,settings} ...\n";
 
 const char *const kHelp =
-    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key} ...\n"
+    "usage: akkoctl [-h] {status,profile,brightness,color,on,off,toggle,keymap,key,settings} ...\n"
     "\n"
     "Akko TAC75 HE profile/lighting control\n"
     "\n"
@@ -43,10 +43,13 @@ const char *const kHelp =
     "  key LAYER KEY [ACTION]\n"
     "                print or set one key; KEY = hex key ID (e.g. 2a for Caps),\n"
     "                ACTION = 4 hex bytes ('00 00 00 29'), 'factory' or 'unbound'\n"
+    "  settings [NAME VALUE]\n"
+    "                print or set Base Functions: win-key-lock, combo-optimization,\n"
+    "                adaptive-calibration (on/off), polling-rate (Hz; the keyboard restarts)\n"
     "\n"
     "Every command prints the keyboard state as one line of JSON.\n";
 
-const char *const kChoices = "status, profile, brightness, color, on, off, toggle, keymap, key";
+const char *const kChoices = "status, profile, brightness, color, on, off, toggle, keymap, key, settings";
 
 Parsed usageError(const std::string &what)
 {
@@ -275,6 +278,89 @@ std::string runKeymap(Keyboard &kb, const Command &cmd)
            kLayerNames[cmd.layer] + "\", \"keys\": [" + keys + "]}\n";
 }
 
+// ---- Base Functions ----------------------------------------------------------
+
+struct SettingName {
+    const char *name;
+    BaseSetting setting;
+};
+constexpr SettingName kSettings[] = {
+    {"win-key-lock", BaseSetting::WinKeyLock},
+    {"combo-optimization", BaseSetting::ComboOptimization},
+    {"adaptive-calibration", BaseSetting::AdaptiveCalibration},
+    {"polling-rate", BaseSetting::PollingRate},
+};
+
+Parsed parseSettings(Command cmd, const std::vector<std::string> &args)
+{
+    if (args.size() == 1)
+        return {cmd, {}, 0};
+    if (args.size() == 2)
+        return usageError("the following arguments are required: value");
+    if (args.size() > 3)
+        return usageError("unrecognized arguments: " + args[3]);
+    const std::string name = lower(args[1]);
+    const auto it = std::find_if(std::begin(kSettings), std::end(kSettings),
+                                 [&](const SettingName &s) { return name == s.name; });
+    if (it == std::end(kSettings))
+        return usageError("argument name: invalid choice: '" + args[1] +
+                          "' (choose from win-key-lock, combo-optimization, adaptive-calibration, polling-rate)");
+    cmd.value = it->name;
+    const std::string value = lower(args[2]);
+    if (it->setting == BaseSetting::PollingRate) {
+        const auto hz = parseInt(args[2]);
+        if (!hz || pollingRateCode(*hz) < 0)
+            return usageError("argument value: invalid polling rate: '" + args[2] +
+                              "' (choose from 125, 250, 500, 1000, 2000, 4000, 8000)");
+        cmd.number = *hz;
+    } else if (value == "on" || value == "off") {
+        cmd.number = value == "on";
+    } else {
+        return usageError("argument value: invalid choice: '" + args[2] + "' (choose from on, off)");
+    }
+    return {cmd, {}, 0};
+}
+
+std::string runSettings(Keyboard &kb, const Command &cmd)
+{
+    // Read first: an unchanged setting is not written (a polling-rate write restarts the keyboard).
+    BaseFunctions b = kb.baseFunctions();
+    bool restarting = false;
+    if (!cmd.value.empty()) {
+        const auto it = std::find_if(std::begin(kSettings), std::end(kSettings),
+                                     [&](const SettingName &s) { return cmd.value == s.name; });
+        const BaseSetting s = it->setting;
+        const std::uint8_t want =
+            static_cast<std::uint8_t>(s == BaseSetting::PollingRate ? pollingRateCode(cmd.number) : cmd.number);
+        const std::uint8_t now = s == BaseSetting::WinKeyLock          ? b.winKeyLock
+                                 : s == BaseSetting::ComboOptimization ? b.comboOptimization
+                                 : s == BaseSetting::AdaptiveCalibration ? b.adaptiveCalibration
+                                                                         : b.pollingRate;
+        if (want != now) {
+            // The read-back of the one setting stands for the others: after a polling-rate change
+            // the keyboard re-enumerates and can't be read again in this session.
+            const std::uint8_t back = kb.setBaseSetting(s, want);
+            switch (s) {
+            case BaseSetting::WinKeyLock: b.winKeyLock = back; break;
+            case BaseSetting::ComboOptimization: b.comboOptimization = back; break;
+            case BaseSetting::AdaptiveCalibration: b.adaptiveCalibration = back; break;
+            case BaseSetting::PollingRate:
+                b.pollingRate = back;
+                restarting = true;
+                break;
+            }
+        }
+    }
+    const auto flag = [](bool on) { return on ? "true" : "false"; };
+    char buf[224];
+    std::snprintf(buf, sizeof buf,
+                  "{\"connected\": true, \"winKeyLock\": %s, \"pollingRate\": %d, \"comboOptimization\": %s, "
+                  "\"adaptiveCalibration\": %s, \"restarting\": %s}\n",
+                  flag(b.winKeyLock), pollingRateHz(b.pollingRate), flag(b.comboOptimization),
+                  flag(b.adaptiveCalibration), flag(restarting));
+    return buf;
+}
+
 }  // namespace
 
 Parsed parseArgs(const std::vector<std::string> &args)
@@ -289,6 +375,7 @@ Parsed parseArgs(const std::vector<std::string> &args)
         {"status", Command::Status}, {"profile", Command::Profile}, {"brightness", Command::Brightness},
         {"color", Command::Color},   {"on", Command::On},           {"off", Command::Off},
         {"toggle", Command::Toggle}, {"keymap", Command::Keymap}, {"key", Command::Key},
+        {"settings", Command::Settings},
     };
     const auto it = std::find_if(kinds.begin(), kinds.end(), [&](auto &k) { return k.first == args[0]; });
     if (it == kinds.end())
@@ -298,6 +385,8 @@ Parsed parseArgs(const std::vector<std::string> &args)
     cmd.kind = it->second;
     if (cmd.kind == Command::Keymap || cmd.kind == Command::Key)
         return parseKeymap(cmd, args);
+    if (cmd.kind == Command::Settings)
+        return parseSettings(cmd, args);
     const bool takesValue =
         cmd.kind == Command::Profile || cmd.kind == Command::Brightness || cmd.kind == Command::Color;
     const std::size_t want = takesValue ? 2 : 1;
@@ -373,6 +462,8 @@ std::string execute(Keyboard &kb, const Command &cmd, const std::string &stateFi
         return runKeymap(kb, cmd);
     case Command::Key:
         return runKey(kb, cmd);
+    case Command::Settings:
+        return runSettings(kb, cmd);
     }
     return statusJson(kb, stateFile);
 }

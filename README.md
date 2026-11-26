@@ -15,7 +15,7 @@ tool for scripts and status bars.
 | Path | What it does |
 |---|---|
 | `app/` | **Magnetar**, the desktop app (see below). English and French. |
-| `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off, read and remap keys. Prints the keyboard state as JSON. |
+| `cli/` | `akkoctl`, the command-line tool: switch onboard profile, set lighting colour and brightness, turn lighting on/off, read and remap keys, Base Functions settings. Prints the keyboard state as JSON. |
 | `core/` | The C++ library that talks to the keyboard, shared by the CLI and Magnetar. |
 | `tests/` | Automated tests (no keyboard needed). |
 | `omarchy-widget/boudbois.akko/` | Bar widget for [Omarchy](https://omarchy.org) built on `akkoctl`. |
@@ -81,6 +81,9 @@ akkoctl keymap default reset # Default or Fn layer back to factory
 akkoctl key default 2a       # one key: ID in hex (2a = Caps Lock), its action and factory action
 akkoctl key default 2a '00 01 00 00'  # Caps Lock becomes Left Ctrl
 akkoctl key default 2a factory        # also: unbound (the key does nothing)
+akkoctl settings             # Base Functions: Win key lock, polling rate, combo optimization, adaptive calibration
+akkoctl settings win-key-lock on      # also: combo-optimization, adaptive-calibration (on/off)
+akkoctl settings polling-rate 1000    # 125-8000 Hz; the keyboard restarts after a change
 ```
 
 Key IDs and the 4-byte action format are in `akko-protocol.md` (Units, Keymap). `akkoctl key`

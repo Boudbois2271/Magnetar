@@ -13,9 +13,10 @@
 namespace akko::cli {
 
 struct Command {
-    enum Kind { Status, Profile, Brightness, Color, On, Off, Toggle, Keymap, Key } kind = Status;
+    enum Kind { Status, Profile, Brightness, Color, On, Off, Toggle, Keymap, Key, Settings } kind = Status;
     int number = 0;     // profile (1-based) or brightness
-    std::string value;  // colour; Key: the action to set ("" = read only); Keymap: "reset" or ""
+    std::string value;  // colour; Key: the action to set ("" = read only); Keymap: "reset" or "";
+                        // Settings: the setting's name ("" = read only), its value in `number`
     int layer = 0;      // Keymap, Key: 0 Default, 1 Fn, 2 Fn1
     std::uint16_t key = 0;  // Key: key ID
 };

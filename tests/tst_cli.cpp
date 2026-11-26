@@ -282,6 +282,65 @@ private slots:
         QCOMPARE(fake.keymap[0][0x62], factoryAction(0, 0x62));
     }
 
+    void settingsReadAndSet()
+    {
+        FakeKeyboard fake;
+        Run r = runOn(fake, {"settings"});
+        QCOMPARE(r.out, QString("{\"connected\": true, \"winKeyLock\": false, \"pollingRate\": 1000, "
+                                "\"comboOptimization\": true, \"adaptiveCalibration\": true, \"restarting\": false}\n"));
+        QCOMPARE(r.sent, (QStringList{"84 15", "84 17", "84 18", "84 19"}));
+
+        // Read all four, write the one, read it back.
+        r = runOn(fake, {"settings", "Win-Key-Lock", "ON"});
+        QCOMPARE(r.sent, (QStringList{"84 15", "84 17", "84 18", "84 19", "04 15 01", "84 15"}));
+        QVERIFY(r.out.contains("\"winKeyLock\": true,"));
+        QCOMPARE(fake.base[0x15], 1);
+
+        // Already on: nothing written.
+        r = runOn(fake, {"settings", "win-key-lock", "on"});
+        QCOMPARE(r.sent.size(), 4);
+
+        r = runOn(fake, {"settings", "combo-optimization", "off"});
+        QCOMPARE(r.sent.mid(4), (QStringList{"04 18 00", "84 18"}));
+        r = runOn(fake, {"settings", "adaptive-calibration", "off"});
+        QCOMPARE(r.sent.mid(4), (QStringList{"04 19 00", "84 19"}));
+        QVERIFY(r.out.contains("\"comboOptimization\": false, \"adaptiveCalibration\": false"));
+
+        // Polling rate: Hz in, code on the wire, and the keyboard restarts afterwards.
+        r = runOn(fake, {"settings", "polling-rate", "500"});
+        QCOMPARE(r.sent.mid(4), (QStringList{"04 17 01", "84 17"}));
+        QVERIFY(r.out.contains("\"pollingRate\": 500,"));
+        QVERIFY(r.out.endsWith("\"restarting\": true}\n"));
+
+        fake.ignoreBaseWrites = true;
+        r = runOn(fake, {"settings", "polling-rate", "8000"});
+        QVERIFY(r.failed);
+        QVERIFY(r.out.startsWith("{\"connected\": false, \"error\": \"the keyboard kept 1 after"));
+    }
+
+    void settingsUsageErrors_data()
+    {
+        QTest::addColumn<QStringList>("args");
+        QTest::newRow("no value") << QStringList{"settings", "win-key-lock"};
+        QTest::newRow("unknown name") << QStringList{"settings", "nkro", "on"};
+        QTest::newRow("not on/off") << QStringList{"settings", "win-key-lock", "1"};
+        QTest::newRow("bad rate") << QStringList{"settings", "polling-rate", "600"};
+        QTest::newRow("rate not a number") << QStringList{"settings", "polling-rate", "fast"};
+        QTest::newRow("extra") << QStringList{"settings", "win-key-lock", "on", "now"};
+    }
+
+    void settingsUsageErrors()
+    {
+        QFETCH(QStringList, args);
+        std::vector<std::string> a;
+        for (const auto &s : args)
+            a.push_back(s.toStdString());
+        const cli::Parsed p = cli::parseArgs(a);
+        QVERIFY(!p.command.has_value());
+        QCOMPARE(p.exitCode, 2);
+        QVERIFY(QString::fromStdString(p.message).startsWith("usage: akkoctl"));
+    }
+
     void numbersParseLikePython()
     {
         const auto number = [](const char *text) {
