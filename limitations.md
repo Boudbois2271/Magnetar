@@ -131,7 +131,7 @@ reflected in `akko-protocol.md`.
 - Advanced tab: Undo walks back the last 20 saves or removals and Redo walks forward again, both
   held in memory only (gone when the app closes) and cleared on a profile switch; a new save or
   removal drops what is left to redo. No keyboard shortcuts. Several undos in a row worked on the
-  board (2026-11-26); Redo is tested against the fake device only, not yet on the board.
+  board (2026-11-26), and so did Redo.
 - Advanced tab: from the minimum window size up the SOCD, DKS and Multi tags show whole on 1u
   keys; the longer Mod-Tap, Toggle and Release tags are cut there ("Mod…") until the window is
   wider. Shorter tag names would fix it (a wording choice, not made).
