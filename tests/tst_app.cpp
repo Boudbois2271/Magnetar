@@ -3259,30 +3259,22 @@ private slots:
         QVERIFY(scrolls("macroSteps"));
 
         w.show("lightingPage");
-        // Lighting, Settings and Calibration don't fit a short window yet: their bottoms run off
-        // the window (limitations.md).
-        const bool shortWindow = size.isValid() && size.height() < 640;
-        if (!shortWindow) {
-            check("lighting");
-            call(w.item("lightingPage"), "select", threeKeys);
-            check("lighting, three keys");
-            call(w.item("lightingPage"), "select", QVariantList{});
-        }
+        check("lighting");
+        call(w.item("lightingPage"), "select", threeKeys);
+        check("lighting, three keys");
+        call(w.item("lightingPage"), "select", QVariantList{});
         w.mural.setOn(true);  // the Visualiser effect, not hearing yet: the warning shows
-        if (!shortWindow)
-            check("lighting, visualiser, no sound");
+        check("lighting, visualiser, no sound");
         w.show("muralPage");
         check("mural");
         w.mural.setOn(false);
-        if (!shortWindow) {
-            w.window->setProperty("page", PageSettings);
-            check("settings");
-            QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
-            QTest::qWait(400);  // the push transition
-            w.backend.startCalibration();
-            check("calibration");
-            w.backend.finishCalibration();
-        }
+        w.window->setProperty("page", PageSettings);
+        check("settings");
+        QMetaObject::invokeMethod(w.item("openCalibrationButton"), "clicked");
+        QTest::qWait(400);  // the push transition
+        w.backend.startCalibration();
+        check("calibration");
+        w.backend.finishCalibration();
 
         QVERIFY2(problems.isEmpty(), qPrintable(problems.join("\n")));
     }
