@@ -136,6 +136,15 @@ Item {
                 enabled: backend.canUndoTravel
                 onClicked: backend.undoTravel()
             }
+            IconButton {
+                objectName: "undoAdvanced"
+                visible: page.tab === 2
+                iconName: "undo-2"
+                iconOnly: frame.width < 640 * ui.unit
+                text: qsTr("Undo last change")
+                enabled: backend.canUndoAdvanced
+                onClicked: backend.undoAdvanced()
+            }
         }
 
         // ---- the keyboard and its selection bar ----------------------------

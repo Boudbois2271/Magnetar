@@ -811,6 +811,56 @@ private slots:
         QTRY_COMPARE(b.advancedKeys().size(), 3);
     }
 
+    void advancedChangesAreUndone()
+    {
+        FakeBoard board;
+        QTemporaryDir dir;
+        Backend b(fakeSessions(board), dir.filePath("state.json"));
+        QTRY_VERIFY(b.advancedReady());
+        QVERIFY(!b.canUndoAdvanced());
+
+        // A save on an empty key: Undo clears it again.
+        const QVariantMap mt{{"type", "modTap"}, {"key", 0x26}, {"action", "00 00 00 15"},
+                             {"tap", "00 00 00 17"}, {"holdMs", 322}};
+        QVERIFY(b.saveAdvanced({mt}));
+        QTRY_COMPARE(b.advancedKeys().size(), 1);
+        QVERIFY(b.canUndoAdvanced());
+        b.undoAdvanced();
+        QTRY_VERIFY(b.advancedKeys().isEmpty());
+        QVERIFY(!b.canUndoAdvanced());
+        {
+            std::lock_guard lock(board.mutex);
+            QVERIFY(!board.keyboard.advanced.contains(0x26));
+        }
+
+        // Release on D replaces the SOCD pair A + D: Undo clears D, then saves the pair back.
+        const QVariantMap socd{{"type", "socd"}, {"key", 0x2b}, {"key2", 0x2d}, {"mode", "lastInput"}};
+        QVERIFY(b.saveAdvanced({socd}));
+        QTRY_COMPARE(b.advancedKeys().size(), 1);
+        QVERIFY(b.saveAdvanced({QVariantMap{{"type", "release"}, {"key", 0x2d}, {"action", "00 00 00 22"}}}));
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap().value("type").toString(), QString("release"));
+        const int writes = board.writesOf(0x12, 0x00);
+        b.undoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap().value("type").toString(), QString("socd"));
+        QCOMPARE(b.advancedKeys().size(), 1);
+        QCOMPARE(b.advancedKeys()[0].toMap(), socd);
+        QCOMPARE(board.writesOf(0x12, 0x00), writes + 2);  // type 00 on D, then the pair
+
+        // Remove is undone by saving the old record back.
+        QVERIFY(b.removeAdvanced({0x2d}));
+        QTRY_VERIFY(b.advancedKeys().isEmpty());
+        b.undoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().size(), 1);
+        QCOMPARE(b.advancedKeys()[0].toMap(), socd);
+
+        // One level only: a second Undo sends nothing.
+        QTRY_VERIFY(!b.canUndoAdvanced());
+        const int after = board.writesOf(0x12, 0x00);
+        b.undoAdvanced();
+        QTest::qWait(50);
+        QCOMPARE(board.writesOf(0x12, 0x00), after);
+    }
+
     void macrosAreSavedAndDeleted()
     {
         FakeBoard board;

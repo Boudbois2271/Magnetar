@@ -585,6 +585,28 @@ void storeAdvanced(Snapshot &s, std::vector<akko::AdvancedKey> after, int profil
     s.advancedProfile = profile;
 }
 
+// Keeps what a change to these keys replaces, before writing: if the write fails halfway, Undo
+// can still put the old records back. A record that covers one of the keys brings its other key
+// in too (a SOCD pair is cleared whole).
+void rememberAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t> keys)
+{
+    const int profile = kb.profile();
+    if (s.advancedProfile != profile)
+        storeAdvanced(s, kb.readAdvancedKeys(), profile);
+    std::vector<akko::AdvancedKey> before;
+    for (const auto &a : s.advanced) {
+        const auto ids = akko::advancedKeyIds(a);
+        if (std::none_of(ids.begin(), ids.end(),
+                         [&](auto id) { return std::find(keys.begin(), keys.end(), id) != keys.end(); }))
+            continue;
+        before.push_back(a);
+        for (auto id : ids)
+            if (std::find(keys.begin(), keys.end(), id) == keys.end())
+                keys.push_back(id);
+    }
+    s.advancedUndo = Snapshot::AdvancedUndo{profile, std::move(keys), std::move(before)};
+}
+
 }  // namespace
 
 // Every DKS row pattern, as lists of {from, to} strokes (stage indexes): QML names them.
@@ -638,8 +660,9 @@ bool Backend::saveAdvanced(const QVariantList &records)
         batch.push_back(*a);
     }
     // Never replaced in the queue: a later save may be for other keys.
-    post("", [batch = std::move(batch)](akko::Keyboard &kb, Snapshot &s) {
+    post("", [batch = std::move(batch), ids = std::move(ids)](akko::Keyboard &kb, Snapshot &s) {
         const int profile = kb.profile();
+        rememberAdvanced(kb, s, ids);
         storeAdvanced(s, kb.setAdvanced(batch), profile);
     });
     return true;
@@ -657,9 +680,25 @@ bool Backend::removeAdvanced(const QVariantList &keys)
     }
     post("", [ids = std::move(ids)](akko::Keyboard &kb, Snapshot &s) {
         const int profile = kb.profile();
+        rememberAdvanced(kb, s, ids);
         storeAdvanced(s, kb.clearAdvanced(ids), profile);
     });
     return true;
+}
+
+void Backend::undoAdvanced()
+{
+    post("", [](akko::Keyboard &kb, Snapshot &s) {
+        const int profile = kb.profile();
+        if (!s.advancedUndo || s.advancedUndo->profile != profile)
+            return;
+        const auto undo = *s.advancedUndo;
+        s.advancedUndo.reset();
+        // Cleared first (12 00 type 00, both keys of a pair), then the old records saved back.
+        storeAdvanced(s, kb.clearAdvanced(undo.keys), profile);
+        if (!undo.before.empty())
+            storeAdvanced(s, kb.setAdvanced(undo.before), profile);
+    });
 }
 
 // ---- macros ----------------------------------------------------------------

@@ -127,7 +127,8 @@ reflected in `akko-protocol.md`.
   patterns of the four points are offered. Rows of several strokes are composed from the stage
   bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
-- Advanced tab: no Undo (Remove, or saving the old values again).
+- Advanced tab: Undo is one level (the last save or removal), cleared on a profile switch; not
+  tried on the board.
 - Advanced tab: in a window at its minimum width the SOCD tag on 1u keys is cut ("SO…").
 - Advanced tab: the keyboard is drawn smaller than on Action and Travel (the key list sits beside
   it, and the editor under it is taller), so the keys shift when switching to that tab. In a narrow
