@@ -132,10 +132,11 @@ reflected in `akko-protocol.md`.
   usage assuming the Linux XKB keycode (evdev + 8), the same on Wayland and xcb (both record the
   right keys, checked by hand). Keys outside the evdev table (media keys, ...) record as nothing.
   The vendor app's recorder takes real mouse clicks but not volume keys (they act on the system).
-- Macros page: steps use keyboard usages or a left click (`20`/`a0` button `01`, SEEN in
-  `akko-capture13.txt`, run on the board 2026-11-26). The left click is the only mouse step offered;
-  the other mouse actions of the Action tab (not shortcuts, not nothing) are missing. Right/middle/back/forward
-  are a GUESS (`02`–`05`), not offered. Clicks aren't recorded (add them by hand); the vendor's
+- Macros page: steps use keyboard usages or a mouse button: every one the Action tab offers (left,
+  right, middle, back, forward; not shortcuts, not nothing). Left click (`20`/`a0` button `01`) is SEEN in
+  `akko-capture13.txt`, run on the board 2026-11-26. Right/middle/back/forward (`02`–`05`, the keymap's
+  numbering) are a GUESS, only tested against the fake device: **Ilan must test them on the board**
+  (save a macro with each, run it, check the click). Clicks aren't recorded (add them by hand); the vendor's
   recorder takes them. Steps of unknown kinds are shown as "Unknown step" and kept on save. The
   vendor recorder has no media steps either. A step's key is changed from its row's list, along with
   its press or release partner (the next release / last press of that key); keys the list doesn't

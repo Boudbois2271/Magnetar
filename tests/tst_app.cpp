@@ -2523,6 +2523,18 @@ private slots:
         QCOMPARE(steps()[6].toMap().value("kind").toInt(), 0x20);
         QCOMPARE(call("stepName", {steps()[7]}).toString(), QString("Left click"));
         QCOMPARE(call("stepName", {steps()[4]}).toString(), QString("B"));
+        // "Add a step" offers every mouse button the Action tab offers, first, as 20/a0 steps.
+        const auto addable = page->property("addable").toList();
+        const auto addableNames = page->property("addableNames").toStringList();
+        const QStringList mouse{"Left click", "Right click", "Middle click", "Back (mouse)", "Forward (mouse)"};
+        QCOMPARE(addableNames.mid(0, 5), mouse);
+        for (int b = 0; b < 5; ++b) {
+            QCOMPARE(addable[b].toMap().value("kind").toInt(), 0x20);
+            QCOMPARE(addable[b].toMap().value("usage").toInt(), b + 1);
+        }
+        QCOMPARE(addable[5].toMap().value("kind").toInt(), 0x00);
+        QCOMPARE(call("stepName", {QVariantMap{{"kind", 0x20}, {"usage", 4}, {"press", true}}}).toString(),
+                 QString("Back (mouse)"));
         page->setProperty("draft", QVariantMap{{"name", "ab"}, {"steps", steps().mid(0, 6)}});
         w.backend.refresh();
         QTest::qWait(100);

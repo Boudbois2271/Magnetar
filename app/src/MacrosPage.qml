@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
 // Macros of the active profile: the list with the storage they use, and, for a selected or new
-// macro, an editor that records key presses and releases with their delays (left clicks are added by hand). The list shows what the board read back; the
+// macro, an editor that records key presses and releases with their delays (mouse buttons are added by hand). The list shows what the board read back; the
 // editor's draft follows the read-back until it is changed.
 import QtQuick
 import QtQuick.Controls
@@ -262,7 +262,7 @@ Item {
         if (s.kind === page.limits.keyStep)
             return names.usageName(s.usage)
         if (s.kind === page.limits.mouseStep)
-            return s.usage === page.limits.leftButton ? qsTr("Left click") : qsTr("Mouse button %1").arg(s.usage)
+            return names.mouseName(s.usage)
         return qsTr("Unknown step")
     }
 
@@ -557,7 +557,7 @@ Item {
                     }
                 }
 
-                // Adds a press and a release of one key or a left click, for editing by hand. Above
+                // Adds a press and a release of one key or mouse button, for editing by hand. Above
                 // the steps, so it stays put as the list grows.
                 RowLayout {
                     Layout.fillWidth: true
@@ -826,10 +826,10 @@ Item {
         }
     }
 
-    // Steps the "Add a step" list offers: a left click (the only mouse button captured), then
-    // letters, digits, symbols, F1–F12, editing, arrows, modifiers.
+    // Steps the "Add a step" list offers: the mouse buttons the Action tab offers (left, right,
+    // middle, back, forward), then letters, digits, symbols, F1–F12, editing, arrows, modifiers.
     readonly property var addable: {
-        let r = [{ kind: page.limits.mouseStep, usage: page.limits.leftButton }]
+        let r = page.limits.mouseButtons.map(b => ({ kind: page.limits.mouseStep, usage: b }))
         const add = (from, to) => {
             for (let u = from; u <= to; ++u)
                 if (u !== 0x32)

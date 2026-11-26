@@ -33,6 +33,10 @@ constexpr std::uint8_t kMacroMouse = 0x20;
 // Mouse step buttons: 01 = left (SEEN). 02 right, 03 middle, 04 back, 05 forward are a GUESS
 // (the keymap's mouse action numbering), never captured in a macro.
 constexpr std::uint8_t kMacroMouseLeft = 0x01;
+constexpr std::uint8_t kMacroMouseRight = 0x02;
+constexpr std::uint8_t kMacroMouseMiddle = 0x03;
+constexpr std::uint8_t kMacroMouseBack = 0x04;
+constexpr std::uint8_t kMacroMouseForward = 0x05;
 
 // One step: a key or mouse button goes down or up, then the macro waits delayMs. For a key step,
 // usage = HID keyboard usage (modifiers included: e0 LCtrl … e7 RGui); for a mouse step, the

@@ -1200,6 +1200,39 @@ private slots:
         QVERIFY(!macroProblem({"ms", {{true, 1, 0, kMacroMouse}}}).empty());
     }
 
+    void otherMouseButtonStepsEncodeLikeTheLeftClick()
+    {
+        // GUESS (never captured in a macro): right, middle, back, forward = 02–05, the keymap's
+        // numbering, in the same 20/a0 steps as the left click. Not sent to the board.
+        const std::vector<std::uint8_t> buttons{kMacroMouseRight, kMacroMouseMiddle, kMacroMouseBack, kMacroMouseForward};
+        QCOMPARE(int(kMacroMouseRight), 0x02);
+        QCOMPARE(int(kMacroMouseForward), 0x05);
+        std::vector<MacroStep> steps;
+        for (const auto b : buttons) {
+            steps.push_back({true, 50, b, kMacroMouse});
+            steps.push_back({false, 50, b, kMacroMouse});
+        }
+        steps.back().delayMs = 1;
+        const Macro m{"mb", steps};
+        QVERIFY(macroProblem(m).empty());
+        const std::vector<Macro> list{m};
+        const auto blob = macroBlob(list);
+        // Directory entry (4), name length and name (3), then 4 bytes a step.
+        const std::size_t first = 4 + 1 + 2;
+        for (std::size_t i = 0; i < buttons.size(); ++i) {
+            const auto *p = blob.data() + first + 8 * i;
+            QCOMPARE(Bytes(p, p + 4), (Bytes{0x20, 0x00, 0x32, buttons[i]}));
+            const std::uint8_t delay = i + 1 == buttons.size() ? 0x01 : 0x32;
+            QCOMPARE(Bytes(p + 4, p + 8), (Bytes{0xa0, 0x00, delay, buttons[i]}));
+        }
+        QVERIFY(parseMacroBlob(blob) == list);
+
+        FakeTransport wt;
+        FakeKeyboard board;
+        wt.respond = std::ref(board);
+        QVERIFY(Keyboard(wt).writeMacros(list) == list);
+    }
+
     void unknownStepKindsAreKept()
     {
         // Direction bytes we don't know (40/c0, and the modifier bit on a plain key) come back

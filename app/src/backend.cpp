@@ -721,7 +721,10 @@ QVariantMap Backend::macroLimits() const
     return {{"minName", int(akko::kMinMacroName)}, {"maxName", int(akko::kMaxMacroName)},
             {"standardDelay", int(akko::kStandardDelayMs)}, {"maxDelay", 0xffff},
             {"maxRepeat", akko::kMaxMacroRepeat}, {"keyStep", int(akko::kMacroKey)},
-            {"mouseStep", int(akko::kMacroMouse)}, {"leftButton", int(akko::kMacroMouseLeft)}};
+            {"mouseStep", int(akko::kMacroMouse)}, {"leftButton", int(akko::kMacroMouseLeft)},
+            {"mouseButtons", QVariantList{int(akko::kMacroMouseLeft), int(akko::kMacroMouseRight),
+                                          int(akko::kMacroMouseMiddle), int(akko::kMacroMouseBack),
+                                          int(akko::kMacroMouseForward)}}};
 }
 
 bool Backend::macroValid(const QVariantMap &record) const
