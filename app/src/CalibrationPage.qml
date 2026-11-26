@@ -58,6 +58,9 @@ Item {
 
         Card {
             title: qsTr("Key travel")
+            // Given less height, the drawing gives way.
+            Layout.fillHeight: true
+            Layout.maximumHeight: implicitHeight
 
             // The sequence, as numbered steps; lines kept under about 70 characters.
             TextMetrics { id: line70; font: ui.font; text: "the quick brown fox jumps over a lazy dog ".repeat(2).slice(0, 70) }
@@ -116,24 +119,37 @@ Item {
                 }
             }
 
-            KeyboardView {
-                objectName: "calibrationKeyboard"
-                interactive: false
+            // As wide as the card allows up to its full size; in a short window, as large as the
+            // height left allows (never under its smallest size).
+            Item {
+                id: drawingRoom
+                readonly property real fullWidth: Math.min(drawingRoom.width, drawing.implicitWidth)
                 Layout.fillWidth: true
-                Layout.maximumWidth: implicitWidth
-                Layout.alignment: Qt.AlignHCenter
+                Layout.fillHeight: true
                 Layout.topMargin: 8 * ui.unit
-                labelFor: function (id) {
-                    const d = page.depth(id)
-                    if (backend.calibrating && d >= 0)
-                        return d + "%"
-                    return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
-                }
-                colorFor: function (id) {
-                    const d = page.depth(id)
-                    if (!backend.calibrating || d < 0)
-                        return ""
-                    return d >= backend.calibrationFullPercent ? theme.success : theme.warning
+                Layout.preferredHeight: drawingRoom.fullWidth / drawing.aspect
+                Layout.maximumHeight: drawingRoom.fullWidth / drawing.aspect
+                Layout.minimumHeight: Math.min(drawingRoom.fullWidth, drawing.minimumWidth) / drawing.aspect
+
+                KeyboardView {
+                    id: drawing
+                    objectName: "calibrationKeyboard"
+                    interactive: false
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(drawingRoom.fullWidth, drawingRoom.height * drawing.aspect)
+                    height: implicitHeight
+                    labelFor: function (id) {
+                        const d = page.depth(id)
+                        if (backend.calibrating && d >= 0)
+                            return d + "%"
+                        return backend.keymapReady ? names.capName(backend.keymap[0][String(id)]) : ""
+                    }
+                    colorFor: function (id) {
+                        const d = page.depth(id)
+                        if (!backend.calibrating || d < 0)
+                            return ""
+                        return d >= backend.calibrationFullPercent ? theme.success : theme.warning
+                    }
                 }
             }
 
