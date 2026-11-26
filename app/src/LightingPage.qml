@@ -259,11 +259,18 @@ Item {
         }
 
         // ---- the options: the settings, then the colour beside them -------------
-        // In a narrow window the colour goes under the settings.
+        // In a narrow window the colour goes under the settings, unless that runs off the bottom
+        // of a short window: then it stays beside them (squeezed), its swatches wrapping in the
+        // room left and its hex field on its title's row.
         GridLayout {
             id: options
             objectName: "lightingOptions"
+            readonly property real stackedHeight: settingsColumn.implicitHeight + options.rowSpacing + picker.naturalHeight
+            readonly property bool squeezed: settingsColumn.implicitWidth + 32 * ui.unit + picker.leastWidth <= frame.width
+                && options.stackedHeight > preview.pageControlsRoom(frame.height - frame.headerHeight - 2 * frame.spacing)
             readonly property bool stacked: settingsColumn.implicitWidth + 48 * ui.unit + picker.naturalWidth > frame.width
+                                            && !options.squeezed
+            readonly property real gap: options.squeezed ? 32 * ui.unit : 48 * ui.unit
             Layout.fillWidth: true
             columns: options.stacked ? 1 : 2
             columnSpacing: 0
@@ -418,31 +425,20 @@ Item {
             }
 
             // The colour: the board's, or the selected keys'.
-            ColumnLayout {
+            ColorPicker {
+                id: picker
+                objectName: "colorPicker"
                 Layout.alignment: Qt.AlignTop
-                Layout.leftMargin: options.stacked ? 0 : 48 * ui.unit
-                Layout.fillWidth: options.stacked
-                spacing: 6 * ui.unit
-                Label {
-                    objectName: "colorLabel"
-                    Layout.minimumHeight: page.rowHeight
-                    Layout.maximumHeight: page.rowHeight
-                    verticalAlignment: Text.AlignVCenter
-                    text: page.perKey ? qsTr("Key color") : qsTr("Color")
-                    font.pixelSize: ui.section
-                    font.weight: Font.DemiBold
-                }
-                ColorPicker {
-                    id: picker
-                    objectName: "colorPicker"
-                    Layout.fillWidth: true
-                    Layout.maximumWidth: naturalWidth
-                    color: page.shownColor
-                    classics: page.swatches
-                    // With rainbow on, the board's colour is the one it goes back to.
-                    markCurrent: page.perKey || !page.shownRainbow
-                    onPicked: (color) => { if (!page.apply(color)) picker.sync() }
-                }
+                Layout.leftMargin: options.stacked ? 0 : options.gap
+                Layout.fillWidth: true
+                Layout.maximumWidth: naturalWidth
+                title: page.perKey ? qsTr("Key color") : qsTr("Color")
+                compact: options.squeezed
+                color: page.shownColor
+                classics: page.swatches
+                // With rainbow on, the board's colour is the one it goes back to.
+                markCurrent: page.perKey || !page.shownRainbow
+                onPicked: (color) => { if (!page.apply(color)) picker.sync() }
             }
         }
         Item { Layout.fillHeight: true }

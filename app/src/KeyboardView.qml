@@ -104,6 +104,10 @@ Item {
         const perWidth = 1 / aspect + bezel / (columns + 2 * bezel)
         return Math.max(Math.min(minimumWidth, across), Math.min(across, implicitWidth, room / perWidth))
     }
+    // The height left in `tall` for the controls under the smallest drawing (pageWidth's rule).
+    function pageControlsRoom(tall) {
+        return tall - 34 * ui.unit - minimumWidth * (1 / aspect + bezel / (columns + 2 * bezel))
+    }
 
     // The legend size, as a key's size goes: about a quarter of the cap's height, like printed
     // legends, so it grows with the drawing.

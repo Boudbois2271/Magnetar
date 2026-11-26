@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-3.0-or-later
-// A colour picker: a saturation (x) / brightness (y) field and a hue strip, then a hex field, a
-// row of classic colours and two rows of saved colours. It shows `color` (what the board
+// A colour picker under its title: a saturation (x) / brightness (y) field and a hue strip, then
+// a hex field, a row of classic colours and two rows of saved colours. `compact` (a short window)
+// puts the hex field on the title's row. It shows `color` (what the board
 // reported) and reports a choice through `picked`, once per choice: when the field or the strip
 // is let go, or a moment after the last arrow key. While a choice is under way, `dragging` is
 // true and `liveColor` is the colour under the marker.
@@ -8,9 +9,11 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 
-RowLayout {
+GridLayout {
     id: picker
 
+    property string title
+    property bool compact: false
     property string color  // "#rrggbb", or "" when there is no one colour to show (mixed keys)
     property var classics: []
     property bool markCurrent: true  // outline the swatch of the current colour
@@ -66,21 +69,50 @@ RowLayout {
         onTriggered: picker.picked(picker.liveColor)
     }
 
-    spacing: 10 * ui.unit
+    columns: 3
+    columnSpacing: 10 * ui.unit
+    rowSpacing: 6 * ui.unit
 
     // As wide as it wants to be: every classic colour on one row. Given less, the swatches wrap.
     readonly property real swatchSize: 26 * ui.unit
     readonly property real swatchGap: 8 * ui.unit
     readonly property int naturalColumns: Math.max(10, picker.classics.length)
     readonly property real sideWidth: picker.naturalColumns * picker.swatchSize + (picker.naturalColumns - 1) * picker.swatchGap
-    readonly property real naturalWidth: 176 * ui.unit + 14 * ui.unit + 2 * picker.spacing + 6 * ui.unit + picker.sideWidth
+    readonly property real naturalWidth: 176 * ui.unit + 14 * ui.unit + 2 * picker.columnSpacing + 6 * ui.unit + picker.sideWidth
+    // The narrowest it gets: four swatches a row.
+    readonly property real leastWidth: picker.naturalWidth - picker.sideWidth + 4 * picker.swatchSize + 3 * picker.swatchGap
+    // Its height at naturalWidth, not compact: the title, the hex row, the classic colours on one
+    // row, the saved ones ten a row.
+    readonly property real rowHeight: 34 * ui.unit
+    function rowsHeight(n) { return n * picker.swatchSize + (n - 1) * picker.swatchGap }
+    readonly property real naturalHeight: 2 * picker.rowHeight + picker.rowSpacing + 2 * 8 * ui.unit + picker.rowsHeight(1)
+                                          + picker.rowsHeight(Math.ceil(colorPalette.slotCount / 10))
+
+    Label {
+        objectName: "colorLabel"
+        Layout.row: 0
+        Layout.column: 0
+        Layout.columnSpan: picker.compact ? 2 : 3
+        Layout.fillWidth: true
+        Layout.minimumHeight: picker.rowHeight
+        Layout.maximumHeight: picker.rowHeight
+        verticalAlignment: Text.AlignVCenter
+        text: picker.title
+        elide: Text.ElideRight
+        font.pixelSize: ui.section
+        font.weight: Font.DemiBold
+    }
 
     // ---- saturation / brightness -------------------------------------------
     Rectangle {
         id: field
         objectName: "colorField"
+        Layout.row: 1
+        Layout.column: 0
+        Layout.rowSpan: picker.compact ? 1 : 2
+        Layout.alignment: Qt.AlignTop
         Layout.preferredWidth: 176 * ui.unit
-        Layout.preferredHeight: side.implicitHeight  // as tall as the swatches beside it
+        Layout.preferredHeight: picker.sideHeight  // as tall as the swatches beside it
         radius: theme.radius
         color: Qt.hsva(picker.h, 1, 1, 1)  // the pure hue, washed to white then darkened
         activeFocusOnTab: true
@@ -158,8 +190,12 @@ RowLayout {
     Rectangle {
         id: hueStrip
         objectName: "hueStrip"
+        Layout.row: 1
+        Layout.column: 1
+        Layout.rowSpan: picker.compact ? 1 : 2
+        Layout.alignment: Qt.AlignTop
         Layout.preferredWidth: 14 * ui.unit
-        Layout.preferredHeight: side.implicitHeight
+        Layout.preferredHeight: picker.sideHeight
         radius: theme.radius
         border.color: Qt.alpha(theme.foreground, 0.19)
         gradient: Gradient {
@@ -218,42 +254,51 @@ RowLayout {
     }
 
     // ---- hex, classic colours, saved colours -------------------------------------
+    // The hex row over the swatches, or on the title's row when compact.
+    readonly property real sideHeight: (picker.compact ? 0 : hexRow.implicitHeight + 8 * ui.unit) + side.implicitHeight
+    RowLayout {
+        id: hexRow
+        Layout.row: picker.compact ? 0 : 1
+        Layout.column: 2
+        Layout.alignment: Qt.AlignTop
+        Layout.leftMargin: 6 * ui.unit
+        spacing: 8 * ui.unit
+        // The colour under the marker, as the LED shows it.
+        Rectangle {
+            objectName: "selectedColor"
+            implicitWidth: 34 * ui.unit
+            implicitHeight: 34 * ui.unit
+            radius: theme.radius
+            color: picker.shown ? picker.liveColor : "transparent"
+            border.color: Qt.alpha(theme.foreground, 0.19)
+        }
+        AppTextField {
+            id: hex
+            objectName: "hexField"
+            Layout.preferredWidth: 110 * ui.unit
+            font.family: "monospace"
+            // Selected keys of different colours.
+            placeholderText: picker.shown ? "" : qsTr("Mixed")
+            validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
+            onAccepted: if (!picker.choose(text)) hex.text = picker.shown ? picker.liveColor : ""
+            Binding on text {
+                when: !hex.activeFocus
+                value: picker.shown ? picker.liveColor : ""
+                restoreMode: Binding.RestoreNone
+            }
+        }
+    }
     ColumnLayout {
         id: side
+        Layout.row: picker.compact ? 1 : 2
+        Layout.column: 2
         Layout.alignment: Qt.AlignTop
+        Layout.topMargin: picker.compact ? 0 : 8 * ui.unit - picker.rowSpacing
         Layout.leftMargin: 6 * ui.unit
         Layout.fillWidth: true
         Layout.preferredWidth: picker.sideWidth
         Layout.minimumWidth: 4 * picker.swatchSize + 3 * picker.swatchGap
         spacing: 8 * ui.unit
-
-        RowLayout {
-            spacing: 8 * ui.unit
-            // The colour under the marker, as the LED shows it.
-            Rectangle {
-                objectName: "selectedColor"
-                implicitWidth: 34 * ui.unit
-                implicitHeight: 34 * ui.unit
-                radius: theme.radius
-                color: picker.shown ? picker.liveColor : "transparent"
-                border.color: Qt.alpha(theme.foreground, 0.19)
-            }
-            AppTextField {
-                id: hex
-                objectName: "hexField"
-                Layout.preferredWidth: 110 * ui.unit
-                font.family: "monospace"
-                // Selected keys of different colours.
-                placeholderText: picker.shown ? "" : qsTr("Mixed")
-                validator: RegularExpressionValidator { regularExpression: /#?[0-9a-fA-F]{0,6}/ }
-                onAccepted: if (!picker.choose(text)) hex.text = picker.shown ? picker.liveColor : ""
-                Binding on text {
-                    when: !hex.activeFocus
-                    value: picker.shown ? picker.liveColor : ""
-                    restoreMode: Binding.RestoreNone
-                }
-            }
-        }
 
         Flow {
             Layout.fillWidth: true
