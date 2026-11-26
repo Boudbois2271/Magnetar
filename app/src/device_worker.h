@@ -80,6 +80,9 @@ struct Snapshot {
     };
     static constexpr std::size_t kAdvancedUndoDepth = 20;
     std::vector<AdvancedUndo> advancedUndo;
+    // What each undo replaced, in the same form, so it can be redone; emptied by a new save or
+    // removal. Same depth, same lifetime.
+    std::vector<AdvancedUndo> advancedRedo;
 
     int colorsProfile = -1;              // same, for the per-key colours below
     std::vector<akko::KeyColor> colors;  // Custom effect colours, all 83 keys in keyReadOrder()

@@ -78,7 +78,7 @@ Item {
         id: iconButton
         property string iconName
         property bool iconOnly: false  // in a narrow window: the word moves to a tooltip
-        implicitWidth: iconRow.implicitWidth + 24 * ui.unit
+        implicitWidth: iconRow.implicitWidth + (iconOnly ? 16 : 24) * ui.unit  // tighter around an icon alone
         ToolTip.visible: iconOnly && hovered
         ToolTip.text: text
         ToolTip.delay: 500
@@ -134,14 +134,26 @@ Item {
                 enabled: backend.canUndoTravel
                 onClicked: backend.undoTravel()
             }
-            IconButton {
-                objectName: "undoAdvanced"
+            // Undo and Redo sit together: one pair, closer than the header's other items.
+            RowLayout {
                 visible: page.tab === 2
-                iconName: "undo-2"
-                iconOnly: frame.width < 640 * ui.unit
-                text: qsTr("Undo last change")
-                enabled: backend.canUndoAdvanced
-                onClicked: backend.undoAdvanced()
+                spacing: 8 * ui.unit
+                IconButton {
+                    objectName: "undoAdvanced"
+                    iconName: "undo-2"
+                    iconOnly: frame.width < 640 * ui.unit
+                    text: qsTr("Undo last change")
+                    enabled: backend.canUndoAdvanced
+                    onClicked: backend.undoAdvanced()
+                }
+                IconButton {
+                    objectName: "redoAdvanced"
+                    iconName: "redo-2"
+                    iconOnly: frame.width < 640 * ui.unit
+                    text: qsTr("Redo")
+                    enabled: backend.canRedoAdvanced
+                    onClicked: backend.redoAdvanced()
+                }
             }
         }
 

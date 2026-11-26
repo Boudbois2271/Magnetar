@@ -849,6 +849,16 @@ private slots:
         QCOMPARE(b.advancedKeys()[0].toMap(), socd);
         QCOMPARE(board.writesOf(0x12, 0x00), writes + 2);  // type 00 on D, then the pair
 
+        // Redo saves the Release back, clearing the pair first; Undo then brings the pair again.
+        QVERIFY(b.canRedoAdvanced());
+        b.redoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap().value("type").toString(), QString("release"));
+        QCOMPARE(b.advancedKeys().size(), 1);
+        QVERIFY(!b.canRedoAdvanced());
+        b.undoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap(), socd);
+        QCOMPARE(b.advancedKeys().size(), 1);
+
         // Remove is undone by saving the old record back.
         QVERIFY(b.removeAdvanced({0x2d}));
         QTRY_VERIFY(b.advancedKeys().isEmpty());
@@ -880,6 +890,30 @@ private slots:
         QTRY_VERIFY(!b.canUndoAdvanced());
         QCOMPARE(b.advancedKeys().size(), 1);
         QCOMPARE(b.advancedKeys()[0].toMap(), toggle(100));
+
+        // Redo walks forward again, in order, up to the last change.
+        QVERIFY(b.canRedoAdvanced());
+        b.redoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap(), toggle(110));
+        for (int i = 1; i < depth; ++i)
+            b.redoAdvanced();
+        QTRY_VERIFY(!b.canRedoAdvanced());
+        QCOMPARE(b.advancedKeys().size(), 1);
+        QCOMPARE(b.advancedKeys()[0].toMap(), toggle(100 + 10 * depth));
+        QVERIFY(b.canUndoAdvanced());
+
+        // A new save after an undo drops what was left to redo.
+        b.undoAdvanced();
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap(), toggle(100 + 10 * (depth - 1)));
+        QVERIFY(b.canRedoAdvanced());
+        QVERIFY(b.saveAdvanced({toggle(700)}));
+        QTRY_COMPARE(b.advancedKeys().value(0).toMap(), toggle(700));
+        QVERIFY(!b.canRedoAdvanced());
+        const int saved = board.writesOf(0x12, 0x00);
+        b.redoAdvanced();
+        QTest::qWait(50);
+        QCOMPARE(board.writesOf(0x12, 0x00), saved);
+        QCOMPARE(b.advancedKeys()[0].toMap(), toggle(700));
     }
 
     void macrosAreSavedAndDeleted()

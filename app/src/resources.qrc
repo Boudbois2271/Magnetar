@@ -38,6 +38,7 @@
         <file alias="icons/settings.svg">icons/settings.svg</file>
         <file alias="icons/arrow-left.svg">icons/arrow-left.svg</file>
         <file alias="icons/undo-2.svg">icons/undo-2.svg</file>
+        <file alias="icons/redo-2.svg">icons/redo-2.svg</file>
         <file alias="icons/rotate-ccw.svg">icons/rotate-ccw.svg</file>
         <file alias="icons/circle.svg">icons/circle.svg</file>
         <file alias="icons/square.svg">icons/square.svg</file>

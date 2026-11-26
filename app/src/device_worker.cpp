@@ -173,6 +173,8 @@ void DeviceWorker::loop()
                 s.travelUndo.reset();
             if (!s.advancedUndo.empty() && s.advancedUndo.back().profile != s.profile)
                 s.advancedUndo.clear();
+            if (!s.advancedRedo.empty() && s.advancedRedo.back().profile != s.profile)
+                s.advancedRedo.clear();
             onState_(s);
         } catch (const std::exception &e) {
             // A failed batch is dropped: the user sees the error and the real state on retry,

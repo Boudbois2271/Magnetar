@@ -585,10 +585,9 @@ void storeAdvanced(Snapshot &s, std::vector<akko::AdvancedKey> after, int profil
     s.advancedProfile = profile;
 }
 
-// Keeps what a change to these keys replaces, before writing: if the write fails halfway, Undo
-// can still put the old records back. A record that covers one of the keys brings its other key
-// in too (a SOCD pair is cleared whole).
-void rememberAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t> keys)
+// What a change to these keys replaces: the keys, and the records that cover any of them now. A
+// record that covers one of the keys brings its other key in too (a SOCD pair is cleared whole).
+Snapshot::AdvancedUndo coveringAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t> keys)
 {
     const int profile = kb.profile();
     if (s.advancedProfile != profile)
@@ -604,9 +603,40 @@ void rememberAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t
             if (std::find(keys.begin(), keys.end(), id) == keys.end())
                 keys.push_back(id);
     }
-    s.advancedUndo.push_back({profile, std::move(keys), std::move(before)});
-    if (s.advancedUndo.size() > Snapshot::kAdvancedUndoDepth)
-        s.advancedUndo.erase(s.advancedUndo.begin());
+    return {profile, std::move(keys), std::move(before)};
+}
+
+void pushAdvanced(std::vector<Snapshot::AdvancedUndo> &history, Snapshot::AdvancedUndo entry)
+{
+    history.push_back(std::move(entry));
+    if (history.size() > Snapshot::kAdvancedUndoDepth)
+        history.erase(history.begin());
+}
+
+// Keeps what a change to these keys replaces, before writing: if the write fails halfway, Undo
+// can still put the old records back. A new change leaves nothing to redo.
+void rememberAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<std::uint16_t> keys)
+{
+    pushAdvanced(s.advancedUndo, coveringAdvanced(kb, s, std::move(keys)));
+    s.advancedRedo.clear();
+}
+
+// Undo and Redo: puts back the last entry of `from` (its keys cleared with 12 00 type 00, then its
+// records saved again) and keeps what that replaced on `to`, so the step can be reversed.
+// The entry leaves `from` only once both writes worked: a failed step can simply be tried again.
+void stepAdvanced(akko::Keyboard &kb, Snapshot &s, std::vector<Snapshot::AdvancedUndo> &from,
+                  std::vector<Snapshot::AdvancedUndo> &to)
+{
+    const int profile = kb.profile();
+    if (from.empty() || from.back().profile != profile)
+        return;
+    const auto entry = from.back();
+    auto reverse = coveringAdvanced(kb, s, entry.keys);
+    storeAdvanced(s, kb.clearAdvanced(reverse.keys), profile);
+    if (!entry.before.empty())
+        storeAdvanced(s, kb.setAdvanced(entry.before), profile);
+    from.pop_back();
+    pushAdvanced(to, std::move(reverse));
 }
 
 }  // namespace
@@ -690,18 +720,12 @@ bool Backend::removeAdvanced(const QVariantList &keys)
 
 void Backend::undoAdvanced()
 {
-    post("", [](akko::Keyboard &kb, Snapshot &s) {
-        const int profile = kb.profile();
-        if (s.advancedUndo.empty() || s.advancedUndo.back().profile != profile)
-            return;
-        const auto undo = s.advancedUndo.back();
-        // Cleared first (12 00 type 00, both keys of a pair), then the old records saved back.
-        // Dropped from the history only once it worked: both steps can simply be tried again.
-        storeAdvanced(s, kb.clearAdvanced(undo.keys), profile);
-        if (!undo.before.empty())
-            storeAdvanced(s, kb.setAdvanced(undo.before), profile);
-        s.advancedUndo.pop_back();
-    });
+    post("", [](akko::Keyboard &kb, Snapshot &s) { stepAdvanced(kb, s, s.advancedUndo, s.advancedRedo); });
+}
+
+void Backend::redoAdvanced()
+{
+    post("", [](akko::Keyboard &kb, Snapshot &s) { stepAdvanced(kb, s, s.advancedRedo, s.advancedUndo); });
 }
 
 // ---- macros ----------------------------------------------------------------
