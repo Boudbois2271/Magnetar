@@ -129,8 +129,8 @@ reflected in `akko-protocol.md`.
   bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected
   (2026-11-25), the others weren't tried. Whether the vendor app can make them is unknown. Stage bytes that match no pattern are still shown as "another pattern" and kept.
 - Advanced tab: Undo walks back the last 20 saves or removals, held in memory only (gone when
-  the app closes) and cleared on a profile switch. No Redo. Several undos in a row not tried on
-  the board.
+  the app closes) and cleared on a profile switch. No Redo. Several undos in a row worked on the
+  board (2026-11-26).
 - Advanced tab: from the minimum window size up the SOCD, DKS and Multi tags show whole on 1u
   keys; the longer Mod-Tap, Toggle and Release tags are cut there ("Mod…") until the window is
   wider. Shorter tag names would fix it (a wording choice, not made).
@@ -186,7 +186,8 @@ reflected in `akko-protocol.md`.
   the typing keys change; Enter, F1, arrows… keep their names. The CLI stays on US names.
 - Keys page: keycap legends fit whole from the app's minimum window size up (the drawing never
   goes under 560 px at 14 px text). In a window tiled narrower than that (a third of a 1080p
-  screen) the longest 1u names ("Échap") can still be cut. At the minimum window height the
+  screen) the longest 1u names ("Échap") can still be cut; no window rule forces the
+  minimum size (kept on purpose). At the minimum window height the
   pages run past the bottom edge (they already did before the larger drawing).
 - Legends on LED colours (Lighting, Mural, and lit legends, which no page uses since per-key
   colour moved to Lighting) reach WCAG 4.5:1 against the cap as drawn (tests, offscreen screenshots
