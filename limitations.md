@@ -167,7 +167,6 @@ reflected in `akko-protocol.md`.
 - Keys page: "Reset … layer to factory" (`11 LL`, then the layer read again) is offered on Default and
   Fn only (Fn1's wasn't captured), untried on the board. It resets at once, no confirmation; undone
   only by setting the keys again. Per-key "Restore default" uses the factory table in `core/keymap.cpp`.
-- Keys → Action: the bind categories and the binds below them look the same (no visual separation yet).
 - Keys page: labels are the US keycap names; on an AZERTY system the letters still show QWERTY.
 - Keys page: at the smallest window size the keycap labels shrink and some get cut ("Éc…").
 - Keys → Colour lights each legend in its LED colour (on a light theme, on a dark cap); a dark
