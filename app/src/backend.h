@@ -61,6 +61,7 @@ class Backend : public QObject {
     Q_PROPERTY(bool advancedReady READ advancedReady NOTIFY stateChanged)
     Q_PROPERTY(QVariantList advancedKeys READ advancedKeys NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap advancedLimits READ advancedLimits CONSTANT)
+    Q_PROPERTY(bool canUndoAdvanced READ canUndoAdvanced NOTIFY stateChanged)
     // Colour tab: key ID (string) → "#rrggbb", the colours the Custom effect shows.
     Q_PROPERTY(bool colorsReady READ colorsReady NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap keyColors READ keyColors NOTIFY stateChanged)
@@ -132,6 +133,7 @@ public:
     // as in actionInfo, "" for an empty slot.
     bool advancedReady() const { return m_state.advancedProfile >= 0; }
     QVariantList advancedKeys() const { return m_advanced; }
+    bool canUndoAdvanced() const { return m_state.advancedUndo.has_value(); }
     bool colorsReady() const { return m_state.colorsProfile >= 0; }
     QVariantMap keyColors() const { return m_colors; }
     int customEffect() const { return akko::kEffectCustom; }
@@ -205,6 +207,9 @@ public:
     Q_INVOKABLE bool saveAdvanced(const QVariantList &records);
     // Removes these keys' advanced keys (a SOCD pair whole, from either key).
     Q_INVOKABLE bool removeAdvanced(const QVariantList &keys);
+    // Puts back what the last save or removal replaced: its keys are cleared, then the records
+    // they held before are saved again.
+    Q_INVOKABLE void undoAdvanced();
 
     // Gives these keys one colour for the Custom effect (kept whatever effect is on), then the
     // page shows the board's read-back. False, and nothing sent, for a bad key or colour.

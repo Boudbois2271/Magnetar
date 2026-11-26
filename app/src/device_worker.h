@@ -70,6 +70,15 @@ struct Snapshot {
     int advancedProfile = -1;                // same, for the advanced keys below
     std::vector<akko::AdvancedKey> advanced;  // in the board's list order
 
+    // What the last advanced-key save or removal replaced, so it can be undone (one level):
+    // every key it touched, and the records that covered any of them before.
+    struct AdvancedUndo {
+        int profile;
+        std::vector<std::uint16_t> keys;
+        std::vector<akko::AdvancedKey> before;
+    };
+    std::optional<AdvancedUndo> advancedUndo;
+
     int colorsProfile = -1;              // same, for the per-key colours below
     std::vector<akko::KeyColor> colors;  // Custom effect colours, all 83 keys in keyReadOrder()
 
