@@ -36,8 +36,9 @@ before/after, never sent by us · **DECODED** = read-only structure, clear · **
   - `08 gg oo 00` lighting control: group gg 00 effect, 01 direction, 02 colour, 03 brightness, 04 speed;
     op oo 00 cycle, 01 increase / left, 02 decrease / right (SEEN, all 15, `akko-capture13.txt` mark 10, table
     below). Brightness Cycle `08 03 00 00` steps 0→5→10→15→20 on the board (`akko-capture11.txt` mark 14).
-    `08 09 nn 00` (factory Fn+Home/End/PgUp/PgDn, nn = 01/10/06/0b, which are effect IDs) = select effect nn:
-    GUESS, not in the vendor's list
+    `08 09 nn 00` (factory Fn+Home/End/PgUp/PgDn, nn = 01/10/06/0b, which are effect IDs) = cycle the effects
+    of a group starting at nn: Fn+Home 01–05, Fn+PgUp 06–0a, Fn+PgDn 0b–0f, Fn+End 10–13, wrapping back to the
+    group's first (SEEN on the board through the `fe 0b 01` reports, 2026-11-26). Not in the vendor's list
   - `09 00 00 nn` switch to profile nn (Fn+F9/F10/F11) GUESS, very likely
   - `0d nn 00 00` layer key: nn 00 = Fn, 01 = Fn1 ("Function Key 1", SEEN capture8 mark 8). Moving a key
     off Fn1 shows a client-side warning (Fn1 layer unreachable without an Fn1 key); nothing is sent until Continue
@@ -122,7 +123,9 @@ either toggle as the vendor app labels it):
 |---|---|---|
 | `04 01` / `84 01` | KNOWN | `[effect, colour mode, R, G, B, brightness 0–20, speed 0–4]`. Colour mode 07 = random/rainbow, 00 = fixed colour |
 | `04 02` | KNOWN | effect only `[effect]`. Switching effect resets speed to 2 |
-| `fe 0b` | SEEN | unsolicited IN `fe 0b 02 bb` after an on-board brightness change: bb = new brightness (`00 05 0a 0f 14` while cycling). `akko-capture11.txt` mark 14; the same seen on the vendor node with Fn shortcuts and no app open, checksum valid (2026-11-25) |
+| `fe 0b` | SEEN | unsolicited IN `fe 0b kk …` after an on-board (Fn shortcut) lighting change, checksum valid. kk `01` effect: `fe 0b 01 ee` (Fn+Home/End/PgUp/PgDn); `02` brightness: `fe 0b 02 bb` (Fn+Up/Down; `00 05 0a 0f 14` while cycling, `akko-capture11.txt` mark 14); `03` speed: `fe 0b 03 ss` (Fn+= `04`, Fn+- `03`); `04` colour: `fe 0b 04 mm rr gg bb` = colour mode and RGB (Fn+\ from mode `01` green: `02 0000ff`, `03 ff6100`, `04 ff00ff`, `05 ffff00`, `06 ffffff`, `07 00ff00` (rainbow), `00 00ff00`). After an effect report `84 01` showed that effect with its own colour mode, colour, brightness and speed (effect `04`: `07 ff0000`, 20, 2, where effect `01` had `00 00ff00`, 15, 3). Speed and colour reports matched the next `84 01`. Logged on the vendor node (hidraw opened read-only, no app), one shortcut at a time, 2026-11-26 (kk 02 first seen 2026-11-25). Magnetar shows them live |
+| `fe 09` | SEEN | unsolicited IN `fe 09 pp` after an on-board profile switch, pp = new profile, 0-based: Fn+F10 `01`, Fn+F11 `02`, Fn+F9 `00`. Same log, 2026-11-26. Magnetar reads the board again on it |
+| — | SEEN | no report at all: Fn+Left/Right (`08 01 02/01 00`, `84 01` unchanged after them), Fn+Win, Fn+W. Fn+Win and Fn+W gave only all-zero reports `07`, `02`, `04` on interface 1 (hidraw1), key releases most likely; no other Fn shortcut gave anything there. Same log, 2026-11-26 |
 | `06 00` / `86 00` | KNOWN | custom per-key colour: list of `key u16, R, G, B` (5 B each). Read: key IDs, 11 per packet, 8 packets for all keys. Write: one single-packet frame per batch (up to 8 keys seen, `akko-capture2.txt` "selecting F row"), the vendor app reads each batch back with `86 00`. Shown under effect `13` (Custom). KNOWN 2026-11-21: core `setColors` set F12 blue under Custom, read back and seen on the board, then restored. Whether a write sticks under another effect is untested |
 | `08 04` | KNOWN | **Mural** frame, not echoed, nothing stored. Payload = one byte stream of groups `colour u16 (RGB565, BE), n, n × LED index`, cut into 56-byte (`len 38`) packets, groups running across packets; every LED appears once per frame. Solid red/green/blue = `f8 00` / `07 e0` / `00 1f` + `53` (83) + all indices, 2 packets (`akko-capture10.txt` Mural marks). The vendor app resends a still image every ~1008 ms and streams animations (Rainbow, 5 packets) every ~32 ms (`akko-capture11.txt` mark 8); Colour Enhancement is applied in the browser. There is no stop command: the app stops sending and the board returns to its stored effect (`akko-capture11.txt` marks 8–11). KNOWN 2026-11-22: core `streamMural` showed solid red, a one-key sweep in key order, and an 83-colour frame (6 packets, more than the vendor app sent), then the board went back to its Custom colours 1–3 s after the last frame |
 
