@@ -123,8 +123,10 @@ reflected in `akko-protocol.md`.
 - Advanced tab: an advanced key fires on the Default layer only: Fn+Insert with a Release trigger
   on Insert did not fire it (2026-11-25). How it combines with the key's keymap action isn't
   known. Per profile (checked 2026-11-26), read again on a profile switch.
-- Advanced tab: clearing one key of a SOCD pair might leave the other key's record on the
-  board; Magnetar always clears both, like the vendor app.
+- Advanced tab: clearing one key of a SOCD pair leaves the other key's record on the board
+  (checked 2026-11-26). Magnetar always clears both, like the vendor app, so it never makes that
+  state; if another tool did, Magnetar would show the whole pair from the one key left, and
+  clearing it from Magnetar clears both. Whether such a leftover still acts as SOCD isn't known.
 - Advanced tab: a DKS row can hold several strokes (e.g. once at ↓1, then held ↑1→↑2): all 34
   patterns of the four points are offered. Rows of several strokes are composed from the stage
   bits (`02`/`04`/`08`), never captured; "Once ↓1 ↑1" typed b then b on the board as expected

@@ -200,7 +200,11 @@ the board. The factory keymap of layers 00 and 01 is the first `83` read of `akk
 Frames: `12 00 <type> 01 00 len payload` (the arg byte is the type), echoed. Details from
 `akko-capture2.txt` Advanced Key marks, `akko-capture10.txt` DKS marks, `akko-capture11.txt` marks 29–32:
 - SOCD's first byte is always `02` (maybe a key count); the record is stored on both keys and either
-  key reads it back whole.
+  key reads it back whole. KNOWN: the two copies are independent. A type `00` clear on one key
+  removes only that key's copy: after PgUp + PgDn (last input), clearing PgUp alone left the list
+  `[0067]`, `92 00 0066` answered type `00`, and `92 00 0067` still answered the whole pair record
+  `02, 0066, 0067, 01` (our own board read, 2026-11-26; whether the leftover still acts as SOCD
+  wasn't tried). Clearing PgDn then emptied the list. So clear both keys, as the vendor app does.
 - Multi-Point always carries 3 slots; an unused slot is action `00 00 00 00` with a depth
   (A only = `03, 00000004 007f, 00000000 00e9, 00000000 01c0`).
 - DKS rows as the vendor UI makes them: one click = `0a` at that stage; a drag from stage a to b =
